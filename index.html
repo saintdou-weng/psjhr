@@ -328,6 +328,14 @@ table.t.list tr.sel td{background:#FFF7ED}
 .cloud-badge.busy{background:#FFFBEB;color:#92400E;border-color:#FCD34D}
 .cloud-badge.err{background:#FEF2F2;color:#B91C1C;border-color:#FCA5A5}
 .cloud-badge.off{background:#F1F5F9;color:#64748B}
+.sync-card{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.sync-card .sc-main{flex:1 1 260px;min-width:0}.sync-card .sc-stats{display:flex;gap:14px;flex-wrap:wrap;margin-top:4px}
+.sync-card .sc-stats span{font-size:12.5px;color:var(--muted)}.sync-card .sc-stats b{color:var(--ink);font-weight:600}
+.sync-card .sc-act{display:flex;gap:8px;flex-wrap:wrap}
+.pick{width:100%;border-collapse:collapse}.pick td{padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+.pick .yrs{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:6px}.pick .yrs label{font-size:12px;white-space:nowrap;cursor:pointer}
+.pick .yrs label i{font-style:normal;color:var(--warn)}
+.tgbtns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;margin-top:6px}.tgbtns span{background:#E6F2EF;color:#0F5E56;border-radius:6px;padding:6px 8px;font-size:12.5px;text-align:center}
 .panel.cloud-ask{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;border-color:#93C5FD;background:#EFF6FF}
 @media (max-width:860px){.cloud-badge{order:4;max-width:46vw;overflow:hidden;text-overflow:ellipsis}}
 
@@ -386,13 +394,13 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
 <input type="file" id="fileIn" accept=".xlsx,.xls,.XLS,.csv" multiple hidden>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-/* ============ VRT HR / PSJHR v0.1.0 (2026-10-09) ============
+/* ============ VRT HR / PSJHR v0.1.1 (2026-10-15) ============
    Legacy HR (BEST per.exe) = READ ONLY. This page never connects to it: all data comes from the
    Excel files exported from 人事管理系統 (下載\HR_系統匯出). Same architecture as VRT ERP / PSJERP:
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.1.0';
+const APPV='0.2.0';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -416,12 +424,17 @@ const T={
  dashboard:['總覽','Summary','សង្ខេប'], 'smart-import':['智慧匯入','Smart Import','នាំចូលឆ្លាតវៃ'],
  emp:['員工','Employees','បុគ្គលិក'], joinleave:['到職 / 離職','Joiners & Leavers','ចូល / ចេញការងារ'], basepay:['薪資設定','Pay Setup','ការកំណត់ប្រាក់ខែ'], annual:['特休','Annual Leave','ឈប់សម្រាកប្រចាំឆ្នាំ'],
  att:['考勤工時','Attendance','វត្តមាន / ម៉ោងធ្វើការ'], attexc:['異常工時','Exceptions','ម៉ោងមិនប្រក្រតី'], leave:['請假','Leave','ការឈប់សម្រាក'], holiday:['假日行事曆','Holidays','ថ្ងៃឈប់សម្រាក'], jobcode:['職務代碼','Job Codes','លេខកូដតួនាទី'],
+ meal:['伙食費','Meal fee','ថ្លៃអាហារ'], payroll:['薪資估算','Payroll estimate','ប៉ាន់ប្រាក់ខែ'], benefits:['福利結算','Benefits','អត្ថប្រយោជន៍'], g_pay:['薪資福利','Pay & benefits','ប្រាក់ខែ'],
+ sen_pay:['年資加給','Seniority pay','ប្រាក់អតីតភាព'], lang_pay:['語言加給','Language','ភាសា'], meal_rate:['伙食費率（瑞爾/天）','Meal rate (KHR/day)','អត្រាអាហារ'], eff_from:['生效日','Effective from','ចាប់ពី'], ot_hrs:['加班時數（覆寫）','OT hours (override)','ម៉ោងបន្ថែម'], unpaid_hrs:['時假時數（覆寫）','Unpaid hours (override)','ម៉ោងគ្មានប្រាក់'], incentive:['獎勵','Incentive','រង្វាន់'], work_deduct:['工作扣款','Work deduction','កាត់'], al_paid:['年假給付','Annual-leave pay','ប្រាក់ឈប់ប្រចាំឆ្នាំ'], adjust:['補扣金額','Adjustment','កែតម្រូវ'], note:['備註','Note','កំណត់សម្គាល់'],
+ sub_meal:['每月 01–15、16–月底兩期。依人事系統出勤：每人每天 費率 × 實際工時 ÷ 8（同 HRA-PAY 餐費表），並與 HRA-PAY 實發餐費對帳。','Two periods a month (01–15, 16–end). From attendance: rate × actual hours ÷ 8 per day (as the HRA-PAY meal sheet), reconciled with HRA-PAY actual meal fees.','ថ្លៃអាហារពីវត្តមាន'],
+ sub_payroll:['依 HRA-PAY 薪資表公式，用出勤估算每月預支（1–15 日）與月底實發，並與 HRA-PAY 實發對帳。','Estimates the advance (1st–15th) and month-end net pay from attendance using the HRA-PAY payroll formulas, reconciled with HRA-PAY actuals.','ប៉ាន់ប្រាក់ខែ'],
+ sub_benefits:['特休、年資金（6／12 月）、產假、離職結算，算法參考 HRA-PAY／HRA Portal。','Annual leave, seniority pay (June/December), maternity and leaving settlements, following HRA-PAY / HRA Portal.','អត្ថប្រយោជន៍'],
  sync:['同步中心','Sync Center','មជ្ឈមណ្ឌលសមកាលកម្ម'], reports:['報告','Reports','របាយការណ៍'], settings:['設定','Settings','ការកំណត់'],
  legacy_ro:['BEST 人事系統唯讀','BEST HR read-only','ប្រព័ន្ធ HR ចាស់ អានតែប៉ុណ្ណោះ'],
- proto_note:['v0.1.0 · 真實資料來自人事系統匯出檔，不連線 per.exe','v0.1.0 · real data from HR export files; no link to per.exe','v0.1.0 · ទិន្នន័យពិតពីឯកសារ HR'],
+ proto_note:['v0.2.0 · 真實資料來自人事系統匯出檔＋網頁編輯，不寫回 per.exe','v0.2.0 · HR export files + web edits; never written back to per.exe','v0.2.0 · ទិន្នន័យពិតពីឯកសារ HR'],
  erp_entry:['VRT ERP（PSJERP）','VRT ERP (PSJERP)','VRT ERP'], hra_entry:['AC HRA Portal','AC HRA Portal','AC HRA Portal'], prod_entry:['VRT Prod 生產系統','VRT Prod production','ប្រព័ន្ធផលិតកម្ម VRT Prod'],
  back_portal:['回總平台','Back to portal','ត្រឡប់ទៅវិបផតថល'], search_ph:['搜尋員工編號、姓名、部門…','Search employee no., name, department…','ស្វែងរកលេខបុគ្គលិក ឈ្មោះ…'],
- D:['日','D','ថ្ងៃ'], W:['週','W','សប្ដាហ៍'], M:['月','M','ខែ'], Y:['年','Y','ឆ្នាំ'], C:['自訂','Custom','កំណត់'], ALL:['全部','All','ទាំងអស់'],
+ D:['日','D','ថ្ងៃ'], W:['週','W','សប្ដាហ៍'], H:['半月','½ M','កន្លះខែ'], M:['月','M','ខែ'], Y:['年','Y','ឆ្នាំ'], C:['自訂','Custom','កំណត់'], ALL:['全部','All','ទាំងអស់'],
  export:['匯出 Excel','Export Excel','នាំចេញ Excel'], close:['關閉','Close','បិទ'], cancel:['取消','Cancel','បោះបង់'], send_tg:['發 Telegram 摘要','Send Telegram summary','ផ្ញើសង្ខេប Telegram'],
  open_solo:['單獨開啟','Open standalone','បើកដាច់ដោយឡែក'], direct_url:['直接網址','Direct URL','URL ផ្ទាល់'], status:['狀態','Status','ស្ថានភាព'],
  records:['筆','records','កំណត់ត្រា'], rows_shown:['顯示','Showing','បង្ហាញ'], of:['/','of','នៃ'], prev:['上一頁','Prev','មុន'], next:['下一頁','Next','បន្ទាប់'], filter:['篩選此頁…','Filter this page…','ត្រងទំព័រនេះ…'],
@@ -470,9 +483,9 @@ const IDB={_db:null,
    is stored one batch per IndexedDB key and loaded only for the months on screen; DB.attsum keeps per-batch summaries. */
 const SNAP={emp:1,emp2:1,contact:1,basepay:1,jobcode:1};
 const BIG={att:1};
-function emptyDB(){return {_v:1,emp:[],emp2:[],contact:[],basepay:[],jobcode:[],joinleave:[],leave:[],attexc:[],annual:[],holiday:[],attsum:{},asof:{},snaps:{},hrfiles:[],importlog:[],audit:[],notes:{},sync:{gas:'',time:'16:00'}}}
+function emptyDB(){return {_v:1,emp:[],emp2:[],contact:[],basepay:[],jobcode:[],joinleave:[],leave:[],attexc:[],annual:[],holiday:[],attsum:{},asof:{},snaps:{},hrfiles:[],importlog:[],audit:[],notes:{},edits:{},config:{},sys:{},hp:{pay:{},adv:{},meal:{},at:{}},payadj:[],conflicts:[],sync:{gas:'',time:'16:00'}}}
 let DB=emptyDB(); let SAVE_OK=true;
-async function loadDB(){let d=await IDB.get('db_v1');if(!d)d=emptyDB();const base=emptyDB();Object.keys(base).forEach(k=>{if(d[k]==null)d[k]=base[k]});DB=d;if(!IDB._db)SAVE_OK=false;GC.clear()}
+async function loadDB(){let d=await IDB.get('db_v1');if(!d)d=emptyDB();const base=emptyDB();Object.keys(base).forEach(k=>{if(d[k]==null)d[k]=base[k]});DB=d;if(!IDB._db)SAVE_OK=false;GC.clear();try{applyEdits()}catch(e){console.error(e)}}
 let persistT; function persist(){clearTimeout(persistT);persistT=setTimeout(async()=>{const ok=await IDB.set('db_v1',DB);if(!ok&&SAVE_OK){SAVE_OK=false;toast(tt('瀏覽器無法儲存資料（可能是無痕模式），關閉後會遺失','This browser cannot save data (private mode?) — it will be lost on close'))}},400)}
 const GC=new Map();   // computed caches, cleared on any data change
 const ATT_CACHE=new Map();   // batch key → rows (objects); small LRU
@@ -699,6 +712,7 @@ async function storeBatch(rep,key,meta,recs){
   DB[ds]=DB[ds].filter(r=>{if(r.import_key===key)return false;if(ov(r)){touched.add(r.import_key);return false}return true});removed=before-DB[ds].length;for(const r of recs)DB[ds].push(r);
   touched.forEach(k=>{const f=(DB.hrfiles||[]).find(x=>x.key===k);if(!f)return;const n=DB[ds].filter(r=>r.import_key===k).length;if(!n){DB.hrfiles=DB.hrfiles.filter(x=>x.key!==k);(DB.dropq=DB.dropq||[]).push(k)}else{f.rows=n;f.dirty=true}})}
  DB.hrfiles=(DB.hrfiles||[]).filter(f=>f.key!==key); DB.hrfiles.unshift(meta); GC.clear();
+ if(typeof ED_FIELDS!=='undefined'&&ED_FIELDS[ds])applyEdits(ds);
  return {added:recs.length,removed};
 }
 async function applyHR(P,fileName){
@@ -748,25 +762,68 @@ async function pullBatch(m){
 }
 let NOTEQ=[];
 function cloudNote(no,notes){DB.notes[no]={notes,at:nowStamp()};NOTEQ=NOTEQ.filter(x=>x.id!==no);NOTEQ.push({id:no,notes});persist();if(cloudReady())cloudSync(false)}
-async function cloudSync(manual){
+async function cloudSync(manual,filt){
  if(CLOUD.busy)return; if(!cloudReady()){cloudSetState('off');if(manual)toast(tt('請先在「設定 → 雲端同步」填後端網址並輸入同步密碼','Set the backend URL and sync password in Settings → Cloud sync first'));return}
  CLOUD.busy=true; let pulled=0,pushed=0;
  try{
   cloudSetState('busy',tt('讀取雲端清單…','Reading cloud list…'));
-  const man=await cget({action:'hr_manifest'}); CLOUD.url=man.url||''; const files=man.files||[]; CLOUD.files=files.length;
+  const man=await cget({action:'hr_manifest'}); CLOUD.url=man.url||''; const files=man.files||[]; CLOUD.files=files.length; CLOUD.man=files; const ok=x=>!filt||filt(x.rep,batchYear(x));
   for(const k of (DB.dropq||[]).splice(0)){try{await cpost({action:'hr_drop',key:k})}catch(e){}}
   const justPushed=new Set();
-  for(const f of (DB.hrfiles||[]).filter(f=>f.dirty||!f.version)){await pushBatch(f);justPushed.add(f.key);pushed++;persist()}
-  for(const m of files){if(justPushed.has(m.key))continue;const loc=(DB.hrfiles||[]).find(f=>f.key===m.key);if(loc&&(loc.dirty||String(loc.version)===String(m.version)))continue;await pullBatch(m);pulled++;persist()}
+  DB.sys=DB.sys||{};for(const nm of ['edits','config']){if(DB.sys[nm]&&DB.sys[nm].dirty){cloudSetState('busy',tt('上傳網頁編輯…','Uploading edits…'));await pushSys(nm);justPushed.add(nm);persist()}}
+  for(const f of (DB.hrfiles||[]).filter(f=>(f.dirty||!f.version)&&ok(f))){await pushBatch(f);justPushed.add(f.key);pushed++;persist();CLOUD.man=CLOUD.man.filter(m=>m.key!==f.key).concat([{key:f.key,rep:f.rep,label:f.label,range:f.range,year:f.year,asof:f.asof,version:f.version}]);CLOUD.files=CLOUD.man.length}
+  for(const m of files){if(SYS_REPS.has(m.rep)){if(!justPushed.has(m.key)&&String((DB.sys[m.rep]||{}).version)!==String(m.version)){cloudSetState('busy',tt('下載網頁編輯…','Downloading edits…'));await pullSys(m);pulled++;persist()}continue}if(justPushed.has(m.key)||!ok(m))continue;const loc=(DB.hrfiles||[]).find(f=>f.key===m.key);if(loc&&(loc.dirty||String(loc.version)===String(m.version)))continue;await pullBatch(m);pulled++;persist()}
   for(const n of NOTEQ.splice(0)){await cpost({action:'hr_note',id:n.id,notes:n.notes,user:'paul.weng'})}
   (man.notes||[]).forEach(n=>{const cur=DB.notes[n.id];if(cur&&cur.at>String(n.at))return;DB.notes[n.id]={notes:String(n.notes||''),at:String(n.at||'')}});
   CLOUD.last=nowStamp(); LS.set('cloud_last',CLOUD.last); cloudSetState('ok'); persist();
-  if(pulled||pushed||manual){toast(tt('雲端同步完成','Cloud sync done')+(pushed?` · ${tt('上傳','up')} ${pushed}`:'')+(pulled?` · ${tt('下載','down')} ${pulled}`:''));rerender()}
+  if(pulled||pushed||manual){toast((filt?tt('選擇更新完成','Selected update done'):tt('雲端同步完成','Cloud sync done'))+(pushed?` · ${tt('上傳','up')} ${pushed}`:'')+(pulled?` · ${tt('下載','down')} ${pulled}`:''));rerender()}
  }catch(e){console.error(e);cloudSetState('err',String(e.message||e));if(manual||/密碼|KEY/.test(String(e.message)))toast(tt('雲端同步失敗：','Cloud sync failed: ')+(e.message||e))}
- finally{CLOUD.busy=false}
+ finally{CLOUD.busy=false;if(CUR==='dashboard'&&$('#syncCard'))$('#syncCard').outerHTML=syncCardHTML()}
 }
 async function cloudSaveKey(id){const v=($('#'+id)||{}).value||'';LS.set('synckey',v.trim());const g=$('#gasSet');if(g){DB.sync.gas=g.value.trim();persist()}CLOUD.state='idle';await cloudSync(true);rerender()}
-async function sendTelegram(text){if(!cloudReady())throw new Error(tt('雲端未連線','Cloud not connected'));return cpost({action:'hr_tg',text})}
+async function sendTelegram(text,buttons){if(!cloudReady())throw new Error(tt('雲端未連線','Cloud not connected'));return cpost({action:'hr_tg',text,buttons:buttons||[]})}
+/* ---------- selective cloud update (首頁：全部更新 / 選擇更新) ---------- */
+function batchYear(x){const r=PJ(x.range);const a=(Array.isArray(r)&&r[0])?String(r[0]):'';return (a.slice(0,4))||(x.year?String(x.year):'')||String(x.asof||'').slice(0,4)}
+function syncState(){const loc=DB.hrfiles||[],man=(CLOUD.man||null)&&CLOUD.man.filter(m=>!SYS_REPS.has(m.rep));const L=new Map(loc.map(f=>[f.key,f]));const out=[];
+ loc.forEach(f=>{if(f.dirty||!f.version)out.push({rep:f.rep,yr:batchYear(f),st:'up'})});
+ if(man)man.forEach(m=>{const f=L.get(m.key);if(f&&(f.dirty||!f.version))return;out.push({rep:m.rep,yr:batchYear(m),st:(!f||String(f.version)!==String(m.version))?'down':'ok'})});
+ loc.forEach(f=>{if(!(f.dirty||!f.version)&&!(man||[]).some(m=>m.key===f.key))out.push({rep:f.rep,yr:batchYear(f),st:man?'local':'ok'})});
+ Object.entries(DB.sys||{}).forEach(([nm,v])=>{if(v&&v.dirty)out.push({rep:nm,yr:'',st:'up'})});
+ return out}
+function syncCardHTML(){if(!cloudReady())return '';const S2=syncState(),up=S2.filter(x=>x.st==='up').length,down=S2.filter(x=>x.st==='down').length;
+ const stc=CLOUD.busy?stChip('warn',CLOUD.msg||tt('同步中…','Syncing…')):CLOUD.state==='err'?stChip('crit',tt('同步失敗','Sync failed')):(up||down)?stChip('warn',tt('有待更新','Updates pending')):stChip('good',tt('已是最新','Up to date'));
+ return `<div class="panel sync-card" id="syncCard"><div class="sc-main"><b>☁️ ${tt('雲端同步','Cloud sync')}</b> ${stc}<div class="sc-stats"><span>${tt('上次','Last')} <b class="mono">${esc((CLOUD.last||'—').slice(5,16))}</b></span><span>${tt('本機','Device')} <b>${fmt((DB.hrfiles||[]).length)}</b> ${tt('批','batches')}</span><span>${tt('雲端','Cloud')} <b>${CLOUD.man?fmt(CLOUD.man.length):'—'}</b> ${tt('批','batches')}</span><span>${tt('待上傳','To upload')} <b>${fmt(up)}</b></span><span>${tt('雲端有新資料','New in cloud')} <b>${CLOUD.man?fmt(down):'—'}</b></span></div></div>
+ <div class="sc-act"><button class="btn pri" ${CLOUD.busy?'disabled':''} onclick="cloudSync(true)">🔄 ${tt('全部更新','Update all')}</button><button class="btn" ${CLOUD.busy?'disabled':''} onclick="syncPick()">☑️ ${tt('選擇更新…','Choose…')}</button><a class="btn sm" href="#sync">${tt('同步中心','Sync Center')} →</a></div></div>`}
+async function syncPick(){if(!cloudReady()){toast(tt('請先在「設定 → 雲端同步」輸入同步密碼','Enter the sync password in Settings first'));return}
+ if(CLOUD.busy){toast(tt('同步中，請稍候','Sync in progress'));return}
+ showModal(`<h2>☑️ ${tt('選擇更新','Choose what to update')}</h2><p class="muted small">${tt('讀取雲端清單…','Reading cloud list…')}</p>`);
+ try{const man=await cget({action:'hr_manifest'});CLOUD.man=man.files||[];CLOUD.files=CLOUD.man.length;CLOUD.url=man.url||CLOUD.url}catch(e){showModal(`<h2>☑️ ${tt('選擇更新','Choose what to update')}</h2><div class="note crit">${tt('讀取雲端失敗：','Could not read the cloud: ')}${esc(e.message||e)}</div><div style="margin-top:10px"><button class="btn" onclick="closeDrawer()">${esc(t('cancel'))}</button></div>`);return}
+ const S2=syncState();const reps=REPORTS.map(r=>r.k).filter(k=>S2.some(x=>x.rep===k));
+ const rows=reps.map(k=>{const R=REPORTS.find(r=>r.k===k);const X=S2.filter(x=>x.rep===k);const c=st=>X.filter(x=>x.st===st).length;const pend=c('up')+c('down');
+  const yrs=[...new Set(X.map(x=>x.yr).filter(Boolean))].sort().reverse();const multi=yrs.length>1;
+  const yb=multi?`<div class="yrs">${yrs.map(y=>{const p=X.filter(x=>x.yr===y&&(x.st==='up'||x.st==='down')).length;return `<label><input type="checkbox" data-y="${k}|${y}" ${p?'checked':''} onchange="pickSync()"> ${y}${p?` <i>(${p})</i>`:''}</label>`}).join('')}</div>`:'';
+  return `<tr><td style="width:28px"><input type="checkbox" data-g="${k}" ${pend?'checked':''} onchange="pickGroup(this)"></td><td><b>${esc(LANG===1?R.en:R.zh)}</b><div class="small muted">${tt('雲端','cloud')} ${fmt(X.filter(x=>x.st!=='up'&&x.st!=='local').length)} · ${tt('待上傳','to upload')} ${fmt(c('up'))} · ${tt('待下載','to download')} ${fmt(c('down'))}</div>${yb}</td></tr>`}).join('');
+ showModal(`<h2>☑️ ${tt('選擇更新','Choose what to update')}</h2><p class="small muted">${tt('勾選要更新的資料（工時等可只勾某幾年）。已勾的會上傳本機新匯入的、下載雲端較新的；沒勾的不動。括號＝待更新批數。','Tick what to update (attendance etc. can be limited to some years). Ticked items upload new local imports and download newer cloud batches; unticked ones are left alone. (n) = batches pending.')}</p>
+ <div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0"><button class="btn sm" onclick="pickAll(1)">${tt('全選','All')}</button><button class="btn sm" onclick="pickAll(0)">${tt('全不選','None')}</button><button class="btn sm" onclick="pickAll(2)">${tt('只選有更新的','Only pending')}</button></div>
+ <div style="max-height:52vh;overflow:auto"><table class="pick"><tbody>${rows||`<tr><td class="muted">${esc(t('no_data'))}</td></tr>`}</tbody></table></div>
+ <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn pri" id="pickGo" onclick="runPick()">🔄 ${tt('更新所選','Update selected')}</button><button class="btn" onclick="closeDrawer()">${esc(t('cancel'))}</button><span class="small muted" id="pickN" style="align-self:center"></span></div>`);
+ pickSync()}
+function pickGroup(cb){$$(`#modal [data-y^="${cb.dataset.g}|"]`).forEach(y=>y.checked=cb.checked);pickSync()}
+function pickSync(){$$('#modal [data-g]').forEach(g=>{const ys=$$(`#modal [data-y^="${g.dataset.g}|"]`);if(ys.length){const n=ys.filter(y=>y.checked).length;g.checked=n>0;g.indeterminate=n>0&&n<ys.length}});
+ const n=$$('#modal [data-g]').filter(g=>g.checked).length;const el=$('#pickN');if(el)el.textContent=n?tt(`已選 ${n} 種資料`,`${n} selected`):tt('尚未勾選','Nothing selected');const b=$('#pickGo');if(b)b.disabled=!n}
+function pickAll(mode){$$('#modal [data-y]').forEach(y=>y.checked=mode===1||(mode===2&&!!y.parentNode.querySelector('i')));$$('#modal [data-g]').forEach(g=>{if(!$$(`#modal [data-y^="${g.dataset.g}|"]`).length)g.checked=mode===1||(mode===2&&/待上傳 [1-9]|待下載 [1-9]|to upload [1-9]|to download [1-9]/.test(g.closest('tr').textContent))});pickSync()}
+function runPick(){const G=new Set(),Y=new Set();$$('#modal [data-g]').forEach(g=>{if(!g.checked)return;const ys=$$(`#modal [data-y^="${g.dataset.g}|"]`);if(ys.length)ys.filter(y=>y.checked).forEach(y=>Y.add(y.dataset.y));else G.add(g.dataset.g)});
+ if(!G.size&&!Y.size)return;closeDrawer();cloudSync(true,(rep,yr)=>G.has(rep)||Y.has(rep+'|'+yr));if($('#syncCard'))$('#syncCard').outerHTML=syncCardHTML()}
+/* ---------- Telegram: links under every summary ---------- */
+const WEB_BASE=()=>(location.protocol==='https:'&&/github\.io$/.test(location.hostname))?location.origin+location.pathname:'https://saintdou-weng.github.io/psjhr/';
+const perKey=(pt,R)=>{const a=rangeStr(R).a;return pt==='M'?a.slice(0,7):pt==='Y'?a.slice(0,4):''};
+function tgButtons(k,pt,R){const MA=(()=>{const lk=latestKey('att');return lk&&lk.length===7?lk:ymd(TODAY).slice(0,7)})();
+ if(k==='dashboard'||k==='reports'){const p=k==='reports'?perKey(pt,R):MA;const q=p?'/'+p:'';
+  return [[['📊 '+t('dashboard'),'dashboard'],['🕒 '+t('att')+(p?' '+p:''),'att'+q]],[['⚠️ '+t('attexc'),'attexc'+q],['📝 '+t('leave'),'leave'+q]],[['👤 '+t('emp'),'emp'],['🔁 '+t('joinleave'),'joinleave'+(k==='reports'&&p?q:'')]]]}
+ const p=perKey(pt,R);return [[[modIcon(k)+' '+t(k)+(p?' '+p:''),k+(p?'/'+p:'')]],[['📊 '+t('dashboard'),'dashboard'],['🔄 '+t('sync'),'sync']]]}
+const tgLinkLine=btns=>'🔗 '+WEB_BASE()+'#'+btns[0][0][1];
+const tgBtnsHTML=btns=>`<div class="tgbtns">${btns.flat().map(b=>`<span>${esc(b[0])}</span>`).join('')}</div>`;
+let TGPEND=null;
 
 /* ================= derived data: employee index, departments, titles, holidays ================= */
 function cached(key,fn){if(GC.has(key))return GC.get(key);const v=fn();GC.set(key,v);return v}
@@ -806,17 +863,19 @@ const weeksIn=y=>isoWeek(new Date(y,11,28)).w;
 function rangeFor(pt,a){a=a||TODAY;
  if(pt==='D')return {from:a,to:a};
  if(pt==='W'){const s=addD(a,-((a.getDay()+6)%7));return {from:s,to:addD(s,6)}}
+ if(pt==='H')return a.getDate()<=15?{from:new Date(a.getFullYear(),a.getMonth(),1),to:new Date(a.getFullYear(),a.getMonth(),15)}:{from:new Date(a.getFullYear(),a.getMonth(),16),to:new Date(a.getFullYear(),a.getMonth()+1,0)};
  if(pt==='M')return {from:new Date(a.getFullYear(),a.getMonth(),1),to:new Date(a.getFullYear(),a.getMonth()+1,0)};
  if(pt==='Y')return {from:new Date(a.getFullYear(),0,1),to:new Date(a.getFullYear(),11,31)};
  return {from:DATA_START,to:TODAY,all:true};
 }
 function rangeOf(st){if(st.pt==='C'){const f=parseD(st.from)||new Date(TODAY.getFullYear(),TODAY.getMonth(),1),t2=parseD(st.to)||TODAY;return f<=t2?{from:f,to:t2}:{from:t2,to:f}}if(st.pt==='ALL')return {from:DATA_START,to:TODAY,all:true};return rangeFor(st.pt,parseD(st.anchor)||TODAY)}
 const rangeStr=R=>({a:ymd(R.from),b:ymd(R.to)});
-function shiftDate(pt,a,n){if(pt==='D')return addD(a,n);if(pt==='W')return addD(a,7*n);if(pt==='M')return new Date(a.getFullYear(),a.getMonth()+n,1);if(pt==='Y')return new Date(a.getFullYear()+n,0,1);return a}
+function shiftDate(pt,a,n){if(pt==='D')return addD(a,n);if(pt==='H'){const i=a.getFullYear()*24+a.getMonth()*2+(a.getDate()>15?1:0)+n;return new Date(Math.floor(i/24),Math.floor((i%24)/2),i%2?16:1)}if(pt==='W')return addD(a,7*n);if(pt==='M')return new Date(a.getFullYear(),a.getMonth()+n,1);if(pt==='Y')return new Date(a.getFullYear()+n,0,1);return a}
 function periodLabel(pt,R){
  if(pt==='ALL'||R.all)return tt('全部期間','All time');
  if(pt==='D')return ymd(R.from);
  if(pt==='M')return R.from.getFullYear()+' '+MN(R.from.getMonth());
+ if(pt==='H')return R.from.getFullYear()+' '+MN(R.from.getMonth())+' '+(R.from.getDate()===1?tt('上半 01–15','1st half 01–15'):tt('下半 16–','2nd half 16–')+pad(R.to.getDate()));
  if(pt==='Y')return String(R.from.getFullYear());
  if(pt==='W'){const w=isoWeek(R.from);return `${w.y} W${pad(w.w)} · ${md(R.from)}–${md(R.to)}`}
  return ymd(R.from)+' → '+ymd(R.to);
@@ -829,12 +888,14 @@ function selectorsHTML(k,pt,anchor,st){
   return `<select class="inp" onchange="${fn}('${k}',ymd(weekStart(+this.value,1)))">${yearOpts(w.y,k)}</select><select class="inp" onchange="${fn}('${k}',this.value)">${o}</select>`}
  if(pt==='M'){const ks=periodKeys(k);let o='';for(let m=0;m<12;m++){const dis=new Date(a.getFullYear(),m,1)>TODAY;o+=`<option value="${m}" ${m===a.getMonth()?'selected':''} ${dis?'disabled':''}>${ks.has(a.getFullYear()+'-'+pad(m+1))?'● ':''}${MN(m)}</option>`}
   return `<select class="inp" onchange="${fn}('${k}',ymd(new Date(+this.value,Math.min(${a.getMonth()},+this.value===TODAY.getFullYear()?TODAY.getMonth():11),1)))">${yearOpts(a.getFullYear(),k)}</select><select class="inp" onchange="${fn}('${k}',ymd(new Date(${a.getFullYear()},+this.value,1)))">${o}</select>`}
+ if(pt==='H'){const ks=periodKeys(k);let o='';for(let m=0;m<12;m++){const dis=new Date(a.getFullYear(),m,1)>TODAY;o+=`<option value="${m}" ${m===a.getMonth()?'selected':''} ${dis?'disabled':''}>${ks.has(a.getFullYear()+'-'+pad(m+1))?'● ':''}${MN(m)}</option>`}const hd=a.getDate()>15?16:1;
+  return `<select class="inp" onchange="${fn}('${k}',ymd(new Date(+this.value,${a.getMonth()},${hd})))">${yearOpts(a.getFullYear(),k)}</select><select class="inp" onchange="${fn}('${k}',ymd(new Date(${a.getFullYear()},+this.value,${hd})))">${o}</select><select class="inp" onchange="${fn}('${k}',ymd(new Date(${a.getFullYear()},${a.getMonth()},+this.value)))"><option value="1" ${hd===1?'selected':''}>${tt('上半 01–15','1st half')}</option><option value="16" ${hd===16?'selected':''}>${tt('下半 16–月底','2nd half')}</option></select>`}
  if(pt==='Y')return `<select class="inp" onchange="${fn}('${k}',this.value+'-01-01')">${yearOpts(a.getFullYear(),k)}</select>`;
  if(pt==='C')return `<input class="inp pn-date" type="date" value="${esc(st.from)}" onchange="S('${k}').from=this.value;navDone('${k}')"><span class="muted">→</span><input class="inp pn-date" type="date" value="${esc(st.to)}" onchange="S('${k}').to=this.value;navDone('${k}')">`;
  return '';
 }
 function pnav(k,o={}){
- const st=S(k); const pts=(o.pts||['D','W','M','Y','C','ALL']); if(!pts.includes(st.pt))st.pt=pts.includes('M')?'M':pts[0];
+ const st=S(k); const pts=(o.pts||['D','W','H','M','Y','C','ALL']); if(!pts.includes(st.pt))st.pt=pts.includes('M')?'M':pts[0];
  const R=rangeOf(st); const nextStart=st.pt==='C'?addD(R.to,1):st.pt==='ALL'?TODAY:rangeFor(st.pt,shiftDate(st.pt,parseD(st.anchor)||TODAY,1)).from;
  const canNext=st.pt!=='ALL'&&nextStart<=TODAY, canPrev=st.pt!=='ALL'&&R.from>DATA_START;
  let h=`<div class="pnav" role="group" aria-label="${tt('期間','Period')}"><div class="pn-row"><div class="seg pn-pt">${pts.map(p=>`<button class="${st.pt===p?'on':''}" onclick="navPt('${k}','${p}')">${esc(t(p))}</button>`).join('')}</div>`;
@@ -851,7 +912,7 @@ function navToday(k){const st=S(k);st.anchor=ymd(TODAY);if(st.pt==='C'){st.from=
 function navView(k,v){S(k).view=v;navDone(k)}
 function drill(k,pt,anchor,view){const st=S(k);st.pt=pt;st.anchor=anchor;st.view=view||'detail';navDone(k)}
 /* which months / years have data for a module (● marks, auto-jump) */
-const KEYSRC={att:'att',attexc:'attexc',leave:'leave',joinleave:'joinleave',annual:'annual',holiday:'holiday',reports:'att',dashboard:'att'};
+const KEYSRC={meal:'att',payroll:'att',benefits:'att',emp:'joinleave',basepay:'att',att:'att',attexc:'attexc',leave:'leave',joinleave:'joinleave',annual:'annual',holiday:'holiday',reports:'att',dashboard:'att'};
 function periodKeys(k){return cached('pk|'+k,()=>{const set=new Set();const ds=KEYSRC[k];if(!ds)return set;const add=d=>{if(d){set.add(d.slice(0,7));set.add(d.slice(0,4))}};
  if(ds==='att')Object.values(DB.attsum).forEach((S2,i)=>{});
  if(ds==='att')(DB.hrfiles||[]).filter(f=>f.rep==='att').forEach(f=>{add(f.range[0])});
@@ -864,8 +925,8 @@ function periodKeys(k){return cached('pk|'+k,()=>{const set=new Set();const ds=K
 function latestKey(k){const cm=monthKey(TODAY),cy=String(TODAY.getFullYear());const ks=[...periodKeys(k)].filter(x=>x.length===7&&x<=cm).sort();const ys=[...periodKeys(k)].filter(x=>x.length===4&&x<=cy).sort();if(ks.length)return ks[ks.length-1];return ys.length?ys[ys.length-1]:null}
 function initST(k){
  const saved=LS.get('nav_'+k,null);
- const st=Object.assign({pt:k==='annual'?'Y':'M',anchor:ymd(TODAY),view:'summary',from:ymd(new Date(TODAY.getFullYear(),TODAY.getMonth(),1)),to:ymd(TODAY),q:'',page:0,dept:'',status:'',type:''},saved||{});
- if(!saved){const lk=latestKey(k);if(lk){if(lk.length===7){st.pt=k==='annual'?'Y':'M';st.anchor=lk+'-01'}else{st.pt='Y';st.anchor=lk+'-01-01'}}}
+ const st=Object.assign({pt:k==='annual'?'Y':k==='meal'?'H':'M',anchor:ymd(TODAY),view:'summary',from:ymd(new Date(TODAY.getFullYear(),TODAY.getMonth(),1)),to:ymd(TODAY),q:'',page:0,dept:'',status:'',type:''},saved||{});
+ if(!saved){const lk=latestKey(k);if(lk){if(lk.length===7){st.pt=k==='annual'?'Y':k==='meal'?'H':'M';st.anchor=lk+'-01'}else{st.pt='Y';st.anchor=lk+'-01-01'}}}
  return st}
 function noDataHint(k){
  const st=S(k); if(st.pt==='ALL'||st.pt==='C')return ''; const R=rangeOf(st); const ks=periodKeys(k); if(!ks.size)return '';
@@ -963,7 +1024,7 @@ const CFG={
  attexc:{cols:[{f:'date',l:'date',lead:1},{f:'emp_no',l:'emp_no'},{f:'name',l:'name'},{f:'dept',l:'dept'},{f:'group',l:'group'},{f:'kind',l:'type',ty:'kind'},{f:'leave_type',l:'leave_type'},{f:'time_in',l:'time_in'},{f:'time_out',l:'time_out'},{f:'hrs_actual',l:'hrs_actual',ty:'n1'},{f:'lv_should',l:'lv_should',ty:'n1'},{f:'lv_taken',l:'lv_taken',ty:'n1'},{f:'lv_missing',l:'lv_missing',ty:'n1'}],q:['emp_no','name','dept','group']},
  leave:{cols:[{f:'start',l:'start',lead:1},{f:'end',l:'end'},{f:'emp_no',l:'emp_no'},{f:'name',l:'name'},{f:'dept',l:'dept'},{f:'leave_type',l:'leave_type'},{f:'days',l:'days',ty:'n1'},{f:'hours',l:'hours',ty:'n1'},{f:'total_hours',l:'total_hours',ty:'n1'},{f:'apply_date',l:'apply_date'},{f:'approve',l:'approve'}],q:['emp_no','name','leave_type','dept']},
  joinleave:{cols:[{f:'emp_no',l:'emp_no',lead:1},{f:'name',l:'name'},{f:'dept',l:'dept'},{f:'sex',l:'sex'},{f:'join_date',l:'join_date'},{f:'leave_date',l:'leave_date'},{f:'sen',l:'seniority'},{f:'status',l:'emp_status',ty:'status'}],q:['emp_no','name','dept']},
- basepay:{cols:[{f:'emp_no',l:'emp_no',lead:1},{f:'name',l:'name'},{f:'dept',l:'dept'},{f:'pay_type',l:'pay_type'},{f:'base',l:'base',ty:'n'},{f:'allow_pos',l:'allow_pos',ty:'n'},{f:'allow_pro',l:'allow_pro',ty:'n'},{f:'allow_tech',l:'allow_tech',ty:'n'},{f:'allow_other',l:'allow_other',ty:'n'},{f:'allow_full',l:'allow_full',ty:'n'},{f:'allow_trans',l:'allow_trans',ty:'n'},{f:'allow_meal',l:'allow_meal',ty:'n'},{f:'pay_total',l:'pay_total',ty:'n'}],q:['emp_no','name','dept','pay_type']},
+ basepay:{cols:[{f:'emp_no',l:'emp_no',lead:1},{f:'name',l:'name'},{f:'dept',l:'dept'},{f:'pay_type',l:'pay_type'},{f:'base',l:'base',ty:'n'},{f:'allow_pos',l:'allow_pos',ty:'n'},{f:'allow_pro',l:'allow_pro',ty:'n'},{f:'allow_tech',l:'allow_tech',ty:'n'},{f:'allow_other',l:'allow_other',ty:'n'},{f:'allow_full',l:'allow_full',ty:'n'},{f:'allow_trans',l:'allow_trans',ty:'n'},{f:'allow_meal',l:'allow_meal',ty:'n'},{f:'pay_total',l:'pay_total',ty:'n'},{f:'sen_pay',l:'sen_pay',ty:'n'},{f:'lang_pay',l:'lang_pay',ty:'n'},{f:'meal_rate',l:'meal_rate',ty:'n'},{f:'_edb',l:'status'}],q:['emp_no','name','dept','pay_type']},
  annual:{cols:[{f:'name',l:'name',lead:1},{f:'emp_no',l:'emp_no'},{f:'dept',l:'dept'},{f:'start_date',l:'join_date'},{f:'svc_years',l:'svc_years',ty:'n'},{f:'svc_months',l:'svc_months',ty:'n'},{f:'al_days',l:'al_days',ty:'n'},{f:'al_hrs',l:'al_hrs',ty:'n1'},{f:'al_used_days',l:'al_used_days',ty:'n1'},{f:'al_used_hrs',l:'al_used_hrs',ty:'n1'},{f:'al_left',l:'al_left',ty:'n1'}],q:['name','emp_no','dept']},
  holiday:{cols:[{f:'date',l:'date',lead:1},{f:'wd',l:'day'},{f:'name',l:'hol_name'},{f:'who',l:'hol_who'}],q:['date','name']},
  jobcode:{cols:[{f:'code',l:'code',lead:1},{f:'desc',l:'desc'},{f:'cost_type',l:'cost_type'},{f:'punch',l:'punch'},{f:'changed',l:'date'},{f:'by',l:'user'}],q:['code','desc','cost_type']},
@@ -979,7 +1040,7 @@ function enrichRow(k,r){
  if(k==='emp'){return Object.assign({},r,{sen:seniority(r.join_date,r.leave_date)})}
  if(k==='joinleave'){const e=emp(r.emp_no)||{};return Object.assign({},r,{dept:e.dept||'',status:e.status||(r.leave_date?'離職':''),sen:seniority(r.join_date,r.leave_date)})}
  if(k==='leave'){const e=emp(r.emp_no)||{};return Object.assign({},r,{dept:e.dept||''})}
- if(k==='basepay'){const e=emp(r.emp_no)||{};return Object.assign({},r,{dept:/^\d{3}$/.test(r.dept)?deptName(r.dept):r.dept})}
+ if(k==='basepay'){const e=emp(r.emp_no)||{};return Object.assign({},r,{name:r.name||e.name,dept:/^\d{3}$/.test(r.dept||'')?deptName(r.dept):(r.dept||e.dept),_edb:r._ed?'✏️':''})}
  if(k==='holiday'){const d=parseD(r.date);return Object.assign({},r,{wd:d?['日','一','二','三','四','五','六'][d.getDay()]:''})}
  return r}
 function filterRows(k,rows){const st=S(k),cfg=CFG[k];const q=(st.q||'').trim().toLowerCase();let out=rows.map(r=>enrichRow(k,r));
@@ -990,7 +1051,7 @@ function tableHTML(k,rows,opts={}){
  if(!rows.length)return `<div class="note">${esc(t('no_data'))}</div>`;
  const slice=opts.all?rows:rows.slice(st.page*per,st.page*per+per);
  let h=`<div class="tbl-wrap"><table class="t cards"><thead><tr>${cfg.cols.map(c=>`<th class="${isNum(c)?'r':''}">${esc(t(c.l))}</th>`).join('')}</tr></thead><tbody>`;
- slice.forEach(r=>{const no=r.emp_no;h+=`<tr class="${no?'click':''}" ${no?`onclick="openEmp('${esc(no)}')"`:''}>${cfg.cols.map(c=>`<td class="${isNum(c)?'r':''} ${c.lead?'lead':''}" data-l="${esc(t(c.l))}">${cell(r,c)}</td>`).join('')}</tr>`});
+ slice.forEach(r=>{const no=r.emp_no;const oc=k==='basepay'?`openEdit('basepay','${esc(no)}')`:k==='holiday'?`openEdit('holiday','${esc(r.date)}')`:no?`openEmp('${esc(no)}')`:'';h+=`<tr class="${oc?'click':''}" ${oc?`onclick="${oc}"`:''}>${cfg.cols.map(c=>`<td class="${isNum(c)?'r':''} ${c.lead?'lead':''}" data-l="${esc(t(c.l))}">${cell(r,c)}</td>`).join('')}</tr>`});
  h+=`</tbody></table></div>`;
  if(!opts.all)h+=`<div class="pager"><span>${esc(t('rows_shown'))} ${fmt(st.page*per+1)}–${fmt(Math.min(rows.length,(st.page+1)*per))} ${esc(t('of'))} ${fmt(rows.length)} ${esc(t('records'))}</span><span style="display:flex;gap:6px"><button class="btn sm" ${st.page<=0?'disabled':''} onclick="S('${k}').page--;rerender()">${esc(t('prev'))}</button><button class="btn sm" ${st.page>=pages-1?'disabled':''} onclick="S('${k}').page++;rerender()">${esc(t('next'))}</button></span></div>`;
  return h;
@@ -1009,8 +1070,8 @@ function needHTML(k){
  <div class="drop drop-mini" onclick="$('#fileIn').click()" role="button" tabindex="0"><b>📤 ${tt('把檔案拖到畫面任何地方，或點這裡選檔','Drop files anywhere on the page, or tap here')}</b><span class="small muted">${tt('不用先選種類，系統自己辨識','no need to choose a type')}</span></div>${cloudBanner()}</div>`}
 
 /* ================= modules ================= */
-const MODS=[['dashboard','📊','g_over'],['smart-import','🧠','g_over'],['emp','👤','g_people'],['joinleave','🔁','g_people'],['basepay','💵','g_people'],['annual','🌴','g_people'],
- ['att','🕒','g_time'],['attexc','⚠️','g_time'],['leave','📝','g_time'],['holiday','📅','g_time'],['sync','🔄','g_hub'],['reports','📑','g_hub'],['jobcode','🏷️','g_hub'],['settings','⚙️','g_sys']];
+const MODS=[['dashboard','📊','g_over'],['smart-import','🧠','g_over'],['emp','👤','g_people'],['joinleave','🔁','g_people'],['annual','🌴','g_people'],
+ ['att','🕒','g_time'],['attexc','⚠️','g_time'],['leave','📝','g_time'],['holiday','📅','g_time'],['basepay','💵','g_pay'],['payroll','💰','g_pay'],['meal','🍚','g_pay'],['benefits','🎁','g_pay'],['sync','🔄','g_hub'],['reports','📑','g_hub'],['jobcode','🏷️','g_hub'],['settings','⚙️','g_sys']];
 const modIcon=k=>(MODS.find(m=>m[0]===k)||[])[1]||'';
 let CUR='dashboard',SOLO=false;
 const PAGE_BASE=location.origin==='null'||/^file:/.test(location.href)?'psjhr/':location.origin+location.pathname;
@@ -1021,7 +1082,8 @@ function navCount(k){if(k==='emp'&&DB.emp.length)return `<span class="ct">${fmt(
 /* ---------- generic period module ---------- */
 function renderPeriod(k){
  const st=S(k),R=rangeOf(st); if(!hasData(k))return pageHead(k)+needHTML(k);
- let h=pageHead(k,stdActs(k))+pnav(k,{views:true,pts:k==='annual'?['Y','ALL']:k==='holiday'?['M','Y','ALL']:undefined});
+ const addB=k==='leave'?`<button class="btn sm pri" onclick="openEdit('leave',null)">＋ ${tt('新增請假','Add leave')}</button>`:k==='holiday'?`<button class="btn sm pri" onclick="openEdit('holiday',null)">＋ ${tt('新增假日','Add holiday')}</button>`:'';
+ let h=pageHead(k,addB+stdActs(k))+pnav(k,{views:true,pts:k==='annual'?['Y','ALL']:k==='holiday'?['M','Y','ALL']:undefined});
  if(st.view==='summary'){h+=kpisHTML(k,R)+bucketTable(k,R)+extraHTML(k,R)}
  else{if(k==='att'){const need=attNeed(R);if(need.length){loadAtt(need);return h+loadingHTML()}}
   const rows=filterRows(k,rowsIn(k,R)); const tb={att:{dept:1},attexc:{dept:1,type:[['noclock',tt('未刷卡','No punch')],['oneclock',tt('單邊刷卡','One punch')],['missing',tt('未請假','Unexcused')],['other',tt('其他','Other')]],typeLabel:t('type')},leave:{dept:1,type:uniq(DB.leave.map(r=>r.leave_type)).sort().map(x=>[x,x]),typeLabel:t('leave_type')},joinleave:{dept:1,status:1},annual:{dept:1},holiday:{}}[k]||{};
@@ -1055,9 +1117,10 @@ function topList(rows,key,val,unit){const by={};rows.forEach(r=>{const o=by[r[ke
 /* ---------- employees (snapshot) ---------- */
 function renderEmp(){
  const k='emp'; if(!hasData(k))return pageHead(k)+needHTML(k);
- const st=S(k); if(!st._init){st.status='在職';st._init=1} const all=[...empIdx().values()].filter(e=>e.name||e.status);
+ const st=S(k); if(!st._init){st.status='在職';st._init=1} if(!['D','W','H','M','Y'].includes(st.pt)){st.pt='M';st.anchor=ymd(TODAY)} const all=[...empIdx().values()].filter(e=>e.name||e.status);
+ const R=rangeOf(st),asof=ymd(R.to>TODAY?TODAY:R.to),{a:pa}=rangeStr(R); const atAsof=e=>e.join_date&&e.join_date<=asof&&(e.leave_date?e.leave_date>asof:e.status!=='離職'); const nAsof=all.filter(atAsof).length; const jn=all.filter(e=>inRange(e.join_date,pa,asof)).length, lv=all.filter(e=>inRange(e.leave_date,pa,asof)).length;
  const act=all.filter(e=>e.status==='在職'); const sen=act.map(e=>{const j=parseD(e.join_date);return j?(TODAY-j)/864e5/365.25:null}).filter(x=>x!=null); const ages=act.map(e=>age(e.birthday)).filter(x=>x!=='');
- let h=pageHead(k,stdActs(k))+`<div class="kpis">${kpi(esc(t('kpi_head')),fmt(act.length),'',DB.asof.emp?tt('員工清冊 ','list ')+DB.asof.emp:'')}${kpi(tt('留職停薪','Unpaid leave'),fmt(all.filter(e=>e.status==='留職停薪').length))}${kpi(tt('離職（歷史）','Left (history)'),fmt(all.filter(e=>e.status==='離職').length))}${kpi(tt('女 / 男（在職）','F / M (active)'),fmt(act.filter(e=>e.sex==='女').length)+' / '+fmt(act.filter(e=>e.sex==='男').length))}${kpi(tt('平均年資','Avg seniority'),sen.length?fmt(sum(sen,x=>x)/sen.length,1):'—',t('years'))}${kpi(tt('平均年齡','Avg age'),ages.length?fmt(sum(ages,x=>x)/ages.length,1):'—')}</div>`;
+ let h=pageHead(k,`<button class="btn sm pri" onclick="openEdit('emp',null)">＋ ${tt('新增員工','Add employee')}</button>`+stdActs(k))+conflictsHTML()+pnav(k,{pts:['D','W','H','M','Y'],snapshot:1})+`<div class="kpis">${kpi(tt('期末在職（依到離職日）','Headcount at period end'),fmt(nAsof),'',asof)}${kpi(tt('期間新進','Joiners in period'),fmt(jn))}${kpi(tt('期間離職','Leavers in period'),fmt(lv))}</div><div class="kpis" style="margin-top:10px">${kpi(esc(t('kpi_head')),fmt(act.length),'',DB.asof.emp?tt('員工清冊 ','list ')+DB.asof.emp:'')}${kpi(tt('留職停薪','Unpaid leave'),fmt(all.filter(e=>e.status==='留職停薪').length))}${kpi(tt('離職（歷史）','Left (history)'),fmt(all.filter(e=>e.status==='離職').length))}${kpi(tt('女 / 男（在職）','F / M (active)'),fmt(act.filter(e=>e.sex==='女').length)+' / '+fmt(act.filter(e=>e.sex==='男').length))}${kpi(tt('平均年資','Avg seniority'),sen.length?fmt(sum(sen,x=>x)/sen.length,1):'—',t('years'))}${kpi(tt('平均年齡','Avg age'),ages.length?fmt(sum(ages,x=>x)/ages.length,1):'—')}</div>`;
  const byD={};act.forEach(e=>{byD[e.dept||'—']=(byD[e.dept||'—']||0)+1});const ks=Object.keys(byD).sort((a,b)=>byD[b]-byD[a]).slice(0,20);
  if(ks.length)h+=`<div class="panel mt"><h2>${tt('在職人數依部門','Active headcount by department')}</h2>${barChart(ks.map(x=>byD[x]),ks,{full:1})}</div>`;
  const rows=filterRows(k,all); h+=`<div class="panel mt">${toolbar(k,all.map(e=>enrichRow(k,e)),{dept:1,status:1})}${tableHTML(k,rows.sort((a,b)=>(b.join_date||'').localeCompare(a.join_date||'')))}</div>`;
@@ -1066,7 +1129,7 @@ function renderEmp(){
 function renderBasePay(){
  const k='basepay'; if(!hasData(k))return pageHead(k)+needHTML(k); const st=S(k);
  const rows=DB.basepay.map(r=>enrichRow(k,r)); const act=rows.filter(r=>{const e=emp(r.emp_no);return e&&e.status==='在職'}); const src=st.status==='all'?rows:act;
- let h=pageHead(k,stdActs(k))+`<div class="kpis">${kpi(tt('有薪資設定','With pay setup'),fmt(rows.length),'',tt('清冊 ','list ')+(DB.asof.basepay||''))}${kpi(tt('在職','Active'),fmt(act.length))}${kpi(tt('月薪制','Monthly'),fmt(act.filter(r=>/月/.test(r.pay_type)).length))}${kpi(tt('日薪制','Daily'),fmt(act.filter(r=>/日/.test(r.pay_type)).length))}${kpi(tt('在職總薪合計','Active total pay'),fmt(sum(act,'pay_total')))}${kpi(tt('平均總薪（在職）','Avg total (active)'),act.length?fmt(sum(act,'pay_total')/act.length,1):'—')}</div>`;
+ const nEd=Object.keys((DB.edits||{}).basepay||{}).length; let h=pageHead(k,`<button class="btn sm pri" onclick="openEdit('basepay',null)">＋ ${tt('新增','Add')}</button><button class="btn sm" onclick="hpFillPay()">🧩 ${tt('用 HRA-PAY 補齊','Fill from HRA-PAY')}</button>`+stdActs(k))+conflictsHTML()+`<div class="kpis">${kpi(tt('網頁編輯過','Edited on web'),fmt(nEd))}${kpi(tt('有薪資設定','With pay setup'),fmt(rows.length),'',tt('清冊 ','list ')+(DB.asof.basepay||''))}${kpi(tt('在職','Active'),fmt(act.length))}${kpi(tt('月薪制','Monthly'),fmt(act.filter(r=>/月/.test(r.pay_type)).length))}${kpi(tt('日薪制','Daily'),fmt(act.filter(r=>/日/.test(r.pay_type)).length))}${kpi(tt('在職總薪合計','Active total pay'),fmt(sum(act,'pay_total')))}${kpi(tt('平均總薪（在職）','Avg total (active)'),act.length?fmt(sum(act,'pay_total')/act.length,1):'—')}</div>`;
  h+=`<p class="note small" style="margin:10px 0">${tt('數字為人事系統的「基本薪資設定」，單位依系統原值（不換算幣別）；不是實發薪資。','Figures are the HR system pay setup in its own units (no currency conversion), not actual payroll.')}</p>`;
  const byD={};act.forEach(r=>{const o=byD[r.dept||'—']||(byD[r.dept||'—']={n:0,t:0});o.n++;o.t+=r.pay_total});const ks=Object.keys(byD).sort((a,b)=>byD[b].n-byD[a].n);
  h+=`<div class="panel mt"><h2>${tt('在職依部門','Active by department')}</h2><div class="tbl-wrap"><table class="t"><thead><tr><th>${esc(t('dept'))}</th><th class="r">${tt('人數','People')}</th><th class="r">${esc(t('pay_total'))}</th><th class="r">${tt('平均','Avg')}</th></tr></thead><tbody>${ks.map(x=>`<tr><td>${esc(x)}</td><td class="r">${fmt(byD[x].n)}</td><td class="r">${fmt(byD[x].t)}</td><td class="r">${fmt(byD[x].t/byD[x].n,1)}</td></tr>`).join('')}</tbody></table></div></div>`;
@@ -1078,10 +1141,10 @@ function renderJobcode(){const k='jobcode';if(!hasData(k))return pageHead(k)+nee
 
 /* ---------- dashboard ---------- */
 function renderDashboard(){
- const k='dashboard'; const any=(DB.hrfiles||[]).length; if(!any)return pageHead(k)+`<div class="panel empty"><h2>${tt('還沒有資料','No data yet')}</h2><p>${tt('把「下載\\HR_系統匯出」裡的檔案拖到畫面上，或到智慧匯入。','Drop the files from 下載\\HR_系統匯出 on this page, or open Smart Import.')}</p><div class="drop drop-mini" onclick="$('#fileIn').click()" role="button" tabindex="0"><b>📤 ${tt('拖檔到這裡 / 點選檔案','Drop files here / choose files')}</b></div>${cloudBanner()}</div>`;
- const act=DB.emp.filter(e=>e.status==='在職').length; const lkA=latestKey('att'); const M=lkA&&lkA.length===7?rangeFor('M',parseD(lkA+'-01')):rangeFor('M',TODAY); const A=attAgg(M);
- const Mn=rangeFor('M',TODAY); const JL=agg('joinleave',Mn); const LV=agg('leave',M); const EX=agg('attexc',M);
- let h=pageHead(k,`<button class="btn sm" onclick="tgPreview('dashboard')">${esc(t('send_tg'))}</button>`)+cloudBanner();
+ const k='dashboard'; const any=(DB.hrfiles||[]).length; if(!any)return pageHead(k)+syncCardHTML()+`<div class="panel empty"><h2>${tt('還沒有資料','No data yet')}</h2><p>${tt('把「下載\\HR_系統匯出」裡的檔案拖到畫面上，或到智慧匯入。','Drop the files from 下載\\HR_系統匯出 on this page, or open Smart Import.')}</p><div class="drop drop-mini" onclick="$('#fileIn').click()" role="button" tabindex="0"><b>📤 ${tt('拖檔到這裡 / 點選檔案','Drop files here / choose files')}</b></div>${cloudBanner()}</div>`;
+ const act=DB.emp.filter(e=>e.status==='在職').length; const M=rangeOf(S(k)); const A=attAgg(M);
+ const Mn=M; const JL=agg('joinleave',Mn); const LV=agg('leave',M); const EX=agg('attexc',M);
+ let h=pageHead(k,`<button class="btn sm" onclick="tgPreview('dashboard')">${esc(t('send_tg'))}</button>`)+cloudBanner()+syncCardHTML()+conflictsHTML()+pnav(k,{pts:['D','W','H','M','Y']});
  h+=`<div class="kpis">${kpi(esc(t('kpi_head')),fmt(act),'',DB.asof.emp?tt('清冊 ','list ')+DB.asof.emp:tt('尚無員工清冊','no employee list'))}${kpi(esc(t('kpi_join'))+' · '+periodLabel('M',Mn),fmt(JL.join))}${kpi(esc(t('kpi_leave'))+' · '+periodLabel('M',Mn),fmt(JL.leave))}
   ${kpi(tt('出勤率','Attendance rate')+' · '+periodLabel('M',M),fmtM(A.rate,'pct'),'',fmt(A.present_w)+' / '+fmt(A.sched)+' '+tt('工作日人日','person-days'))}${kpi(esc(t('kpi_hours'))+' · '+periodLabel('M',M),fmt(A.act),'h')}${kpi(esc(t('kpi_absent'))+' · '+periodLabel('M',M),fmt(A.miss,1),'h')}${kpi(esc(t('kpi_lv'))+' · '+periodLabel('M',M),fmt(LV.hours,1),'h',fmt(LV.n)+' '+t('records'))}${kpi(esc(t('kpi_exc'))+' · '+periodLabel('M',M),fmt(EX.n),'',fmt(EX.emps)+' '+tt('人','people'))}</div>`;
  const months=[];for(let i=11;i>=0;i--){const d=new Date(TODAY.getFullYear(),TODAY.getMonth()-i,1);months.push({d,R:rangeFor('M',d),l:MN(d.getMonth())+(d.getMonth()===0||i===11?' '+String(d.getFullYear()).slice(2):'')})}
@@ -1121,11 +1184,12 @@ function openEmp(no){
  const p=e.pay; const note=(DB.notes[no]||{}).notes||'';
  let h=`<div class="dh"><div class="prof"><div class="av">${esc((e.name||'?').slice(0,2))}</div><div><h2>${esc(e.name||'—')} <span class="mono muted" style="font-size:14px">${esc(no)}</span></h2><div class="sub">${esc(e.dept||'—')} · ${esc(e.title||'—')} ${statusChip(e.status)}</div></div></div><button class="icon-btn" onclick="closeDrawer()" aria-label="Close">✕</button></div>
  <div class="db"><div class="kv">${kv(t('sex'),esc(e.sex||'—'))}${kv(t('join_date'),esc(e.join_date||'—'))}${kv(t('seniority'),esc(seniority(e.join_date,e.leave_date)||'—'))}${kv(t('leave_date'),esc(e.leave_date||'—'))}${kv(t('birthday'),(e.birthday?pii(e.birthday)+(age(e.birthday)!==''?` <span class="muted small">(${age(e.birthday)})</span>`:''):'—'))}${kv(t('id_no'),pii(e.id_no))}${kv(t('mobile'),pii(e.mobile))}${kv(t('phone'),pii(e.phone))}${kv(t('emergency'),esc(e.emergency||'—')+(e.relation?` <span class="muted small">(${esc(e.relation)})</span>`:''))}${kv(t('address'),pii(e.address))}${kv(t('title_code'),esc(e.title_code||'—'))}${kv(t('dept_code'),esc(e.dept_code||'—'))}</div>`;
- if(p)h+=`<h3 style="margin:14px 0 6px">💵 ${esc(t('basepay'))} <span class="small muted">${esc(DB.asof.basepay||'')}</span></h3><div class="kv">${kv(t('pay_type'),esc(p.pay_type))}${kv(t('base'),fmt(p.base))}${kv(t('allow_pos'),fmt(p.allow_pos))}${kv(t('allow_pro'),fmt(p.allow_pro))}${kv(t('allow_tech'),fmt(p.allow_tech))}${kv(t('allow_other'),fmt(p.allow_other))}${kv(t('allow_full'),fmt(p.allow_full))}${kv(t('allow_trans'),fmt(p.allow_trans))}${kv(t('allow_meal'),fmt(p.allow_meal))}${kv(t('pay_total'),'<b>'+fmt(p.pay_total)+'</b>')}</div>`;
+ h+=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 0"><button class="btn sm" onclick="openEdit('emp','${esc(no)}')">✏️ ${tt('編輯基本資料','Edit details')}</button><button class="btn sm" onclick="openEdit('basepay','${esc(no)}',{emp_no:'${esc(no)}'})">💵 ${tt('編輯薪資設定','Edit pay setup')}</button><button class="btn sm" onclick="openEdit('leave',null,{emp_no:'${esc(no)}'})">＋ ${tt('新增請假','Add leave')}</button></div>`+edBadge('emp',no);
+ if(p)h+=`<h3 style="margin:14px 0 6px">💵 ${esc(t('basepay'))} <span class="small muted">${esc(DB.asof.basepay||'')}</span>${edBadge('basepay',no)}</h3><div class="kv">${kv(t('pay_type'),esc(p.pay_type))}${kv(t('base'),fmt(p.base))}${kv(t('allow_pos'),fmt(p.allow_pos))}${kv(t('allow_pro'),fmt(p.allow_pro))}${kv(t('allow_tech'),fmt(p.allow_tech))}${kv(t('allow_other'),fmt(p.allow_other))}${kv(t('allow_full'),fmt(p.allow_full))}${kv(t('allow_trans'),fmt(p.allow_trans))}${kv(t('allow_meal'),fmt(p.allow_meal))}${kv(t('pay_total'),'<b>'+fmt(p.pay_total)+'</b>')}</div>`;
  if(e.annual&&e.annual.length)h+=`<h3 style="margin:14px 0 6px">🌴 ${esc(t('annual'))}</h3><div class="tbl-wrap"><table class="t"><thead><tr><th>${esc(t('year'))}</th><th class="r">${esc(t('al_days'))}</th><th class="r">${esc(t('al_hrs'))}</th><th class="r">${esc(t('al_used_hrs'))}</th><th class="r">${esc(t('al_left'))}</th></tr></thead><tbody>${e.annual.sort((a,b)=>String(b.year).localeCompare(String(a.year))).map(r=>`<tr><td>${esc(r.year)}</td><td class="r">${fmt(r.al_days)}</td><td class="r">${fmt(r.al_hrs)}</td><td class="r">${fmt(r.al_used_hrs,1)}</td><td class="r"><b>${fmt(r.al_left,1)}</b></td></tr>`).join('')}</tbody></table></div>`;
  if(attKeys.length){const ms=attKeys.map(f=>DB.attsum[f.key].emps[no]).slice(0,12);
   h+=`<h3 style="margin:14px 0 6px">🕒 ${esc(t('att'))} <span class="small muted">${tt('最近 12 個月','last 12 months')}</span></h3><div class="tbl-wrap"><table class="t"><thead><tr><th>${tt('月份','Month')}</th><th class="r">${tt('出勤','Present')}</th><th class="r">${tt('記錄天數','Days on record')}</th><th class="r">${esc(t('hrs_actual'))}</th><th class="r">${esc(t('lv_taken'))}</th><th class="r">${esc(t('lv_missing'))}</th></tr></thead><tbody>${attKeys.slice(0,12).map((f,i)=>`<tr class="click" onclick="S('att').pt='M';S('att').view='detail';S('att').q='${esc(no)}';navSet('att','${f.range[0].slice(0,7)}-01');closeDrawer()"><td class="mono">${esc(f.range[0].slice(0,7))}${f.range[0].slice(8)!=='01'||+f.range[1].slice(8)<28?` <span class="small muted">${f.range[0].slice(8)}–${f.range[1].slice(8)}</span>`:''}</td><td class="r">${fmt(ms[i][1])}</td><td class="r">${fmt(ms[i][0])}</td><td class="r">${fmt(ms[i][2],1)}</td><td class="r">${fmt(ms[i][5],1)}</td><td class="r">${ms[i][4]>0?`<b style="color:var(--crit)">${fmt(ms[i][4],1)}</b>`:'0'}</td></tr>`).join('')}</tbody></table></div><div id="profGrid">${monthGridHTML(no,lastYm)}</div>`}
- if(lv.length)h+=`<h3 style="margin:14px 0 6px">📝 ${esc(t('leave'))} <span class="small muted">${fmt(lv.length)} ${t('records')}</span></h3><div class="tbl-wrap"><table class="t"><tbody>${lv.slice(0,10).map(r=>`<tr><td class="mono">${esc(r.start)}</td><td class="mono small">${esc(r.end)}</td><td>${esc(r.leave_type)}</td><td class="r">${fmt(r.total_hours,1)}h</td></tr>`).join('')}</tbody></table></div>`;
+ if(lv.length)h+=`<h3 style="margin:14px 0 6px">📝 ${esc(t('leave'))} <span class="small muted">${fmt(lv.length)} ${t('records')}</span></h3><div class="tbl-wrap"><table class="t"><tbody>${lv.slice(0,10).map(r=>`<tr class="click" onclick="openEdit('leave','${esc(rkOf('leave',r))}')"><td class="mono">${esc(r.start)}</td><td class="mono small">${esc(r.end)}</td><td>${esc(r.leave_type)}</td><td class="r">${fmt(r.total_hours,1)}h</td></tr>`).join('')}</tbody></table></div>`;
  if(ex.length)h+=`<h3 style="margin:14px 0 6px">⚠️ ${esc(t('attexc'))} <span class="small muted">${fmt(ex.length)}</span></h3><div class="tbl-wrap"><table class="t"><tbody>${ex.slice(0,8).map(r=>`<tr><td class="mono">${esc(r.date)}</td><td>${cell(r,{f:'kind',ty:'kind'})}</td><td class="mono small">${esc(r.time_in||'—')} → ${esc(r.time_out||'—')}</td><td class="r">${fmt(r.lv_missing,1)}h</td></tr>`).join('')}</tbody></table></div>`;
  h+=`<h3 style="margin:14px 0 6px">🗒️ ${tt('備註（雲端同步）','Notes (synced)')}</h3><textarea class="inp" id="empNote" rows="3" style="width:100%">${esc(note)}</textarea><div style="display:flex;gap:8px;margin-top:8px"><button class="btn pri sm" onclick="cloudNote('${esc(no)}',$('#empNote').value);toast('${esc(tt('已儲存','Saved'))}')">${tt('儲存備註','Save note')}</button><a class="btn sm" href="#emp" onclick="S('emp').q='${esc(no)}';S('emp').status='';closeDrawer()">${tt('在員工頁開啟','Open in Employees')}</a></div>
  <p class="small muted" style="margin-top:12px">${tt('來源：BEST 人事系統匯出檔（唯讀）。改資料請回人事系統。','Source: BEST HR export files (read-only). Edit in the HR system.')}</p></div>`;
@@ -1231,15 +1295,15 @@ function summaryText(k){
   L.push(`👥 VRT HR · ${per}`);line(tt('在職人數','Active'),fmt(DB.emp.filter(e=>e.status==='在職').length));line(tt('新進 / 離職','Joiners / leavers'),`${fmt(J.join)} / ${fmt(J.leave)}`);
   L.push('');L.push(`🕒 ${tt('出勤','Attendance')} · ${periodLabel('M',MA)}`);line(tt('出勤率','Rate'),fmtM(A.rate,'pct')+` (${fmt(A.present_w)}/${fmt(A.sched)})`);line(tt('實際工時','Actual hrs'),fmt(A.act));line(tt('未請假缺勤','Unexcused'),fmt(A.miss,1)+' h');line(tt('請假','Leave'),fmt(LV.hours,1)+' h · '+fmt(LV.n)+' '+t('records'));line(tt('異常','Exceptions'),fmt(EX.n)+' · '+fmt(EX.emps)+' '+tt('人','people'))}
  else{L.push(`${modIcon(k)} VRT HR · ${t(k)} · ${per}`);const A=agg(k,R);PM[k].forEach(m=>line(ML(m),fmtM(A[m[0]],m[3])))}
- L.push('');L.push(tt('來源：BEST 人事系統匯出（唯讀）· PSJHR','Source: BEST HR exports (read-only) · PSJHR'));return L.join('\n');
+ L.push('');L.push(tt('來源：BEST 人事系統匯出（唯讀）· PSJHR','Source: BEST HR exports (read-only) · PSJHR'));L.push(tgLinkLine(tgButtons(k,k==='dashboard'?'M':st.pt,R)));return L.join('\n');
 }
-function tgPreview(k){const msg=summaryText(k);
+function tgPreview(k){const msg=summaryText(k);const st=S(k==='dashboard'?'att':k);TGPEND={msg,btns:tgButtons(k,k==='dashboard'?'M':st.pt,k==='dashboard'?rangeFor('M',TODAY):rangeOf(st))};
  showModal(`<h2>${esc(t('send_tg'))}</h2><p class="small muted">${cloudReady()?tt('會由 PSJHR.gs 發到設定的 Telegram 群組。','Sent to the configured Telegram group by PSJHR.gs.'):tt('雲端未連線：先在設定填後端網址與同步密碼。','Cloud not connected: set the backend URL and sync password first.')}</p>
- <div class="tg" style="max-width:none"><div class="bub" style="white-space:pre-line">${esc(msg)}</div></div><div style="display:flex;gap:8px;margin-top:12px"><button class="btn pri" ${cloudReady()?'':'disabled'} onclick="tgSend(${JSON.stringify(msg).replace(/"/g,'&quot;')})">${tt('送出','Send')}</button><button class="btn" onclick="navigator.clipboard&&navigator.clipboard.writeText(${JSON.stringify(msg).replace(/"/g,'&quot;')});toast('${esc(tt('已複製','Copied'))}')">${tt('複製','Copy')}</button><button class="btn" onclick="closeDrawer()">${esc(t('cancel'))}</button></div>`)}
-async function tgSend(msg){try{await sendTelegram(msg);audit('telegram','-','SEND',null,{len:msg.length});toast(tt('已發送','Sent'));closeDrawer()}catch(e){toast(tt('發送失敗：','Send failed: ')+(e.message||e))}}
+ <div class="tg" style="max-width:none"><div class="bub" style="white-space:pre-line">${esc(msg)}</div>${tgBtnsHTML(TGPEND.btns)}</div><div style="display:flex;gap:8px;margin-top:12px"><button class="btn pri" ${cloudReady()?'':'disabled'} onclick="tgSend()">${tt('送出','Send')}</button><button class="btn" onclick="navigator.clipboard&&navigator.clipboard.writeText(${JSON.stringify(msg).replace(/"/g,'&quot;')});toast('${esc(tt('已複製','Copied'))}')">${tt('複製','Copy')}</button><button class="btn" onclick="closeDrawer()">${esc(t('cancel'))}</button></div>`)}
+async function tgSend(P){P=P||TGPEND;if(!P)return;const msg=P.msg;try{await sendTelegram(msg,(P.btns||[]).map(r=>r.map(b=>[b[0],b[1]])));audit('telegram','-','SEND',null,{len:msg.length});toast(tt('已發送','Sent'));closeDrawer()}catch(e){toast(tt('發送失敗：','Send failed: ')+(e.message||e))}}
 function renderReports(){const k='reports';const st=S(k);let h=pageHead(k)+pnav(k,{pts:['M','Y','C']});
- const R=rangeOf(st);const txt=(()=>{const A=attAgg(R),J=agg('joinleave',R),LV=agg('leave',R),EX=agg('attexc',R);const L=[`👥 VRT HR · ${periodLabel(st.pt,R)}`];L.push(`${tt('在職人數','Active')}: ${fmt(DB.emp.filter(e=>e.status==='在職').length)}`,`${tt('新進 / 離職','Joiners / leavers')}: ${fmt(J.join)} / ${fmt(J.leave)}`,'',`🕒 ${tt('出勤','Attendance')}`,`${tt('出勤率','Rate')}: ${fmtM(A.rate,'pct')} (${fmt(A.present_w)}/${fmt(A.sched)} ${tt('工作日人日','person-days')})`,`${tt('實際工時','Actual hrs')}: ${fmt(A.act)}`,`${tt('未請假缺勤','Unexcused')}: ${fmt(A.miss,1)} h`,`${tt('請假','Leave')}: ${fmt(LV.hours,1)} h · ${fmt(LV.n)} ${t('records')} · ${fmt(LV.emps)} ${tt('人','people')}`,`${tt('異常','Exceptions')}: ${fmt(EX.n)} · ${fmt(EX.emps)} ${tt('人','people')}`,'',tt('來源：BEST 人事系統匯出（唯讀）· PSJHR','Source: BEST HR exports (read-only) · PSJHR'));return L.join('\n')})();
- h+=`<div class="grid2"><div class="panel"><h2>${tt('期間摘要','Period summary')}</h2><div class="tg" style="max-width:none"><div class="bub" style="white-space:pre-line">${esc(txt)}</div></div><div style="display:flex;gap:8px;margin-top:10px"><button class="btn pri" ${cloudReady()?'':'disabled'} onclick="tgSend(${JSON.stringify(txt).replace(/"/g,'&quot;')})">${esc(t('send_tg'))}</button><button class="btn" onclick="navigator.clipboard&&navigator.clipboard.writeText(${JSON.stringify(txt).replace(/"/g,'&quot;')});toast('${esc(tt('已複製','Copied'))}')">${tt('複製','Copy')}</button></div></div>
+ const R=rangeOf(st);const txt=(()=>{const A=attAgg(R),J=agg('joinleave',R),LV=agg('leave',R),EX=agg('attexc',R);const L=[`👥 VRT HR · ${periodLabel(st.pt,R)}`];L.push(`${tt('在職人數','Active')}: ${fmt(DB.emp.filter(e=>e.status==='在職').length)}`,`${tt('新進 / 離職','Joiners / leavers')}: ${fmt(J.join)} / ${fmt(J.leave)}`,'',`🕒 ${tt('出勤','Attendance')}`,`${tt('出勤率','Rate')}: ${fmtM(A.rate,'pct')} (${fmt(A.present_w)}/${fmt(A.sched)} ${tt('工作日人日','person-days')})`,`${tt('實際工時','Actual hrs')}: ${fmt(A.act)}`,`${tt('未請假缺勤','Unexcused')}: ${fmt(A.miss,1)} h`,`${tt('請假','Leave')}: ${fmt(LV.hours,1)} h · ${fmt(LV.n)} ${t('records')} · ${fmt(LV.emps)} ${tt('人','people')}`,`${tt('異常','Exceptions')}: ${fmt(EX.n)} · ${fmt(EX.emps)} ${tt('人','people')}`,'',tt('來源：BEST 人事系統匯出（唯讀）· PSJHR','Source: BEST HR exports (read-only) · PSJHR'),tgLinkLine(tgButtons('reports',st.pt,R)));return L.join('\n')})();window.TGREP={msg:txt,btns:tgButtons('reports',st.pt,R)};
+ h+=`<div class="grid2"><div class="panel"><h2>${tt('期間摘要','Period summary')}</h2><div class="tg" style="max-width:none"><div class="bub" style="white-space:pre-line">${esc(txt)}</div>${tgBtnsHTML(TGREP.btns)}</div><div style="display:flex;gap:8px;margin-top:10px"><button class="btn pri" ${cloudReady()?'':'disabled'} onclick="tgSend(TGREP)">${esc(t('send_tg'))}</button><button class="btn" onclick="navigator.clipboard&&navigator.clipboard.writeText(${JSON.stringify(txt).replace(/"/g,'&quot;')});toast('${esc(tt('已複製','Copied'))}')">${tt('複製','Copy')}</button></div></div>
  <div class="panel"><h2>${tt('各頁匯出','Exports')}</h2><p class="hint">${tt('每一頁右上角「匯出 Excel」會匯出目前期間與篩選；第 1 頁「說明」、第 2 頁「資料」。','Each page exports the current period and filters: sheet 1 = notes, sheet 2 = data.')}</p><div class="stack">${['emp','att','attexc','leave','joinleave','basepay','annual'].map(x=>`<button class="btn" onclick="exportXLSX('${x}')">${modIcon(x)} ${esc(t(x))}</button>`).join('')}</div></div></div>`;
  return h+`<div class="panel mt"><h2>${tt('Telegram 發送紀錄','Telegram log')}</h2>${DB.audit.filter(a=>a.module==='telegram').slice(0,10).map(a=>`<div class="small"><span class="mono">${esc(a.time)}</span> · ${esc(a.user)}</div>`).join('')||`<div class="muted small">—</div>`}</div>`;
 }
@@ -1268,6 +1332,7 @@ function renderSettings(){
  <div class="panel"><h2>${tt('這台裝置','This device')}</h2><div class="kv"><div><dt>${tt('批次','Batches')}</dt><dd>${fmt((DB.hrfiles||[]).length)}</dd></div><div><dt>${tt('員工','Employees')}</dt><dd>${fmt(DB.emp.length)}</dd></div><div><dt>${tt('請假 / 異常','Leave / exceptions')}</dt><dd>${fmt(DB.leave.length)} / ${fmt(DB.attexc.length)}</dd></div><div><dt>${tt('工時月份','Attendance months')}</dt><dd>${fmt(uniq((DB.hrfiles||[]).filter(f=>f.rep==='att').map(f=>f.range[0].slice(0,7))).length)}</dd></div></div>
   <div style="margin-top:10px"><button class="btn sm dng" onclick="clearReal()">${tt('清除這台裝置的資料（雲端不受影響）','Clear data on this device (cloud untouched)')}</button></div></div></div>`;
  h+=cloudPanel();
+ h+=`<div class="panel mt"><h2>🧾 ${tt('網頁編輯與參數','Web edits & parameters')}</h2><p class="hint">${tt('網頁上新增／編輯／刪除的資料與薪資、伙食費參數都會上傳雲端（試算表 PSJHR_HR_EDITS、PSJHR_HR_CONFIG），其他裝置自動下載；不會寫回 BEST 人事系統。','Records added, edited or deleted on the web and the payroll / meal parameters are uploaded to the cloud (PSJHR_HR_EDITS, PSJHR_HR_CONFIG) and downloaded on other devices; nothing is written back to the BEST HR system.')}</p><div class="kv"><div><dt>${tt('編輯筆數','Edited records')}</dt><dd>${fmt(Object.values(DB.edits||{}).reduce((s,m)=>s+Object.keys(m).length,0))}</dd></div><div><dt>${tt('待選差異','Pending differences')}</dt><dd>${fmt((DB.conflicts||[]).length)}</dd></div><div><dt>HRA-PAY ${tt('已載入','loaded')}</dt><dd>${esc(Object.keys((DB.hp||{}).pay||{}).sort().join(', ')||'—')}</dd></div></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn sm" onclick="openPayCfg()">⚙️ ${tt('薪資福利參數','Pay parameters')}</button><button class="btn sm" onclick="openMealCfg()">🍚 ${tt('伙食費費率','Meal rates')}</button><button class="btn sm" onclick="backupJSON()">⬇ ${tt('下載備份（JSON）','Download backup (JSON)')}</button><label class="btn sm">⬆ ${tt('還原備份','Restore backup')}<input type="file" accept=".json" hidden onchange="this.files[0]&&restoreJSON(this.files[0])"></label>${(DB.conflicts||[]).length?`<button class="btn sm" onclick="openConflicts()">⚖️ ${tt('處理差異','Resolve differences')}</button>`:''}</div></div>`;
  h+=`<div class="panel mt"><h2>${tt('關於','About')}</h2><div class="kv"><div><dt>${tt('系統','System')}</dt><dd>VRT HR · PSJHR v${APPV}</dd></div><div><dt>${tt('來源系統','Source system')}</dt><dd>BEST 人事管理系統（D:\\per\\per.exe）· ${tt('唯讀','read-only')}</dd></div><div><dt>${tt('相關平台','Related')}</dt><dd><a href="https://saintdou-weng.github.io/vrt-asset/" target="_blank" rel="noopener">VRT ERP</a> · <a href="https://saintdou-weng.github.io/ac-hra-portal/" target="_blank" rel="noopener">AC HRA Portal</a></dd></div><div><dt>${tt('操作手冊','Manual')}</dt><dd><a href="https://claude.ai/code/artifact/ce562c4b-4a32-4a67-9e46-20917a9321c0" target="_blank" rel="noopener">${tt('人事管理系統操作手冊','HR system manual')} ↗</a></dd></div></div></div>`;
  return h;
 }
@@ -1279,7 +1344,300 @@ function gsearch(q){const box=$('#sres');q=q.trim().toLowerCase();if(!q){box.hid
  box.innerHTML=hits.length?hits.map(e=>`<a href="javascript:void(0)" onclick="openEmp('${esc(e.emp_no)}');$('#sres').hidden=true"><span class="mono">${esc(e.emp_no)}</span> ${esc(e.name||'')} <span class="muted small">${esc(e.dept||'')} ${statusChip(e.status)}</span></a>`).join(''):`<div class="muted small" style="padding:8px">${esc(t('no_data'))}</div>`;box.hidden=false}
 
 /* ---------- router / boot ---------- */
-const RENDER={dashboard:renderDashboard,'smart-import':renderImport,emp:renderEmp,basepay:renderBasePay,jobcode:renderJobcode,sync:renderSync,reports:renderReports,settings:renderSettings,
+/* ================= v0.2 · edits layer, config, HRA-PAY link, meal, payroll, benefits ================= */
+/* ---------- config (editable in Settings, synced to the cloud as one small batch) ---------- */
+const CFG_DEFAULT={
+ meal:{fx:4000,hours:8,rates:[{from:'2014-01-01',worker:3000,staff:5000,ot:2000}],staff:{},otAfter:17.5},
+ pay:{div:26,hrs:208,ot1:1.5,ot2:2,sun:2,trans:9.5,transHalf:4.75,attBonus:10,stdStart:7,lunchFrom:12,lunchTo:13,stdEnd:16.5,otMinOut:16.75,otStep:0.5,nssfMin:400000,nssfMax:1200000,nssfRate:0.02,nssfFx:4050,taxFx:4053,unpaid:['P.L.','NP'],noPay:['M.L.']},
+ ben:{alBase:18,alEvery:3,senDays:7.5,matDays:90,matPct:0.5,nurse:15,nurseMonths:12}
+};
+function C(){if(!DB.config)DB.config={};const c=DB.config;for(const g of Object.keys(CFG_DEFAULT)){c[g]=Object.assign({},CFG_DEFAULT[g],c[g]||{})}return c}
+function cfgSave(){DB.sys=DB.sys||{};DB.sys.config=Object.assign(DB.sys.config||{},{dirty:true,at:nowStamp()});GC.clear();persist();if(cloudReady())setTimeout(()=>cloudSync(false),300)}
+
+/* ---------- edits layer: hand edits win; re-imports are compared field by field ---------- */
+const ED_FIELDS={
+ emp:[['name','name','t'],['dept_code','dept_code','t'],['title_code','title_code','t'],['sex','sex','t'],['status','emp_status','s:在職,留職停薪,離職'],['join_date','join_date','d'],['leave_date','leave_date','d']],
+ basepay:[['pay_type','pay_type','s:月薪制,日薪制'],['base','base','n'],['sen_pay','sen_pay','n'],['allow_tech','allow_tech','n'],['allow_pos','allow_pos','n'],['lang_pay','lang_pay','n'],['allow_pro','allow_pro','n'],['allow_other','allow_other','n'],['allow_full','allow_full','n'],['allow_trans','allow_trans','n'],['allow_meal','allow_meal','n'],['meal_rate','meal_rate','n'],['eff_from','eff_from','d']],
+ leave:[['emp_no','emp_no','t'],['leave_type','leave_type','t'],['start_date','start','d'],['end','end','d'],['days','days','n'],['total_hours','total_hours','n'],['approve','approve','t']],
+ holiday:[['date','date','d'],['name','hol_name','t'],['who','hol_who','t']],
+ payadj:[['ot_hrs','ot_hrs','n'],['unpaid_hrs','unpaid_hrs','n'],['bonus','incentive','n'],['deduct','work_deduct','n'],['al_paid','al_paid','n'],['adjust','adjust','n'],['note','note','t']]
+};
+const ED_DS=Object.keys(ED_FIELDS);
+function rkOf(ds,r){if(ds==='leave')return r._rk||(r.emp_no+'|'+(r.start||r.start_date||'')+'|'+(r.leave_type||''));if(ds==='holiday')return r.date;if(ds==='payadj')return r.rk;return r.emp_no}
+function EDITS(){return DB.edits||(DB.edits={})}
+function rowsOfDs(ds){return ds==='payadj'?(DB.payadj||(DB.payadj=[])):DB[ds]}
+function applyEdits(onlyDs){
+ const E=EDITS();DB.conflicts=DB.conflicts||[];const addC=c=>{DB.conflicts=DB.conflicts.filter(x=>!(x.ds===c.ds&&x.rk===c.rk&&x.field===c.field));DB.conflicts.push(c)};
+ for(const ds of (onlyDs?[onlyDs]:ED_DS)){const ed=E[ds];if(!ed)continue;const rows=rowsOfDs(ds);if(!rows)continue;
+  const idx=new Map();rows.forEach((r,i)=>idx.set(rkOf(ds,r),i));const kill=new Set();
+  for(const [rk,e] of Object.entries(ed)){const i=idx.get(rk);
+   if(e.del){if(i!=null)kill.add(i);continue}
+   if(i==null){if(e.add||ds==='payadj'){const r=Object.assign({emp_no:e.f.emp_no||rk.split('|')[0]},e.f,{_ed:1,_added:1});if(ds==='leave'){r._rk=rk;r.start=r.start||r.start_date}if(ds==='payadj')r.rk=rk;rows.push(r);idx.set(rk,rows.length-1)}else addC({ds,rk,field:'*',gone:1});continue}
+   const r=rows[i];for(const [f,v] of Object.entries(e.f||{})){const cur=r[f];const base=e.base?e.base[f]:undefined;
+    if(!r._ed&&base!==undefined&&String(cur??'')!==String(base??'')&&String(cur??'')!==String(v??''))addC({ds,rk,field:f,mine:v,src:cur,base});
+    r[f]=v}r._ed=1}
+  if(kill.size){const keep=rows.filter((_,i)=>!kill.has(i));rows.length=0;keep.forEach(x=>rows.push(x))}}
+ GC.clear()}
+function edSource(ds,rk){const rows=rowsOfDs(ds)||[];return rows.find(r=>rkOf(ds,r)===rk)||null}
+function edSave(ds,rk,fields,o={}){
+ const E=EDITS();const ed=E[ds]||(E[ds]={});const cur=edSource(ds,rk);const e=ed[rk]||{f:{},base:{},at:'',add:!cur};
+ for(const [f,v] of Object.entries(fields)){if(!(f in e.f)&&cur&&!cur._added)e.base[f]=cur[f]??'';e.f[f]=v}
+ if(o.del&&e.add){delete ed[rk];const rows=rowsOfDs(ds);const i=rows.findIndex(r=>rkOf(ds,r)===rk);if(i>=0)rows.splice(i,1)}
+ else{if(o.del)e.del=true;if(!cur)e.add=true;e.at=nowStamp();e.by='paul.weng';e.note=o.note||e.note||'';ed[rk]=e}
+ if(cur&&!o.del)Object.assign(cur,fields,{_ed:1});
+ audit('edit',ds+':'+rk,o.del?'DELETE':cur?'EDIT':'ADD',null,fields);
+ DB.sys=DB.sys||{};DB.sys.edits=Object.assign(DB.sys.edits||{},{dirty:true,at:nowStamp()});
+ applyEdits(ds);persist();if(cloudReady())setTimeout(()=>cloudSync(false),300)}
+const isEdited=(ds,rk)=>!!(EDITS()[ds]||{})[rk];
+const edBadge=(ds,rk)=>isEdited(ds,rk)?` <span class="hr-chip" style="background:#FEF3C7;color:#92400E">✏️ ${tt('已編輯','Edited')}</span>`:'';
+function fieldInput(f,l,ty,v){const id='ed_'+f;
+ if(ty.startsWith('s:'))return `<select class="inp" id="${id}">${ty.slice(2).split(',').map(o=>`<option ${String(v)===o?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
+ return `<input class="inp" id="${id}" type="${ty==='n'?'number':ty==='d'?'date':'text'}" ${ty==='n'?'step="any"':''} value="${esc(v??'')}">`}
+function openEdit(ds,rk,preset){
+ const cur=rk?edSource(ds,rk):null;const F=ED_FIELDS[ds];const v=Object.assign({},preset||{},cur||{});
+ const title={emp:tt('員工基本資料','Employee'),basepay:tt('薪資設定','Pay setup'),leave:tt('請假紀錄','Leave record'),holiday:tt('假日','Holiday'),payadj:tt('當月薪資調整','Payroll adjustment')}[ds];
+ showModal(`<h2>${cur?'✏️ '+tt('編輯','Edit'):'＋ '+tt('新增','Add')} · ${esc(title)}</h2><p class="small muted">${tt('只改 PSJHR 雲端這份資料，不會寫回 BEST 人事系統。之後重匯 BEST 檔時，手改的欄位會保留，不同處會列出讓你選。','Edits change the PSJHR cloud copy only, never the BEST HR system. Re-imports keep your edits and list any differences for you to choose.')}</p>
+ ${ds==='emp'&&!cur||ds==='basepay'&&!cur?`<div class="field"><label>${esc(t('emp_no'))}</label><input class="inp mono" id="ed_emp_no" value="${esc(v.emp_no||'')}"></div>`:''}
+ ${ds==='payadj'?`<p class="mono small">${esc(rk||'')}</p>`:''}
+ <div class="form">${F.map(([f,l,ty])=>`<div class="field"><label for="ed_${f}">${esc(t(l))}</label>${fieldInput(f,l,ty,v[f])}</div>`).join('')}</div>
+ <div class="field"><label for="ed__note">${tt('備註（為什麼改）','Note (why)')}</label><input class="inp" id="ed__note" value=""></div>
+ <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn pri" onclick="edSubmit('${ds}',${rk?`'${esc(rk)}'`:'null'})">💾 ${tt('儲存','Save')}</button>${cur?`<button class="btn dng" onclick="if(confirm('${esc(tt('確定刪除這筆？（只刪 PSJHR 的資料）','Delete this record? (PSJHR copy only)'))}'))edSubmit('${ds}','${esc(rk)}',1)">🗑 ${tt('刪除','Delete')}</button>`:''}${cur&&isEdited(ds,rk)?`<button class="btn" onclick="edRevert('${ds}','${esc(rk)}')">↩ ${tt('還原成 BEST 原值','Revert to BEST value')}</button>`:''}<button class="btn" onclick="closeDrawer()">${esc(t('cancel'))}</button></div>`)}
+function edSubmit(ds,rk,del){
+ const F=ED_FIELDS[ds];const vals={};F.forEach(([f,l,ty])=>{const el=$('#ed_'+f);if(!el)return;let x=el.value;if(ty==='n')x=x===''?0:+x;vals[f]=x});
+ if(!rk){if(ds==='emp'||ds==='basepay'){const no=($('#ed_emp_no')||{}).value||'';if(!no.trim()){toast(tt('請輸入員工編號','Enter the employee no.'));return}vals.emp_no=no.trim();rk=vals.emp_no}
+  else if(ds==='leave'){if(!vals.emp_no||!vals.start_date){toast(tt('請填員工編號與起始日','Enter emp no. and start date'));return}vals.start=vals.start_date;rk=vals.emp_no+'|'+vals.start_date+'|'+vals.leave_type}
+  else if(ds==='holiday'){if(!vals.date){toast(tt('請填日期','Enter a date'));return}rk=vals.date}}
+ if(ds==='leave')vals.start=vals.start_date;
+ const cur=edSource(ds,rk);if(cur&&!del){const e0=(EDITS()[ds]||{})[rk];const tyOf=f=>(F.find(x=>x[0]===f)||[])[2];for(const f of Object.keys(vals)){const same=tyOf(f)==='n'?(+cur[f]||0)===(+vals[f]||0):String(cur[f]??'')===String(vals[f]??'');if(same&&!(e0&&f in e0.f))delete vals[f]}if(!Object.keys(vals).length){closeDrawer();toast(tt('沒有變更','No changes'));return}}
+ edSave(ds,rk,vals,{del:!!del,note:($('#ed__note')||{}).value||''});closeDrawer();toast(del?tt('已刪除','Deleted'):tt('已儲存','Saved'));rerender()}
+function edRevert(ds,rk){const e=(EDITS()[ds]||{})[rk];if(!e)return;const cur=edSource(ds,rk);if(cur&&e.base)Object.assign(cur,e.base);if(cur)delete cur._ed;
+ delete EDITS()[ds][rk];DB.sys=DB.sys||{};DB.sys.edits=Object.assign(DB.sys.edits||{},{dirty:true,at:nowStamp()});(DB.edq=DB.edq||[]).push({ds,rk,at:nowStamp(),revert:1});
+ audit('edit',ds+':'+rk,'REVERT',null,{});GC.clear();persist();closeDrawer();toast(tt('已還原','Reverted'));rerender();if(cloudReady())setTimeout(()=>cloudSync(false),300)}
+function conflictsHTML(){const c=DB.conflicts||[];if(!c.length)return '';
+ return `<div class="note warn" style="margin-bottom:12px">⚠️ ${tt(`有 ${c.length} 個手改欄位和新匯入的 BEST 資料不同，目前先用手改值。`,`${c.length} edited field(s) differ from the newly imported BEST data; your edits are used for now.`)} <button class="btn sm" onclick="openConflicts()">${tt('逐筆選擇','Review')}</button></div>`}
+function openConflicts(){const c=DB.conflicts||[];
+ showModal(`<h2>⚖️ ${tt('手改 vs 新匯入','Edit vs new import')}</h2><p class="small muted">${tt('每一列選要保留哪個值。','Choose which value to keep for each row.')}</p><div style="max-height:56vh;overflow:auto"><table class="t"><thead><tr><th>${tt('資料','Data')}</th><th>${tt('欄位','Field')}</th><th>${tt('手改','Edited')}</th><th>${tt('新檔','New file')}</th><th></th></tr></thead><tbody>${c.map((x,i)=>`<tr><td class="mono small">${esc(x.ds)} · ${esc(x.rk)}</td><td>${esc(x.gone?tt('BEST 已無此筆','gone from BEST'):t(x.field))}</td><td><b>${esc(x.mine??'')}</b></td><td>${esc(x.src??'')}</td><td style="white-space:nowrap"><button class="btn sm" onclick="resolveC(${i},'mine')">${tt('保留手改','Keep edit')}</button> <button class="btn sm" onclick="resolveC(${i},'src')">${x.gone?tt('刪除手改','Drop edit'):tt('用新檔','Use file')}</button></td></tr>`).join('')}</tbody></table></div><div style="margin-top:10px"><button class="btn" onclick="closeDrawer()">${esc(t('close'))}</button></div>`)}
+function resolveC(i,pick){const x=(DB.conflicts||[])[i];if(!x)return;const e=(EDITS()[x.ds]||{})[x.rk];
+ if(e){if(x.gone){if(pick==='src')delete EDITS()[x.ds][x.rk];else e.add=true}
+  else if(pick==='mine'){e.base[x.field]=x.src}else{delete e.f[x.field];delete e.base[x.field];const cur=edSource(x.ds,x.rk);if(cur)cur[x.field]=x.src;if(!Object.keys(e.f).length)delete EDITS()[x.ds][x.rk]}
+  e.at=nowStamp();DB.sys=DB.sys||{};DB.sys.edits=Object.assign(DB.sys.edits||{},{dirty:true,at:nowStamp()})}
+ DB.conflicts.splice(i,1);applyEdits(x.ds);persist();if((DB.conflicts||[]).length)openConflicts();else{closeDrawer();rerender()}}
+
+/* ---------- cloud: edits + config travel as two small batches (sheet EDITS / CONFIG) ---------- */
+function sysRows(name){if(name==='edits'){const out=[];const E=EDITS();for(const ds of Object.keys(E))for(const [rk,e] of Object.entries(E[ds]))out.push({ds,rk,at:e.at||'',data:JSON.stringify(e)});(DB.edq||[]).forEach(q=>out.push({ds:q.ds,rk:q.rk,at:q.at,data:JSON.stringify({revert:1})}));return out}
+ return [{ds:'config',rk:'all',at:(DB.sys&&DB.sys.config&&DB.sys.config.at)||nowStamp(),data:JSON.stringify(C())}]}
+async function pushSys(name){const rows=sysRows(name);const cols=['ds','rk','at','data'],types=['s','s','s','s'];const n=Math.max(1,Math.ceil(rows.length/2500));let ver=null;
+ for(let i=0;i<n;i++){const chunk=rows.slice(i*2500,(i+1)*2500).map(r=>cols.map(c=>r[c]));const meta=i===n-1?{rep:name,fn:'PSJHR',file:'psjhr-web',label:name==='edits'?'網頁編輯':'設定',range:['',''],asof:'',year:'',totals:{n:rows.length},checks:[],at:nowStamp(),user:'paul.weng'}:null;
+  const j=await cpost({action:'hr_put',sheet:name.toUpperCase(),key:name,part:i,total:rows.length,cols,types,rows:chunk,meta});if(j.version)ver=j.version}
+ DB.sys[name]=Object.assign(DB.sys[name]||{},{dirty:false,version:String(ver||'')});if(name==='edits')DB.edq=[]}
+async function pullSys(m){const name=m.rep;let rows=[],off=0,total=+m.rows||0;
+ do{const j=await cget({action:'hr_get',key:m.key,offset:off,limit:3000});rows=rows.concat(j.rows);total=j.total;off+=3000}while(off<total);
+ const cols=PJ(m.cols)||['ds','rk','at','data'];const objs=rows.map(a=>{const o={};cols.forEach((c,k)=>o[c]=a[k]);return o});
+ if(name==='config'){const r=objs.find(o=>o.ds==='config');if(r){const mine=DB.sys&&DB.sys.config;if(!(mine&&mine.dirty&&mine.at>r.at)){try{DB.config=JSON.parse(r.data)}catch(e){}}}}
+ else{const E=EDITS();for(const o of objs){let e;try{e=JSON.parse(o.data)}catch(x){continue}const ed=E[o.ds]||(E[o.ds]={});const mine=ed[o.rk];
+   if(e.revert){if(mine&&(mine.at||'')<=o.at){const cur=edSource(o.ds,o.rk);if(cur&&mine.base)Object.assign(cur,mine.base);delete ed[o.rk]}continue}
+   if(!mine||(mine.at||'')<(e.at||''))ed[o.rk]=e}
+  ED_DS.forEach(ds=>applyEdits(ds))}
+ DB.sys=DB.sys||{};DB.sys[name]=Object.assign(DB.sys[name]||{},{version:String(m.version)})}
+const SYS_REPS=new Set(['edits','config']);
+
+/* ---------- HRA-PAY link (read-only): real payroll & meal fee from the AC-HRA-PAY cloud ---------- */
+const HP_URL='https://script.google.com/macros/s/AKfycbwmmRduvOe5RdnR_iALwEIi_6lQaTq4SXH88jmoIjiHwTsTrW5qnlPTr8PSmOT7C2rdGg/exec';
+const HP={man:{},busy:new Set()};
+function HPD(){return DB.hp||(DB.hp={pay:{},adv:{},meal:{},at:{}})}
+async function hpManifest(tool){if(HP.man[tool]&&Date.now()-HP.man[tool].t<10*60e3)return HP.man[tool].d;const j=await fetch(HP_URL+'?action=smartManifest&tool='+tool).then(r=>r.json());const d=j.data||j;HP.man[tool]={t:Date.now(),d};return d}
+async function hpBuckets(tool,prefixRe){const man=await hpManifest(tool);const ks=Object.keys(man.hashes||{}).filter(k=>prefixRe.test(k));const out=[];let i=0;
+ async function w(){while(i<ks.length){const k=ks[i++];try{const j=await fetch(HP_URL+'?action=smartBucket&tool='+tool+'&bucket='+encodeURIComponent(k)).then(r=>r.json());out.push(...(((j.data||j).records)||[]))}catch(e){}}}
+ await Promise.all([w(),w(),w(),w(),w(),w()]);return out}
+function xlCols(row){const c=(row&&row._excel&&row._excel.cells)||{};const by={};for(const [k,v] of Object.entries(c)){const m=k.match(/^([A-Z]+)(\d+)$/);if(!m)continue;const o=by[m[1]]||(by[m[1]]={});o[+m[2]]=v.v}
+ const get=(col,which)=>{const o=by[col];if(!o)return null;const rs=Object.keys(o).map(Number).sort((a,b)=>a-b);return +o[which==='in'?rs[0]:rs[rs.length-1]]||0};return get}
+async function hpLoadMonth(ym,force){const H=HPD();if(!force&&H.pay[ym]&&H.at['pay|'+ym])return true;const key='pay|'+ym;if(HP.busy.has(key))return false;HP.busy.add(key);
+ try{const recs=await hpBuckets('hrpay_payroll',new RegExp('^m:'+ym+':[ap]\\d'));const pay={},adv={};
+  for(const rec of recs){const r=rec.row;if(!r||r.id==null)continue;const id=String(r.id).trim();const g=xlCols(r);const tgt=/:a\d/.test(rec._syncBucket||'')?adv:pay;
+   tgt[id]={name:r.nameKh||r.name||'',dept:r.dept||'',E:+r.basicPay||0,F:+r.seniority||0,G:+r.skill||0,H:+r.position||0,I:+r.language||0,J:+r.workDays||g('J','in')||0,K:g('K'),N:g('N'),S:g('S'),X:g('X'),Y:g('Y'),AE:g('AE'),AG:g('AG'),AH:g('AH'),AJ:g('AJ','out'),AJ1:g('AJ','in'),AK:g('AK'),U:g('U','in'),V:g('V','in'),AB:g('AB','in'),AD:g('AD','in'),AA:g('AA','in'),join:r._excel&&Object.entries(r._excel.cells).find(([k,v])=>/^C\d/.test(k))?.[1]?.v||''}}
+  H.pay[ym]=pay;H.adv[ym]=adv;H.at['pay|'+ym]=nowStamp();persist();return true}
+ catch(e){console.warn('HRA-PAY',e);return false}finally{HP.busy.delete(key)}}
+async function hpLoadMeal(hk,force){const H=HPD();if(!force&&H.meal[hk])return true;const key='meal|'+hk;if(HP.busy.has(key))return false;HP.busy.add(key);
+ try{const [ym,b]=hk.split(':');const recs=await hpBuckets('hrpay_meal',new RegExp('^m:'+ym+':b'+b+':m\\d'));const out={};
+  for(const rec of recs){if(rec.kind!=='meal'||!rec.row)continue;const r=rec.row;const id=String(r.id).trim();const rate=Math.max(0,...r.days.map(d=>+d.present||0));out[id]={name:r.name,dept:r.dept,pos:r.position||'',riel:+r.riel||0,usd:+r.usd||0,rate,days:r.days.filter(d=>d.present||d.ot).length,ot:r.days.reduce((s,d)=>s+(+d.ot||0),0)}}
+  H.meal[hk]=out;H.at[key]=nowStamp();persist();return true}
+ catch(e){console.warn('HRA-PAY meal',e);return false}finally{HP.busy.delete(key)}}
+function hpAvailable(tool,re){const m=HP.man[tool];if(!m)return null;return Object.keys(m.d.hashes||{}).some(k=>re.test(k))}
+function hpLatestPay(ym,no){const H=HPD();const ks=Object.keys(H.pay).filter(k=>k<=ym).sort().reverse();for(const k of ks){const r=H.pay[k][no];if(r&&(r.E||r.H||r.G))return Object.assign({ym:k},r)}return null}
+async function hpFillPay(){const H=HPD();const ks=Object.keys(H.pay).sort();if(!ks.length){toast(tt('請先在「薪資估算」載入 HRA-PAY 月份','Load an HRA-PAY month in Payroll first'));return}
+ const ym=ks[ks.length-1];let n=0;for(const [no,r] of Object.entries(H.pay[ym])){if(!r.E)continue;const cur=(DB.basepay||[]).find(x=>x.emp_no===no);
+  const f={pay_type:'月薪制',base:r.E,sen_pay:r.F,allow_tech:r.G,allow_pos:r.H,lang_pay:r.I,eff_from:ym+'-01'};if(cur&&+cur.base===r.E&&+cur.sen_pay===r.F&&+cur.allow_tech===r.G&&+cur.allow_pos===r.H)continue;
+  const E=EDITS();const ed=E.basepay||(E.basepay={});const e=ed[no]||{f:{},base:{},add:!cur};for(const [k,v] of Object.entries(f)){if(!(k in e.f)&&cur)e.base[k]=cur[k]??'';e.f[k]=v}e.at=nowStamp();e.by='HRA-PAY '+ym;e.note='HRA-PAY '+ym;ed[no]=e;n++}
+ DB.sys=DB.sys||{};DB.sys.edits=Object.assign(DB.sys.edits||{},{dirty:true,at:nowStamp()});applyEdits('basepay');persist();toast(tt(`已用 HRA-PAY ${ym} 補齊 ${n} 人的薪資設定`,`Pay setup filled for ${n} people from HRA-PAY ${ym}`));rerender();if(cloudReady())setTimeout(()=>cloudSync(false),300)}
+
+/* ---------- pay rates per employee (edits > HRA-PAY > BEST) ---------- */
+function payRates(no,ym){const p=(DB.basepay||[]).find(r=>r.emp_no===no);const daily=p&&/日/.test(p.pay_type||'');
+ if(p&&p._ed&&(!p.eff_from||p.eff_from.slice(0,7)<=ym))return {src:'edit',E:daily?(+p.base||0)*30:+p.base||0,F:+p.sen_pay||0,G:+p.allow_tech||0,H:+p.allow_pos||0,I:+p.lang_pay||0,meal:+p.meal_rate||0};
+ const h=hpLatestPay(ym,no);if(h)return {src:'HRA-PAY '+h.ym,E:h.E,F:h.F,G:h.G,H:h.H,I:h.I,meal:0};
+ if(p)return {src:'BEST',E:daily?(+p.base||0)*30:+p.base||0,F:+p.allow_pro||0,G:+p.allow_tech||0,H:+p.allow_pos||0,I:0,meal:0};
+ return null}
+const monthlyGross=r=>r?(r.E+r.F+r.G+r.H+r.I):0;
+
+/* ---------- meal fee: half-month periods; KHR = rate × min(actual hrs, 8) / 8 per day + OT meal when out ≥ 16:45 ---------- */
+const hDec=t=>{const m=String(t||'').match(/(\d{1,2}):(\d{2})/);return m?+m[1]+(+m[2])/60:null};
+/* actual hours: BEST value, or (older files without hours) from punches: min(out,16:30) − max(in,07:00) − lunch, in ½-hour steps */
+function effHrs(r){if(+r.hrs_actual>0)return +r.hrs_actual;const i=hDec(r.time_in),o=hDec(r.time_out);if(i==null||o==null)return 0;const P=C().pay;const s0=Math.max(i,P.stdStart),e0=Math.min(o,P.stdEnd);if(e0<=s0)return 0;const lunch=Math.max(0,Math.min(e0,P.lunchTo)-Math.max(s0,P.lunchFrom));return Math.max(0,Math.min(8,Math.floor((e0-s0-lunch)*2+1e-9)/2))}
+function mealOtRate(date){const c=C().meal;const r=[...c.rates].filter(x=>x.from<=date).sort((a,b)=>a.from.localeCompare(b.from)).pop()||c.rates[0];return +r.ot||0}
+function mealRateFor(no,date){const c=C().meal;const p=(DB.basepay||[]).find(r=>r.emp_no===no);if(p&&+p.meal_rate>0)return +p.meal_rate;
+ if(c.staff&&c.staff[no])return +c.staff[no];const r=[...c.rates].filter(x=>x.from<=date).sort((a,b)=>a.from.localeCompare(b.from)).pop()||c.rates[0];return r.worker}
+function mealCalc(R){const {a,b}=rangeStr(R);const c=C().meal;const rows=attRowsIn(R);const by={};
+ for(const r of rows){if(r.date<a||r.date>b)continue;const h=Math.min(effHrs(r),c.hours);const o=by[r.emp_no]||(by[r.emp_no]={emp_no:r.emp_no,name:r.name,dept:r.dept||r.dept_code,days:0,hrs:0,riel:0,rate:0,ot:0,otRiel:0});
+  if(h>0){const rate=mealRateFor(r.emp_no,r.date);o.days++;o.hrs+=h;o.riel+=rate*h/c.hours;o.rate=rate;const out=hDec(r.time_out);if(c.otAfter&&out!=null&&out>=c.otAfter){const x=mealOtRate(r.date);o.ot++;o.otRiel+=x;o.riel+=x}}}
+ return Object.values(by).filter(o=>o.days>0).map(o=>Object.assign(o,{usd:o.riel/c.fx}))}
+function mealApprox(R){const {a,b}=rangeStr(R);const c=C().meal;const by={};
+ for(const f of attBatches(R)){const S2=DB.attsum[f.key];if(!S2)continue;const days=Object.keys(S2.days).map(d=>f.range[0].slice(0,7)+'-'+pad(d));const inside=days.filter(d=>d>=a&&d<=b).length;if(!inside)continue;const share=inside/Math.max(1,days.length);
+  for(const [no,e] of Object.entries(S2.emps)){const rate=mealRateFor(no,f.range[0]);const o=by[no]||(by[no]={emp_no:no,name:e[7],dept:e[8],days:0,hrs:0,riel:0,rate});const pd=(+e[1]||0)*share,act=((+e[2]||0)>0?Math.min(+e[2],(+e[1]||0)*c.hours):(+e[1]||0)*c.hours)*share;o.days+=pd;o.hrs+=act;o.riel+=rate*act/c.hours}}
+ return Object.values(by).filter(o=>o.days>0).map(o=>Object.assign(o,{usd:o.riel/c.fx,approx:1}))}
+const halfKey=d=>monthKey(d)+':'+(d.getDate()<=15?1:2);
+function halvesIn(R){const out=[];for(let d=new Date(R.from.getFullYear(),R.from.getMonth(),R.from.getDate()<=15?1:16);d<=R.to&&d<=TODAY;){out.push(halfKey(d));d=d.getDate()===1?new Date(d.getFullYear(),d.getMonth(),16):new Date(d.getFullYear(),d.getMonth()+1,1)}return out}
+function renderMeal(){
+ const k='meal';if(!hasData('att'))return pageHead(k)+needHTML('att');const st=S(k);const R=rangeOf(st);const c=C().meal;
+ let h=pageHead(k,`<button class="btn sm" onclick="exportCalc('meal')">${esc(t('export'))}</button><button class="btn sm" onclick="openMealCfg()">⚙️ ${tt('費率','Rates')}</button>`)+conflictsHTML()+pnav(k,{pts:['H','M','Y']});
+ const detailed=st.pt==='H'||st.pt==='M';
+ if(detailed){const need=attNeed(R);if(need.length){loadAtt(need);return h+loadingHTML()}}
+ const rows=detailed?mealCalc(R):mealApprox(R);const hk=halvesIn(R);const H=HPD();
+ if(st.pt==='H'&&!H.meal[hk[0]]&&!HP.busy.has('meal|'+hk[0])){hpLoadMeal(hk[0]).then(ok=>{if(ok&&CUR==='meal')rerender()})}
+ const hpRows={};let hpUsd=0,hpHave=0;hk.forEach(x=>{const m=H.meal[x];if(!m||!Object.keys(m).length)return;hpHave++;for(const [id,v] of Object.entries(m)){const o=hpRows[id]||(hpRows[id]={usd:0,riel:0,days:0});o.usd+=v.usd;o.riel+=v.riel;o.days+=v.days;hpUsd+=v.usd}});
+ const tot={n:rows.length,days:sum(rows,'days'),riel:sum(rows,'riel'),usd:sum(rows,'usd')};
+ h+=`<div class="kpis">${kpi(tt('有伙食費人數','People'),fmt(tot.n))}${kpi(tt('餐數（人日）','Meals (person-days)'),fmt(tot.days,detailed?0:1))}${kpi(tt('估算 瑞爾','Estimate KHR'),fmt(tot.riel))}${kpi(tt('估算 USD','Estimate USD'),fmt(tot.usd,2),'',tt('匯率 ','FX ')+fmt(c.fx))}${kpi('HRA-PAY USD',hpHave?fmt(hpUsd,2):'—','',hpHave?tt(`${hpHave}/${hk.length} 期已載入`,`${hpHave}/${hk.length} periods loaded`):tt('未載入','not loaded'))}${kpi(tt('差異','Difference'),hpHave?fmt(tot.usd-hpUsd,2):'—','',hpHave&&hpUsd?fmt((tot.usd-hpUsd)/hpUsd*100,1)+'%':'')}</div>`;
+ h+=`<div class="note small" style="margin:10px 0">${tt('算法（同 HRA-PAY 餐費表）：每人每天 費率 × min(實際工時, 8) ÷ 8；下班晚於 '+hhmm(c.otAfter)+' 加一份加班餐；期間 01–15、16–月底兩期；USD = 瑞爾 ÷ ','Formula (as in the HRA-PAY meal sheet): rate × min(actual hrs, 8) ÷ 8 per person per day, plus an OT meal when out after '+hhmm(c.otAfter)+'; periods 01–15 and 16–month end; USD = KHR ÷ ')}${fmt(c.fx)}。${detailed?'':tt('年檢視用每月彙總估算。','Year view uses monthly summaries.')}</div>
+ <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">${hk.length<=24?`<button class="btn sm" onclick="hpMealLoadAll()">⬇ ${tt('載入 HRA-PAY 實發餐費（本期）','Load HRA-PAY actual meal fee (this period)')}</button>`:''}<button class="btn sm" onclick="learnMealRates()">🧠 ${tt('依 HRA-PAY 學習每人費率','Learn per-person rates from HRA-PAY')}</button></div>`;
+ if(hk.length>1){const per=hk.map(x=>{const [ym,bb]=x.split(':');const R2=bb==='1'?{from:parseD(ym+'-01'),to:parseD(ym+'-15')}:{from:parseD(ym+'-16'),to:new Date(+ym.slice(0,4),+ym.slice(5),0)};const rr=mealApprox(R2);const m=H.meal[x];return {x,n:rr.length,usd:sum(rr,'usd'),hp:m?Object.values(m).reduce((s,v)=>s+v.usd,0):null}});
+  h+=`<div class="panel mt"><h2>${tt('各期','By period')}</h2>${groupedBars([{name:tt('估算','Estimate'),vals:per.map(p=>p.usd),color:'var(--accent)'},{name:'HRA-PAY',vals:per.map(p=>p.hp||0),color:'#94A3B8'}],per.map(p=>p.x.replace(':1',' 上').replace(':2',' 下')),{full:1,dec:2})}<div class="tbl-wrap"><table class="t"><thead><tr><th>${tt('期間','Period')}</th><th class="r">${tt('人數','People')}</th><th class="r">${tt('估算 USD','Estimate USD')}</th><th class="r">HRA-PAY USD</th><th class="r">${tt('差異','Diff')}</th></tr></thead><tbody>${per.map(p=>`<tr class="click" onclick="S('meal').pt='H';navSet('meal','${p.x.slice(0,7)}-${p.x.endsWith(':1')?'01':'16'}')"><td class="mono">${esc(p.x)}</td><td class="r">${fmt(p.n)}</td><td class="r">${fmt(p.usd,2)}</td><td class="r">${p.hp==null?'—':fmt(p.hp,2)}</td><td class="r">${p.hp==null?'—':fmt(p.usd-p.hp,2)}</td></tr>`).join('')}</tbody></table></div></div>`}
+ const q=(st.q||'').toLowerCase();let list=rows.map(o=>Object.assign({},o,{hp:hpRows[o.emp_no]?hpRows[o.emp_no].usd:null}));Object.keys(hpRows).forEach(id=>{if(!list.find(o=>o.emp_no===id))list.push({emp_no:id,name:(Object.values(H.meal).find(m=>m[id])||{})[id]?.name||'',dept:'',days:0,hrs:0,riel:0,usd:0,rate:0,hp:hpRows[id].usd})});
+ if(q)list=list.filter(o=>(o.emp_no+' '+o.name+' '+o.dept).toLowerCase().includes(q));if(st.type==='diff')list=list.filter(o=>o.hp!=null&&Math.abs(o.usd-o.hp)>=0.01);
+ list.sort((x,y)=>Math.abs((y.hp??y.usd)-y.usd)-Math.abs((x.hp??x.usd)-x.usd)||y.usd-x.usd);const per=50,pages=Math.max(1,Math.ceil(list.length/per));if(st.page>=pages)st.page=pages-1;
+ h+=`<div class="panel mt"><div class="toolbar"><div class="seg"><button class="${st.type!=='diff'?'on':''}" onclick="S('meal').type='';rerender()">${tt('全部','All')}</button><button class="${st.type==='diff'?'on':''}" onclick="S('meal').type='diff';rerender()">${tt('只看有差異','Differences only')}</button></div><input class="inp grow" id="q_meal" placeholder="${esc(t('filter'))}" value="${esc(st.q)}" oninput="S('meal').q=this.value;S('meal').page=0;debounceRender('q_meal')"></div>
+ <div class="tbl-wrap"><table class="t cards"><thead><tr><th>${esc(t('emp_no'))}</th><th>${esc(t('name'))}</th><th>${esc(t('dept'))}</th><th class="r">${tt('費率','Rate')}</th><th class="r">${tt('餐數','Meals')}</th><th class="r">${tt('計餐工時','Hours')}</th><th class="r">${tt('加班餐','OT meals')}</th><th class="r">${tt('瑞爾','KHR')}</th><th class="r">USD</th><th class="r">HRA-PAY</th><th class="r">${tt('差異','Diff')}</th></tr></thead><tbody>${list.slice(st.page*per,st.page*per+per).map(o=>`<tr class="click" onclick="openEmp('${esc(o.emp_no)}')"><td class="lead mono" data-l="">${esc(o.emp_no)}</td><td data-l="${esc(t('name'))}">${esc(o.name)}</td><td data-l="${esc(t('dept'))}">${esc(o.dept||'')}</td><td class="r" data-l="${tt('費率','Rate')}">${fmt(o.rate)}</td><td class="r" data-l="${tt('餐數','Meals')}">${fmt(o.days,detailed?0:1)}</td><td class="r" data-l="${tt('工時','Hours')}">${fmt(o.hrs,1)}</td><td class="r" data-l="${tt('加班餐','OT meals')}">${o.ot==null?'—':fmt(o.ot)}</td><td class="r" data-l="KHR">${fmt(o.riel)}</td><td class="r" data-l="USD"><b>${fmt(o.usd,2)}</b></td><td class="r" data-l="HRA-PAY">${o.hp==null?'—':fmt(o.hp,2)}</td><td class="r" data-l="${tt('差異','Diff')}">${o.hp==null?'—':Math.abs(o.usd-o.hp)>=0.01?`<b style="color:var(--crit)">${fmt(o.usd-o.hp,2)}</b>`:'✓'}</td></tr>`).join('')}</tbody></table></div>
+ <div class="pager"><span>${fmt(list.length)} ${esc(t('records'))}</span><span style="display:flex;gap:6px"><button class="btn sm" ${st.page<=0?'disabled':''} onclick="S('meal').page--;rerender()">${esc(t('prev'))}</button><button class="btn sm" ${st.page>=pages-1?'disabled':''} onclick="S('meal').page++;rerender()">${esc(t('next'))}</button></span></div></div>`;
+ return h}
+async function hpMealLoadAll(){const R=rangeOf(S('meal'));const hk=halvesIn(R);toast(tt('從 HRA-PAY 載入…','Loading from HRA-PAY…'));let ok=0;for(const x of hk){if(await hpLoadMeal(x,true))ok++}toast(tt(`已載入 ${ok}/${hk.length} 期`,`Loaded ${ok}/${hk.length} periods`));rerender()}
+async function learnMealRates(){const H=HPD();let ks=Object.keys(H.meal).sort();if(!ks.length){await hpLoadMeal(halfKey(addD(TODAY,-20)),true);ks=Object.keys(H.meal).sort()}if(!ks.length){toast(tt('HRA-PAY 沒有餐費資料','No HRA-PAY meal data'));return}
+ const last=H.meal[ks[ks.length-1]];const cnt={};Object.values(last).forEach(v=>{if(v.rate)cnt[v.rate]=(cnt[v.rate]||0)+1});const worker=+Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0][0];const c=C();c.meal.staff={};
+ Object.entries(last).forEach(([id,v])=>{if(v.rate&&v.rate!==worker)c.meal.staff[id]=v.rate});const r=c.meal.rates;const cur=r[r.length-1];if(cur.worker!==worker)r.push({from:ks[ks.length-1].slice(0,7)+'-01',worker,staff:cur.staff,ot:cur.ot});
+ cfgSave();toast(tt(`一般 ${worker} 瑞爾；${Object.keys(c.meal.staff).length} 人用其他費率（${ks[ks.length-1]}）`,`Standard ${worker} KHR; ${Object.keys(c.meal.staff).length} people on other rates (${ks[ks.length-1]})`));rerender()}
+function openMealCfg(){const c=C().meal;
+ showModal(`<h2>⚙️ ${tt('伙食費費率','Meal fee rates')}</h2><p class="small muted">${tt('依日期生效：一般員工每天瑞爾、辦公室／主管預設、加班餐。個人費率可在「薪資設定」編輯（伙食費率欄）或用「依 HRA-PAY 學習」。','Effective by date: standard KHR per day, office/supervisor default, OT meal. Per-person rates can be edited in Pay setup (meal rate) or learned from HRA-PAY.')}</p>
+ <table class="t"><thead><tr><th>${tt('生效日','From')}</th><th class="r">${tt('一般','Standard')}</th><th class="r">${tt('辦公室','Office')}</th><th class="r">${tt('加班餐','OT meal')}</th></tr></thead><tbody id="mrBody">${c.rates.map((r,i)=>`<tr><td><input class="inp" type="date" data-i="${i}" data-f="from" value="${esc(r.from)}"></td><td><input class="inp" type="number" data-i="${i}" data-f="worker" value="${r.worker}"></td><td><input class="inp" type="number" data-i="${i}" data-f="staff" value="${r.staff}"></td><td><input class="inp" type="number" data-i="${i}" data-f="ot" value="${r.ot}"></td></tr>`).join('')}</tbody></table>
+ <div class="form" style="margin-top:8px"><div class="field"><label>${tt('匯率 KHR/USD','FX KHR/USD')}</label><input class="inp" id="mrFx" type="number" value="${c.fx}"></div><div class="field"><label>${tt('滿額工時','Full-meal hours')}</label><input class="inp" id="mrHrs" type="number" value="${c.hours}"></div><div class="field"><label>${tt('加班餐：下班晚於（16.75 = 16:45，0 = 不算）','OT meal if out after (16.75 = 16:45; 0 = off)')}</label><input class="inp" id="mrOt" type="number" step="any" value="${c.otAfter}"></div><div class="field"><label>${tt('個人費率（人數）','Per-person rates')}</label><div style="padding:8px 0">${fmt(Object.keys(c.staff||{}).length)}</div></div></div>
+ <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn" onclick="C().meal.rates.push(Object.assign({},C().meal.rates.slice(-1)[0],{from:ymd(TODAY)}));openMealCfg()">＋ ${tt('新增費率期間','Add period')}</button><button class="btn pri" onclick="saveMealCfg()">💾 ${tt('儲存','Save')}</button><button class="btn" onclick="closeDrawer()">${esc(t('cancel'))}</button></div>`)}
+function saveMealCfg(){const c=C().meal;$$('#mrBody input').forEach(el=>{const r=c.rates[+el.dataset.i];r[el.dataset.f]=el.dataset.f==='from'?el.value:+el.value});c.rates.sort((a,b)=>a.from.localeCompare(b.from));c.fx=+$('#mrFx').value||4000;c.hours=+$('#mrHrs').value||8;c.otAfter=+$('#mrOt').value||0;cfgSave();closeDrawer();toast(tt('已儲存','Saved'));rerender()}
+
+/* ---------- payroll estimate (HRA-PAY Excel formulas) + reconciliation ---------- */
+const hhmm=h=>pad(Math.floor(h))+':'+pad(Math.round((h%1)*60));
+function taxKHR(x){if(x<=1500000)return 0;if(x<=2000000)return x*0.05-75000;if(x<=8500000)return x*0.1-175000;if(x<=12500000)return x*0.15-600000;return x*0.2-1225000}
+/* paid days: a Mon–Sat day counts when the person worked, it is a public holiday, or a paid leave covers it;
+   unpaid / no-pay leave days and unexplained absences are not paid; partial days deduct unexcused hours (V) and unpaid-leave hours (U) */
+function leaveDays(){return cached('lvdays',()=>{const m=new Map();const P=C().pay;for(const l of DB.leave){const s0=parseD(l.start_date||l.start);if(!s0)continue;const e0=parseD((l.end||'').slice(0,10))||s0;const kind=P.noPay.includes(l.leave_type)?'nopay':P.unpaid.includes(l.leave_type)?'unpaid':'paid';
+ for(let d=new Date(s0);d<=e0&&d-s0<400*864e5;d=addD(d,1)){const k=l.emp_no+'|'+ymd(d);const cur=m.get(k);if(!cur||cur==='paid')m.set(k,kind)}}return m})}
+function payInputs(R){const {a,b}=rangeStr(R);const P=C().pay;const H=holidaySet();const LV=leaveDays();const rows=attRowsIn(R);const by={};
+ for(const r of rows){if(r.date<a||r.date>b)continue;const o=by[r.emp_no]||(by[r.emp_no]={emp_no:r.emp_no,name:r.name,dept:r.dept||r.dept_code,J:0,J1:0,U:0,V:0,AB:0,AD:0,AA:0,days:0,absent:0,first:r.date,last:r.date});
+  const d=parseD(r.date);const sun=d.getDay()===0,hol=H.has(r.date)&&!sun;const eh=effHrs(r),worked=eh>0;const lv=LV.get(r.emp_no+'|'+r.date);if(r.date<o.first)o.first=r.date;if(r.date>o.last)o.last=r.date;
+  if(worked)o.days++;if(sun&&worked)o.AD++;if(hol&&worked)o.AA++;
+  if(!sun){const paid=lv==='nopay'?false:worked||hol||lv==='paid';if(paid){o.J++;if(d.getDate()<=15)o.J1++}else o.absent++;
+   if(worked){if(lv==='unpaid')o.U+=+r.lv_taken||0;o.V+=+r.lv_missing||0}}
+  const out=hDec(r.time_out);if(!sun&&!hol&&worked&&out!=null&&out>=P.otMinOut)o.AB+=Math.floor((out-P.stdEnd)/P.otStep+1e-9)*P.otStep}
+ return by}
+function payCalc(R){const P=C().pay;const ym=monthKey(R.from);const inp=payInputs({from:new Date(R.from.getFullYear(),R.from.getMonth(),1),to:new Date(R.from.getFullYear(),R.from.getMonth()+1,0)});const out=[];const me=ymd(new Date(R.from.getFullYear(),R.from.getMonth()+1,0));
+ for(const o of Object.values(inp)){const r=payRates(o.emp_no,ym);if(!r||!r.E)continue;const adj=(DB.payadj||[]).find(x=>x.rk===o.emp_no+'|'+ym)||{};const e=emp(o.emp_no)||{};
+  const J=o.J,J1=o.J1,U=adj.unpaid_hrs!=null&&adj.unpaid_hrs!==''&&adj._ed?+adj.unpaid_hrs:o.U,V=o.V,AB=adj.ot_hrs!=null&&adj._ed&&adj.ot_hrs!==''?+adj.ot_hrs:o.AB;
+  const K=(r.E+r.G+r.H+r.I)/P.div*J+r.F, S=r.E/P.div*J1, Uamt=-(r.E+r.G)/P.hrs*U, Vamt=-(r.E+r.G)/P.hrs*V;
+  const join=parseD(e.join_date);const X=join&&(parseD(me)-join)/864e5>31?P.trans:(J>14?P.trans:P.transHalf);const Y=Math.max(0,P.attBonus/P.div*(J-(U+V)/8));
+  const AA=r.E/P.div*o.AA, ABa=r.E/P.hrs*P.ot1*AB, AD=r.E/P.div*P.sun*o.AD, AE=AA+ABa+AD;
+  const N=+adj.bonus||0,M=-(+adj.deduct||0),Ra=+adj.al_paid||0,AF=+adj.adjust||0;
+  const AG=Y+X+N+M+K+Uamt+Ra+Vamt+AF-S; const gross=AG+AE+S;
+  const nssfB=Math.min(P.nssfMax,Math.max(P.nssfMin,gross*P.nssfFx)); const AH=-nssfB*P.nssfRate/P.nssfFx;
+  const AJ1=(AG+AE)-X+S; const AJ=-(taxKHR(AJ1*P.taxFx)/P.taxFx); const AK=Math.round((AG+AE+AJ+AH)*10)/10;
+  out.push({emp_no:o.emp_no,name:o.name||e.name,dept:o.dept||e.dept,src:r.src,E:r.E,F:r.F,G:r.G,H:r.H,I:r.I,J,J1,U,V,AB,AD:o.AD,AA:o.AA,K,S,X,Y,AE,AG,gross,AH,AJ,AK,adj:!!adj._ed})}
+ return out}
+function renderPayroll(){
+ const k='payroll';if(!hasData('att'))return pageHead(k)+needHTML('att');const st=S(k);const R=rangeOf(st);
+ let h=pageHead(k,`<button class="btn sm" onclick="exportCalc('payroll')">${esc(t('export'))}</button><button class="btn sm" onclick="openPayCfg()">⚙️ ${tt('參數','Parameters')}</button>`)+conflictsHTML()+pnav(k,{pts:['H','M','Y']});
+ if(st.pt==='Y'){const ms=[];for(let m=0;m<12;m++){const d=new Date(R.from.getFullYear(),m,1);if(d>TODAY)break;ms.push(monthKey(d))}const H=HPD();
+  h+=`<div class="note small" style="margin:10px 0">${tt('年檢視列出各月 HRA-PAY 實發（已載入的月份）；估算請點月份。','The year view lists HRA-PAY actual pay for loaded months; click a month for the estimate.')}</div><div class="panel"><div class="tbl-wrap"><table class="t"><thead><tr><th>${tt('月份','Month')}</th><th class="r">${tt('人數','People')}</th><th class="r">${tt('預支','Advance')}</th><th class="r">${tt('實發','Net')}</th><th class="r">NSSF</th><th class="r">${tt('薪資稅','Tax')}</th></tr></thead><tbody>${ms.map(m=>{const p=H.pay[m];const v=p?Object.values(p):[];return `<tr class="click" onclick="S('payroll').pt='M';navSet('payroll','${m}-01')"><td class="mono">${m}</td><td class="r">${p?fmt(v.length):'—'}</td><td class="r">${p?fmt(sum(v,'S'),2):'—'}</td><td class="r">${p?fmt(sum(v,'AK'),2):'—'}</td><td class="r">${p?fmt(sum(v,'AH'),2):'—'}</td><td class="r">${p?fmt(sum(v,'AJ'),2):'—'}</td></tr>`}).join('')}</tbody></table></div></div>`;return h}
+ const MR={from:new Date(R.from.getFullYear(),R.from.getMonth(),1),to:new Date(R.from.getFullYear(),R.from.getMonth()+1,0)};const need=attNeed(MR);if(need.length){loadAtt(need);return h+loadingHTML()}
+ const ym=monthKey(R.from);const H=HPD();if(!H.pay[ym]&&!HP.busy.has('pay|'+ym))hpLoadMonth(ym).then(ok=>{if(ok&&CUR==='payroll')rerender()});
+ const half=st.pt==='H'?(R.from.getDate()===1?1:2):0;const rows=payCalc(R);const hp=H.pay[ym]||null,hpa=H.adv[ym]||null;
+ const val=(o,f)=>half===1?o.S:half===2?o.AK:f==='S'?o.S:o.AK;const hpv=id=>{if(!hp&&!hpa)return null;if(half===1)return hpa&&hpa[id]?hpa[id].S:(hp&&hp[id]?hp[id].S:null);if(half===2)return hp&&hp[id]?hp[id].AK:null;return hp&&hp[id]?hp[id].AK:null};
+ const tot={n:rows.length,S:sum(rows,'S'),AK:sum(rows,'AK'),gross:sum(rows,'gross'),AH:sum(rows,'AH'),AJ:sum(rows,'AJ'),AE:sum(rows,'AE')};const hpTot=hp?Object.values(hp):[];
+ const lbl=half===1?tt('預支（1–15 日）','Advance (1st–15th)'):half===2?tt('月底實發','Month-end net'):tt('月底實發','Month-end net');
+ h+=`<div class="kpis">${kpi(tt('估算人數','People'),fmt(tot.n))}${kpi(tt('應發合計（估）','Gross (est.)'),fmt(tot.gross,2))}${kpi(tt('預支（估）','Advance (est.)'),fmt(tot.S,2))}${kpi(lbl+tt('（估）',' (est.)'),fmt(half===1?tot.S:tot.AK,2))}${kpi(tt('加班／假日（估）','OT & holidays (est.)'),fmt(tot.AE,2))}${kpi('HRA-PAY '+lbl,hp||hpa?fmt(half===1?(hpa?sum(Object.values(hpa),'S'):sum(hpTot,'S')):sum(hpTot,'AK'),2):'—','',hp?fmt(hpTot.length)+tt(' 人',' people'):HP.busy.has('pay|'+ym)?tt('載入中…','loading…'):tt('HRA-PAY 無此月','not in HRA-PAY'))}</div>`;
+ h+=`<div class="note small" style="margin:10px 0">${tt('估算公式照 HRA-PAY 薪資表：底薪類 (基本+技術+職務+語言)÷26×計薪天數＋年資；全勤 10÷26×(天數−事/時假時÷8)；交通 9.5（未滿 14 天 4.75）；加班 基本÷208×1.5；週日 基本÷26×2；假日 基本÷26；NSSF、薪資稅依級距。加班由打卡推算（下班時間晚於 ','Estimate uses the HRA-PAY payroll formulas: (basic+skill+position+language)÷26×paid days + seniority; attendance bonus 10÷26×(days − unpaid hrs÷8); transport 9.5 (4.75 under 14 days); OT basic÷208×1.5; Sunday basic÷26×2; holiday basic÷26; NSSF and salary tax by bracket. OT is derived from punches (out after ')}${hhmm(C().pay.otMinOut)}${tt('，從 ',' counted from ')}${hhmm(C().pay.stdEnd)}${tt(' 起算，每 0.5 小時）。薪資來源：手改 ＞ HRA-PAY ＞ BEST。',' in 0.5-hour steps). Pay rates: edits > HRA-PAY > BEST.')}</div>`;
+ h+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><button class="btn sm" onclick="hpLoadMonth('${ym}',true).then(()=>rerender())">⬇ ${tt('重新載入 HRA-PAY ','Reload HRA-PAY ')}${ym}</button><button class="btn sm" onclick="hpFillPay()">🧩 ${tt('用 HRA-PAY 補齊薪資設定','Fill pay setup from HRA-PAY')}</button></div>`;
+ const q=(st.q||'').toLowerCase();let list=rows.map(o=>Object.assign({},o,{v:val(o),hp:hpv(o.emp_no)}));if(hp)Object.keys(hp).forEach(id=>{if(!list.find(o=>o.emp_no===id)){const x=hp[id];list.push({emp_no:id,name:x.name,dept:x.dept,src:'—',J:x.J,K:0,AE:0,AH:0,AJ:0,gross:0,v:0,hp:hpv(id),missing:1})}});
+ if(q)list=list.filter(o=>(o.emp_no+' '+o.name+' '+o.dept).toLowerCase().includes(q));if(st.type==='diff')list=list.filter(o=>o.hp!=null&&Math.abs(o.v-o.hp)>=1);
+ list.sort((x,y)=>Math.abs((y.hp??y.v)-y.v)-Math.abs((x.hp??x.v)-x.v));const per=50,pages=Math.max(1,Math.ceil(list.length/per));if(st.page>=pages)st.page=pages-1;
+ const nd=hp?list.filter(o=>o.hp!=null&&Math.abs(o.v-o.hp)>=1).length:0;
+ h+=`<div class="panel mt"><div class="toolbar"><div class="seg"><button class="${st.type!=='diff'?'on':''}" onclick="S('payroll').type='';rerender()">${tt('全部','All')}</button><button class="${st.type==='diff'?'on':''}" onclick="S('payroll').type='diff';rerender()">${tt('差異 ≥ $1','Diff ≥ $1')} ${hp?'· '+fmt(nd):''}</button></div><input class="inp grow" id="q_payroll" placeholder="${esc(t('filter'))}" value="${esc(st.q)}" oninput="S('payroll').q=this.value;S('payroll').page=0;debounceRender('q_payroll')"></div>
+ <div class="tbl-wrap"><table class="t cards"><thead><tr><th>${esc(t('emp_no'))}</th><th>${esc(t('name'))}</th><th class="r">${tt('計薪天','Days')}</th><th class="r">${tt('底薪類','Base pay')}</th><th class="r">${tt('事/時假時','Unpaid h')}</th><th class="r">OT h</th><th class="r">${tt('加班假日','OT/hol')}</th><th class="r">NSSF</th><th class="r">${tt('稅','Tax')}</th><th class="r">${esc(lbl)}</th><th class="r">HRA-PAY</th><th class="r">${tt('差異','Diff')}</th><th></th></tr></thead><tbody>${list.slice(st.page*per,st.page*per+per).map(o=>`<tr><td class="lead mono click" data-l="" onclick="openEmp('${esc(o.emp_no)}')">${esc(o.emp_no)}</td><td data-l="${esc(t('name'))}">${esc(o.name||'')}<div class="small muted">${esc(o.src||'')}${o.adj?' · ✏️':''}${o.missing?' · '+tt('PSJHR 無出勤','no PSJHR attendance'):''}</div></td><td class="r" data-l="${tt('計薪天','Days')}">${fmt(o.J)}</td><td class="r" data-l="${tt('底薪類','Base')}">${fmt(o.K,2)}</td><td class="r" data-l="${tt('事/時假時','Unpaid h')}">${fmt((o.U||0)+(o.V||0),1)}</td><td class="r" data-l="OT h">${fmt(o.AB||0,1)}</td><td class="r" data-l="${tt('加班假日','OT/hol')}">${fmt(o.AE,2)}</td><td class="r" data-l="NSSF">${fmt(o.AH,2)}</td><td class="r" data-l="${tt('稅','Tax')}">${fmt(o.AJ,2)}</td><td class="r" data-l="${esc(lbl)}"><b>${fmt(o.v,2)}</b></td><td class="r" data-l="HRA-PAY">${o.hp==null?'—':fmt(o.hp,2)}</td><td class="r" data-l="${tt('差異','Diff')}">${o.hp==null?'—':Math.abs(o.v-o.hp)>=1?`<b style="color:var(--crit)">${fmt(o.v-o.hp,2)}</b>`:'✓'}</td><td data-l=""><button class="btn sm" onclick="openEdit('payadj','${esc(o.emp_no)}|${ym}',{rk:'${esc(o.emp_no)}|${ym}'})">✏️</button></td></tr>`).join('')}</tbody></table></div>
+ <div class="pager"><span>${fmt(list.length)} ${esc(t('records'))}</span><span style="display:flex;gap:6px"><button class="btn sm" ${st.page<=0?'disabled':''} onclick="S('payroll').page--;rerender()">${esc(t('prev'))}</button><button class="btn sm" ${st.page>=pages-1?'disabled':''} onclick="S('payroll').page++;rerender()">${esc(t('next'))}</button></span></div></div>`;
+ return h}
+const PAY_LBL=[['div','計薪除數（天）','Pay divisor (days)'],['hrs','時薪除數（小時）','Hourly divisor'],['ot1','一般加班倍率','OT rate'],['ot2','夜間加班倍率','Night OT rate'],['sun','週日倍率','Sunday rate'],['trans','交通津貼','Transport'],['transHalf','交通（未滿 14 天）','Transport (<14 days)'],['attBonus','全勤獎金（月）','Attendance bonus (month)'],['stdEnd','正常下班時間（小時，16.5=16:30）','Normal end time (16.5 = 16:30)'],['otMinOut','幾點後下班才算加班（16.75=16:45）','OT counts if out after (16.75 = 16:45)'],['otStep','加班計算單位（小時）','OT step (hrs)'],['nssfMin','NSSF 下限（瑞爾）','NSSF floor (KHR)'],['nssfMax','NSSF 上限（瑞爾）','NSSF cap (KHR)'],['nssfRate','NSSF 員工率','NSSF employee rate'],['nssfFx','NSSF 匯率','NSSF FX'],['taxFx','薪資稅匯率','Tax FX']];
+function openPayCfg(){const p=C().pay,b=C().ben;
+ showModal(`<h2>⚙️ ${tt('薪資與福利參數','Payroll & benefit parameters')}</h2><p class="small muted">${tt('預設值取自 HRA-PAY 薪資 Excel 公式；改了會影響所有估算。','Defaults come from the HRA-PAY payroll workbook formulas; changes affect every estimate.')}</p>
+ <div class="form">${PAY_LBL.map(([f,zh,en])=>`<div class="field"><label>${tt(zh,en)}</label><input class="inp" type="number" step="any" data-pf="${f}" value="${p[f]}"></div>`).join('')}
+ <div class="field"><label>${tt('不支薪假別（逗號分隔）','Unpaid leave types')}</label><input class="inp" id="pfUnpaid" value="${esc(p.unpaid.join(','))}"></div><div class="field"><label>${tt('不計薪天數假別','Leave types not paid as days')}</label><input class="inp" id="pfNoPay" value="${esc(p.noPay.join(','))}"></div>
+ ${[['alBase','特休基本天數','Annual leave base days'],['alEvery','每幾年加 1 天','+1 day every N years'],['senDays','年資金天數（半年）','Seniority days (per half-year)'],['matDays','產假天數','Maternity days'],['matPct','產假給付比例','Maternity pay share'],['nurse','哺乳津貼／月','Nursing allowance / month'],['nurseMonths','哺乳津貼月數','Nursing months']].map(([f,zh,en])=>`<div class="field"><label>${tt(zh,en)}</label><input class="inp" type="number" step="any" data-bf="${f}" value="${b[f]}"></div>`).join('')}</div>
+ <div style="display:flex;gap:8px;margin-top:12px"><button class="btn pri" onclick="savePayCfg()">💾 ${tt('儲存','Save')}</button><button class="btn" onclick="DB.config.pay={};DB.config.ben={};cfgSave();closeDrawer();rerender()">${tt('恢復預設','Reset')}</button><button class="btn" onclick="closeDrawer()">${esc(t('cancel'))}</button></div>`)}
+function savePayCfg(){const p=C().pay,b=C().ben;$$('#modal [data-pf]').forEach(el=>p[el.dataset.pf]=+el.value);$$('#modal [data-bf]').forEach(el=>b[el.dataset.bf]=+el.value);p.unpaid=$('#pfUnpaid').value.split(',').map(s=>s.trim()).filter(Boolean);p.noPay=$('#pfNoPay').value.split(',').map(s=>s.trim()).filter(Boolean);cfgSave();closeDrawer();toast(tt('已儲存','Saved'));rerender()}
+
+/* ---------- benefits: annual leave, seniority payment, maternity, resignation settlement ---------- */
+function yearsBetween(a,b){const j=parseD(a),r=parseD(b);if(!j||!r||j>r)return 0;let y=r.getFullYear()-j.getFullYear();if(r.getMonth()<j.getMonth()||(r.getMonth()===j.getMonth()&&r.getDate()<j.getDate()))y--;return Math.max(0,y)}
+function monthsIn(a,b){const x=parseD(a),y=parseD(b);if(!x||!y||x>y)return 0;return (y.getFullYear()-x.getFullYear())*12+(y.getMonth()-x.getMonth())+(y.getDate()>=x.getDate()?1:0)}
+function alRow(e,asof){const B=C().ben;const y=asof.slice(0,4);const yrs=yearsBetween(e.join_date,asof);const ent=B.alBase+Math.floor(yrs/B.alEvery);const start=e.join_date&&e.join_date>y+'-01-01'?e.join_date:y+'-01-01';const mw=Math.min(12,monthsIn(start,asof));
+ const used=DB.leave.filter(l=>l.emp_no===e.emp_no&&/^A\.?L/i.test(l.leave_type||'')&&(l.start_date||'').startsWith(y)&&(l.start_date||'')<=asof).reduce((s,l)=>s+(+l.days||0),0);
+ const acc=Math.round(mw*ent/12*100)/100;const left=Math.max(0,Math.round((acc-used)*100)/100);const r=payRates(e.emp_no,asof.slice(0,7));const daily=r?monthlyGross(r)/C().pay.div:0;
+ const best=(e.annual||[]).find(x=>String(x.year)===y);return {emp_no:e.emp_no,name:e.name,dept:e.dept,join:e.join_date,yrs,ent,acc,used,left,daily,cash:Math.round(daily*left*100)/100,best_left:best?best.al_left:null,src:r?r.src:''}}
+function senRow(e,ym){const B=C().ben;const end=parseD(ym+'-01');const m0=new Date(end.getFullYear(),end.getMonth()-5,1);const from=ymd(m0)>(e.join_date||'')?ymd(m0):e.join_date;const months=Math.min(6,monthsIn(from,ymd(new Date(end.getFullYear(),end.getMonth()+1,0))));
+ const r=payRates(e.emp_no,ym);const avg=r?monthlyGross(r):0;const amt=Math.round(avg/C().pay.div*B.senDays*months/6*10)/10;return {emp_no:e.emp_no,name:e.name,dept:e.dept,join:e.join_date,months,avg,amt,src:r?r.src:''}}
+function matRows(R){const {a,b}=rangeStr(R);const B=C().ben;return DB.leave.filter(l=>/^M\.?L/i.test(l.leave_type||'')&&((l.start_date||'')<=b)&&((l.end||l.start_date||'').slice(0,10)>=a)).map(l=>{const e=emp(l.emp_no)||{};const r=payRates(l.emp_no,(l.start_date||'').slice(0,7));const avg=r?monthlyGross(r):0;
+ return {emp_no:l.emp_no,name:e.name||l.name,dept:e.dept,start:l.start_date,end:(l.end||'').slice(0,10),days:l.days,avg,pay:Math.round(avg/C().pay.div*B.matDays*B.matPct*100)/100,nurse:B.nurse*B.nurseMonths,src:r?r.src:''}})}
+function leaverRows(R){const {a,b}=rangeStr(R);const B=C().ben;return jlRows().filter(r=>inRange(r.leave_date,a,b)).map(r=>{const e=emp(r.emp_no)||{name:r.name,emp_no:r.emp_no,join_date:r.join_date};const ld=r.leave_date;const al=alRow(Object.assign({},e,{join_date:e.join_date||r.join_date}),ld);
+ const d=parseD(ld);const last=d.getMonth()<6?new Date(d.getFullYear()-1,11,31):new Date(d.getFullYear(),5,30);const since=ymd(addD(last,1))>(r.join_date||'')?ymd(addD(last,1)):r.join_date;const months=Math.min(6,monthsIn(since,ld));
+ const rr=payRates(r.emp_no,ld.slice(0,7));const avg=rr?monthlyGross(rr):0;const sen=Math.round(avg/C().pay.div*B.senDays*months/6*10)/10;const days=d.getDate()<=15?d.getDate():d.getDate()-15;const fin=Math.round(avg/C().pay.div*Math.min(days,13)*100)/100;
+ return {emp_no:r.emp_no,name:e.name||r.name,dept:e.dept,join:r.join_date,leave:ld,yrs:yearsBetween(r.join_date,ld),alLeft:al.left,alCash:al.cash,senMonths:months,sen,fin,total:Math.round((al.cash+sen+fin)*100)/100,src:rr?rr.src:''}})}
+function renderBenefits(){
+ const k='benefits';const st=S(k);if(!st.tab)st.tab='al';const R=rangeOf(st);const asof=ymd(R.to>TODAY?TODAY:R.to);const ym=asof.slice(0,7);
+ const tabs=[['al',tt('特休','Annual leave')],['sen',tt('年資金','Seniority pay')],['mat',tt('產假','Maternity')],['quit',tt('離職結算','Leaving settlement')]];
+ let h=pageHead(k,`<button class="btn sm" onclick="exportCalc('benefits')">${esc(t('export'))}</button><button class="btn sm" onclick="openPayCfg()">⚙️ ${tt('參數','Parameters')}</button>`)+pnav(k,{pts:['M','Y']});
+ h+=`<div class="seg" style="margin:10px 0">${tabs.map(([x,l])=>`<button class="${st.tab===x?'on':''}" onclick="S('benefits').tab='${x}';S('benefits').page=0;rerender()">${l}</button>`).join('')}</div>`;
+ const act=[...empIdx().values()].filter(e=>e.status==='在職'&&e.join_date&&e.join_date<=asof);let rows,cols,note;const B=C().ben;
+ if(st.tab==='al'){rows=act.map(e=>alRow(e,asof));note=tt(`特休：每年 ${B.alBase} 天，每滿 ${B.alEvery} 年加 1 天；依當年在職月數累積；已休＝BEST 請假 A.L.；折現＝(底薪類月薪 ÷ 26) × 剩餘天數（同 HRA-PAY）。時點 ${asof}。`,`Annual leave: ${B.alBase} days + 1 per ${B.alEvery} years, accrued by months this year; used = BEST A.L. leave; cash = monthly pay ÷ 26 × days left (as HRA-PAY). As of ${asof}.`);
+  cols=[['emp_no',t('emp_no')],['name',t('name')],['dept',t('dept')],['yrs',tt('年資','Years'),'n'],['ent',tt('年度天數','Entitled'),'n'],['acc',tt('已累積','Accrued'),'n1'],['used',tt('已休','Used'),'n1'],['left',tt('剩餘','Left'),'n1'],['best_left',tt('BEST 剩餘時數','BEST hrs left'),'n1'],['cash',tt('折現 USD','Cash USD'),'n2']];
+  h+=`<div class="kpis">${kpi(tt('人數','People'),fmt(rows.length))}${kpi(tt('剩餘天數合計','Days left'),fmt(sum(rows,'left'),1))}${kpi(tt('折現合計','Cash value'),fmt(sum(rows,'cash'),2))}</div>`}
+ else if(st.tab==='sen'){const m=+ym.slice(5);const pm=m<=6?ym.slice(0,4)+'-06':ym.slice(0,4)+'-12';rows=act.map(e=>senRow(e,pm)).filter(r=>r.months>0);note=tt(`年資金：每年 6 月、12 月發，(底薪類月薪 ÷ 26) × ${B.senDays} 天 × 在職月數 ÷ 6（同 HRA-PAY，未扣稅）。本表為 ${pm}。`,`Seniority pay in June and December: monthly pay ÷ 26 × ${B.senDays} days × months ÷ 6 (as HRA-PAY, before tax). Shown: ${pm}.`);
+  cols=[['emp_no',t('emp_no')],['name',t('name')],['dept',t('dept')],['join',t('join_date')],['months',tt('月數','Months'),'n'],['avg',tt('月薪（底薪類）','Monthly pay'),'n2'],['amt',tt('年資金 USD','Seniority USD'),'n2']];
+  h+=`<div class="kpis">${kpi(tt('發放月','Pay month'),pm)}${kpi(tt('人數','People'),fmt(rows.length))}${kpi(tt('合計 USD','Total USD'),fmt(sum(rows,'amt'),2))}</div>`}
+ else if(st.tab==='mat'){rows=matRows(R);note=tt(`產假：${B.matDays} 天，給付 = 月薪 ÷ 26 × ${B.matDays} × ${B.matPct*100}%；哺乳津貼每月 $${B.nurse} × ${B.nurseMonths} 個月（同 HRA Portal 產假頁）。名單取自 BEST 請假假別 M.L.。`,`Maternity: ${B.matDays} days, pay = monthly ÷ 26 × ${B.matDays} × ${B.matPct*100}%; nursing $${B.nurse}/month × ${B.nurseMonths} (as the HRA Portal maternity page). List from BEST M.L. leave.`);
+  cols=[['emp_no',t('emp_no')],['name',t('name')],['dept',t('dept')],['start',t('start')],['end',t('end')],['days',t('days'),'n1'],['avg',tt('月薪','Monthly pay'),'n2'],['pay',tt('產假給付 USD','Maternity pay USD'),'n2'],['nurse',tt('哺乳津貼','Nursing'),'n2']];
+  h+=`<div class="kpis">${kpi(tt('人數','People'),fmt(rows.length))}${kpi(tt('產假給付合計','Maternity pay'),fmt(sum(rows,'pay'),2))}</div>`}
+ else{rows=leaverRows(R);note=tt('離職結算（估算，HRA-PAY 沒有這個公式，依柬埔寨勞工法慣例）：最後半月工資＋未休特休折現＋上次 6/12 月後按月比例的年資金。實際以人事核算為準。','Leaving settlement (estimate — HRA-PAY has no formula; Cambodian labour-law practice): last half-month pay + unused annual leave cash + pro-rata seniority since the last June/December. HR has the final figure.');
+  cols=[['emp_no',t('emp_no')],['name',t('name')],['dept',t('dept')],['join',t('join_date')],['leave',t('leave_date')],['yrs',tt('年資','Years'),'n'],['fin',tt('最後工資','Final pay'),'n2'],['alLeft',tt('未休特休','AL left'),'n1'],['alCash',tt('特休折現','AL cash'),'n2'],['sen',tt('年資金比例','Seniority pro-rata'),'n2'],['total',tt('合計 USD','Total USD'),'n2']];
+  h+=`<div class="kpis">${kpi(tt('離職人數','Leavers'),fmt(rows.length))}${kpi(tt('結算合計（估）','Settlement (est.)'),fmt(sum(rows,'total'),2))}</div>`}
+ const q=(st.q||'').toLowerCase();if(q)rows=rows.filter(r=>(r.emp_no+' '+r.name+' '+(r.dept||'')).toLowerCase().includes(q));const per=50,pages=Math.max(1,Math.ceil(rows.length/per));if(st.page>=pages)st.page=pages-1;BEN_LAST={cols,rows,tab:st.tab,asof};
+ h+=`<div class="note small" style="margin:10px 0">${note}</div><div class="panel"><div class="toolbar"><input class="inp grow" id="q_benefits" placeholder="${esc(t('filter'))}" value="${esc(st.q)}" oninput="S('benefits').q=this.value;S('benefits').page=0;debounceRender('q_benefits')"></div><div class="tbl-wrap"><table class="t cards"><thead><tr>${cols.map(c=>`<th class="${c[2]?'r':''}">${esc(c[1])}</th>`).join('')}</tr></thead><tbody>${rows.slice(st.page*per,st.page*per+per).map(r=>`<tr class="click" onclick="openEmp('${esc(r.emp_no)}')">${cols.map((c,i)=>`<td class="${c[2]?'r':''} ${i===0?'lead mono':''}" data-l="${i?esc(c[1]):''}">${c[2]?(r[c[0]]==null?'—':fmt(r[c[0]],c[2]==='n2'?2:c[2]==='n1'?1:0)):esc(r[c[0]]??'')}</td>`).join('')}</tr>`).join('')||`<tr><td class="muted">${esc(t('no_data'))}</td></tr>`}</tbody></table></div>
+ <div class="pager"><span>${fmt(rows.length)} ${esc(t('records'))}</span><span style="display:flex;gap:6px"><button class="btn sm" ${st.page<=0?'disabled':''} onclick="S('benefits').page--;rerender()">${esc(t('prev'))}</button><button class="btn sm" ${st.page>=pages-1?'disabled':''} onclick="S('benefits').page++;rerender()">${esc(t('next'))}</button></span></div></div>`;
+ return h}
+let BEN_LAST=null;
+function exportCalc(k){let cols,rows,name;const st=S(k);const R=rangeOf(st);
+ if(k==='meal'){rows=(st.pt==='Y'?mealApprox(R):mealCalc(R));cols=[['emp_no','員工編號'],['name','姓名'],['dept','部門'],['rate','費率 KHR'],['days','餐數'],['hrs','計餐工時'],['ot','加班餐'],['riel','瑞爾'],['usd','USD']]}
+ else if(k==='payroll'){rows=payCalc(R);cols=[['emp_no','員工編號'],['name','姓名'],['dept','部門'],['src','薪資來源'],['E','基本'],['F','年資加給'],['G','技術'],['H','職務'],['I','語言'],['J','計薪天數'],['U','時假時'],['V','未請假時'],['AB','加班時'],['AD','週日天'],['AA','假日天'],['K','底薪類'],['X','交通'],['Y','全勤'],['AE','加班假日'],['S','預支'],['AG','小計(扣預支)'],['AH','NSSF'],['AJ','薪資稅'],['AK','月底實發']]}
+ else{if(!BEN_LAST)return;rows=BEN_LAST.rows;cols=BEN_LAST.cols.map(c=>[c[0],c[1]])}
+ name=k;const wb=XLSX.utils.book_new();const info=[['VRT HR · '+t(k)],['匯出時間',nowStamp()],['期間',periodLabel(st.pt,R)],['筆數',rows.length],['說明','估算值；薪資公式照 HRA-PAY，資料來源 BEST 人事系統匯出＋PSJHR 手改']];
+ XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(info),'說明');XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([cols.map(c=>c[1])].concat(rows.map(r=>cols.map(c=>{const v=r[c[0]];return typeof v==='number'?Math.round(v*100)/100:v??''})))),'資料');
+ XLSX.writeFile(wb,`PSJHR_${name}_${ymd(R.from)}_${ymd(R.to)}.xlsx`)}
+
+/* ---------- JSON backup / restore of everything editable ---------- */
+function backupJSON(){const data={app:'PSJHR',v:APPV,at:nowStamp(),edits:DB.edits||{},config:DB.config||{},notes:DB.notes||{}};const blob=new Blob([JSON.stringify(data,null,1)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='PSJHR_backup_'+ymd(TODAY)+'.json';a.click();toast(tt('已下載備份','Backup downloaded'))}
+async function restoreJSON(file){try{const d=JSON.parse(await file.text());if(d.app!=='PSJHR')throw new Error('not a PSJHR backup');const E=EDITS();for(const [ds,m] of Object.entries(d.edits||{})){const ed=E[ds]||(E[ds]={});for(const [rk,e] of Object.entries(m)){if(!ed[rk]||(ed[rk].at||'')<(e.at||''))ed[rk]=e}}
+ if(d.config)DB.config=d.config;Object.assign(DB.notes,d.notes||{});DB.sys=DB.sys||{};DB.sys.edits={dirty:true,at:nowStamp()};DB.sys.config={dirty:true,at:nowStamp()};ED_DS.forEach(ds=>applyEdits(ds));persist();toast(tt('已還原備份','Backup restored'));rerender();if(cloudReady())setTimeout(()=>cloudSync(false),300)}catch(e){toast(tt('還原失敗：','Restore failed: ')+e.message)}}
+
+const RENDER={meal:renderMeal,payroll:renderPayroll,benefits:renderBenefits,dashboard:renderDashboard,'smart-import':renderImport,emp:renderEmp,basepay:renderBasePay,jobcode:renderJobcode,sync:renderSync,reports:renderReports,settings:renderSettings,
  att:()=>renderPeriod('att'),attexc:()=>renderPeriod('attexc'),leave:()=>renderPeriod('leave'),joinleave:()=>renderPeriod('joinleave'),holiday:()=>renderPeriod('holiday'),annual:()=>renderPeriod('annual')};
 let toastT; function toast(m){const el=$('#toast');el.textContent=m;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,2800)}
 function rerender(){
@@ -1287,7 +1645,7 @@ function rerender(){
  $('#page').innerHTML=html; renderNav(); applyStatic(); bindPage();
 }
 function go(k){if(location.hash!=='#'+k)location.hash=k;else route()}
-function route(){let h=decodeURIComponent((location.hash||'#dashboard').slice(1));SOLO=h.startsWith('solo-');if(SOLO)h=h.slice(5);CUR=RENDER[h]?h:'dashboard';document.body.classList.toggle('solo',SOLO);$('#rail').classList.remove('open');closeDrawer();rerender();window.scrollTo(0,0);document.title=SOLO?`${t(CUR)} · VRT HR`:'VRT HR · PSJHR'}
+function route(){let h=decodeURIComponent((location.hash||'#dashboard').slice(1));SOLO=h.startsWith('solo-');if(SOLO)h=h.slice(5);let per='';const sl=h.indexOf('/');if(sl>0){per=h.slice(sl+1);h=h.slice(0,sl)}CUR=RENDER[h]?h:'dashboard';if(per&&CUR!=='dashboard'){const st=S(CUR);if(/^\d{4}-\d{2}$/.test(per)){st.pt='M';st.anchor=per+'-01';st.page=0;saveNav(CUR)}else if(/^\d{4}$/.test(per)){st.pt='Y';st.anchor=per+'-01-01';st.page=0;saveNav(CUR)}}document.body.classList.toggle('solo',SOLO);$('#rail').classList.remove('open');closeDrawer();rerender();window.scrollTo(0,0);document.title=SOLO?`${t(CUR)} · VRT HR`:'VRT HR · PSJHR'}
 function applyStatic(){const cb=$('#cloudBadge');if(cb)paintCloudBadge(cb);$$('[data-i]').forEach(el=>el.textContent=t(el.dataset.i));$('#gsearch').placeholder=t('search_ph');$$('#langSw button').forEach(b=>b.classList.toggle('on',+b.dataset.l===LANG));document.documentElement.lang=['zh-Hant','en','km'][LANG]}
 function bindPage(){const dz=$('#drop');if(dz){dz.onclick=()=>$('#fileIn').click();dz.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('#fileIn').click()}}}
  $$('.chart [data-tip]').forEach(el=>{el.onmousemove=e=>{const tp=$('#tip');tp.textContent=el.dataset.tip;tp.hidden=false;tp.style.left=Math.min(e.clientX+12,innerWidth-160)+'px';tp.style.top=(e.clientY-34)+'px'};el.onmouseleave=()=>$('#tip').hidden=true;el.ontouchstart=e=>{const tp=$('#tip');tp.textContent=el.dataset.tip;tp.hidden=false;const x=e.touches[0];tp.style.left=Math.min(x.clientX,innerWidth-160)+'px';tp.style.top=(x.clientY-44)+'px';setTimeout(()=>tp.hidden=true,1800)}})}
