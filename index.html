@@ -404,7 +404,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.2.3';
+const APPV='0.2.4';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -600,7 +600,7 @@ function parseLeave(aoa,file){
  const ds=rows.map(r=>r.start_date).sort(); if(!from){from=ds[0]||'';to=ds[ds.length-1]||''}
  const mine=Math.round(sum(rows,'total_hours')*10)/10; const mineBy={}; rows.forEach(r=>{mineBy[r.leave_type]=(mineBy[r.leave_type]||0)+r.total_hours});
  /* BEST's 總計 row only sums its 9 Chinese categories; codes outside them (A.L., odd codes such as '6' or 'g01') are left out. Accept the total when it equals all rows minus a set of such codes. */
- let ok=rep==null?null:Math.abs(rep-mine)<0.6, missType=''; if(ok===false){let diff=mine-rep;const ex=[];Object.keys(mineBy).sort((x,y)=>mineBy[y]-mineBy[x]).forEach(k=>{if(mineBy[k]>0&&Math.abs(diff-mineBy[k])<Math.abs(diff)){diff-=mineBy[k];ex.push(k)}});if(Math.abs(diff)<0.6&&ex.length){missType=ex.join('、');ok=null;mineBy['_ex']=mine-rep}}
+ let ok=rep==null?null:Math.abs(rep-mine)<0.6, missType=''; if(ok===false){const diff=mine-rep;const ks=Object.keys(mineBy).filter(k=>mineBy[k]>0).sort((x,y)=>(x==='A.L.'?-1:y==='A.L.'?1:mineBy[y]-mineBy[x])).slice(0,14);let best=null;for(let m=1;m<(1<<ks.length);m++){let t=0,c=[];for(let i=0;i<ks.length;i++)if(m&(1<<i)){t+=mineBy[ks[i]];c.push(ks[i])}if(Math.abs(diff-t)<0.6&&(!best||c.length<best.length))best=c}if(best){missType=best.join('、');ok=null;mineBy['_ex']=diff}}
  return {rep:'leave',rows,meta:{key:'leave|'+from+'_'+to,asof:listDate(aoa),label:`請假 ${from} ～ ${to}`,range:[from,to],totals:{n:rows.length,hours:mine,report:rep,byType},dataRange:[ds[0],ds[ds.length-1]]},
   checks:[chk(ok,rep==null?'報表沒有總計列，以逐筆為準':missType?`報表總計 ${fmt(rep,1)} = 逐筆 ${fmt(mine,1)} 減去 ${missType} ${fmt(mineBy['_ex'],1)}（BEST 總計列不含這些假別，逐筆為準）`:`總時數 ${fmt(rep,1)} ${ok?'=':'≠'} 逐筆 ${fmt(mine,1)}（${rows.length} 筆）`)]};
 }
