@@ -291,6 +291,10 @@ body{background:#F0F2F5!important;color:#111827!important}
 .pn-sel .icon-btn{font-size:13px;color:var(--ink-2)}
 .pn-sel .icon-btn[disabled]{opacity:.35;cursor:not-allowed}
 .pn-view{margin-left:auto}
+.pn-period{min-width:190px;width:auto;font-weight:700;text-align:center;padding:7px 12px}
+.pn-arrow{width:36px;height:36px;border:1px solid var(--line);border-radius:8px}
+.pn-hint{font-size:12px;color:var(--ink-3,var(--ink-2))}
+.pn-cap{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--ink-2);text-transform:uppercase;min-width:42px}
 .pn-label{font-size:13px;color:var(--ink-2);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .pn-label b{font-family:var(--f-disp);font-size:16px;color:var(--ink);font-variant-numeric:tabular-nums}
 .pn-cmp{border-top:1px dashed var(--line);padding-top:8px}
@@ -400,7 +404,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.2.2';
+const APPV='0.2.3';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -434,7 +438,7 @@ const T={
  proto_note:['v0.2.0 · 真實資料來自人事系統匯出檔＋網頁編輯，不寫回 per.exe','v0.2.0 · HR export files + web edits; never written back to per.exe','v0.2.0 · ទិន្នន័យពិតពីឯកសារ HR'],
  erp_entry:['VRT ERP（PSJERP）','VRT ERP (PSJERP)','VRT ERP'], hra_entry:['AC HRA Portal','AC HRA Portal','AC HRA Portal'], prod_entry:['VRT Prod 生產系統','VRT Prod production','ប្រព័ន្ធផលិតកម្ម VRT Prod'],
  back_portal:['回總平台','Back to portal','ត្រឡប់ទៅវិបផតថល'], search_ph:['搜尋員工編號、姓名、部門…','Search employee no., name, department…','ស្វែងរកលេខបុគ្គលិក ឈ្មោះ…'],
- D:['日','D','ថ្ងៃ'], W:['週','W','សប្ដាហ៍'], H:['半月','½ M','កន្លះខែ'], M:['月','M','ខែ'], Y:['年','Y','ឆ្នាំ'], C:['自訂','Custom','កំណត់'], ALL:['全部','All','ទាំងអស់'],
+ D:['每日','Daily','ប្រចាំថ្ងៃ'], W:['每週','Weekly','ប្រចាំសប្ដាហ៍'], H:['半月','Half-month','កន្លះខែ'], M:['每月','Monthly','ប្រចាំខែ'], Q:['每季','Quarterly','ត្រីមាស'], Y:['每年','Yearly','ប្រចាំឆ្នាំ'], C:['自訂','Custom','កំណត់'], ALL:['全部','All','ទាំងអស់'],
  export:['匯出 Excel','Export Excel','នាំចេញ Excel'], close:['關閉','Close','បិទ'], cancel:['取消','Cancel','បោះបង់'], send_tg:['發 Telegram 摘要','Send Telegram summary','ផ្ញើសង្ខេប Telegram'],
  open_solo:['單獨開啟','Open standalone','បើកដាច់ដោយឡែក'], direct_url:['直接網址','Direct URL','URL ផ្ទាល់'], status:['狀態','Status','ស្ថានភាព'],
  records:['筆','records','កំណត់ត្រា'], rows_shown:['顯示','Showing','បង្ហាញ'], of:['/','of','នៃ'], prev:['上一頁','Prev','មុន'], next:['下一頁','Next','បន្ទាប់'], filter:['篩選此頁…','Filter this page…','ត្រងទំព័រនេះ…'],
@@ -865,17 +869,19 @@ function rangeFor(pt,a){a=a||TODAY;
  if(pt==='W'){const s=addD(a,-((a.getDay()+6)%7));return {from:s,to:addD(s,6)}}
  if(pt==='H')return a.getDate()<=15?{from:new Date(a.getFullYear(),a.getMonth(),1),to:new Date(a.getFullYear(),a.getMonth(),15)}:{from:new Date(a.getFullYear(),a.getMonth(),16),to:new Date(a.getFullYear(),a.getMonth()+1,0)};
  if(pt==='M')return {from:new Date(a.getFullYear(),a.getMonth(),1),to:new Date(a.getFullYear(),a.getMonth()+1,0)};
+ if(pt==='Q'){const q=Math.floor(a.getMonth()/3)*3;return {from:new Date(a.getFullYear(),q,1),to:new Date(a.getFullYear(),q+3,0)}}
  if(pt==='Y')return {from:new Date(a.getFullYear(),0,1),to:new Date(a.getFullYear(),11,31)};
  return {from:DATA_START,to:TODAY,all:true};
 }
 function rangeOf(st){if(st.pt==='C'){const f=parseD(st.from)||new Date(TODAY.getFullYear(),TODAY.getMonth(),1),t2=parseD(st.to)||TODAY;return f<=t2?{from:f,to:t2}:{from:t2,to:f}}if(st.pt==='ALL')return {from:DATA_START,to:TODAY,all:true};return rangeFor(st.pt,parseD(st.anchor)||TODAY)}
 const rangeStr=R=>({a:ymd(R.from),b:ymd(R.to)});
-function shiftDate(pt,a,n){if(pt==='D')return addD(a,n);if(pt==='H'){const i=a.getFullYear()*24+a.getMonth()*2+(a.getDate()>15?1:0)+n;return new Date(Math.floor(i/24),Math.floor((i%24)/2),i%2?16:1)}if(pt==='W')return addD(a,7*n);if(pt==='M')return new Date(a.getFullYear(),a.getMonth()+n,1);if(pt==='Y')return new Date(a.getFullYear()+n,0,1);return a}
+function shiftDate(pt,a,n){if(pt==='D')return addD(a,n);if(pt==='H'){const i=a.getFullYear()*24+a.getMonth()*2+(a.getDate()>15?1:0)+n;return new Date(Math.floor(i/24),Math.floor((i%24)/2),i%2?16:1)}if(pt==='W')return addD(a,7*n);if(pt==='M')return new Date(a.getFullYear(),a.getMonth()+n,1);if(pt==='Q')return new Date(a.getFullYear(),Math.floor(a.getMonth()/3)*3+3*n,1);if(pt==='Y')return new Date(a.getFullYear()+n,0,1);return a}
 function periodLabel(pt,R){
  if(pt==='ALL'||R.all)return tt('全部期間','All time');
  if(pt==='D')return ymd(R.from);
  if(pt==='M')return R.from.getFullYear()+' '+MN(R.from.getMonth());
  if(pt==='H')return R.from.getFullYear()+' '+MN(R.from.getMonth())+' '+(R.from.getDate()===1?tt('上半 01–15','1st half 01–15'):tt('下半 16–','2nd half 16–')+pad(R.to.getDate()));
+ if(pt==='Q')return R.from.getFullYear()+' Q'+(Math.floor(R.from.getMonth()/3)+1)+' · '+MN(R.from.getMonth())+'–'+MN(R.to.getMonth());
  if(pt==='Y')return String(R.from.getFullYear());
  if(pt==='W'){const w=isoWeek(R.from);return `${w.y} W${pad(w.w)} · ${md(R.from)}–${md(R.to)}`}
  return ymd(R.from)+' → '+ymd(R.to);
@@ -894,18 +900,33 @@ function selectorsHTML(k,pt,anchor,st){
  if(pt==='C')return `<input class="inp pn-date" type="date" value="${esc(st.from)}" onchange="S('${k}').from=this.value;navDone('${k}')"><span class="muted">→</span><input class="inp pn-date" type="date" value="${esc(st.to)}" onchange="S('${k}').to=this.value;navDone('${k}')">`;
  return '';
 }
+/* HRA-PAY style: ◀ [one dropdown of periods that have data, newest first] ▶ + unit buttons (每日／每週／半月／每月／每季／每年) */
+function optLabel(pt,R){if(pt==='M')return ymd(R.from).slice(0,7);if(pt==='Y')return String(R.from.getFullYear());if(pt==='Q')return R.from.getFullYear()+'-Q'+(Math.floor(R.from.getMonth()/3)+1);
+ if(pt==='H')return ymd(R.from).slice(0,7)+' · '+pad(R.from.getDate())+'–'+pad(R.to.getDate());if(pt==='W'){const w=isoWeek(R.from);return `${w.y}-W${pad(w.w)} · ${ymd(R.from)} – ${ymd(R.to)}`}return ymd(R.from)}
+function periodOpts(k,pt){return cached('po|'+k+'|'+pt+'|'+LANG,()=>{const ks=periodKeys(k);const cm=monthKey(TODAY);const months=[...ks].filter(x=>x.length===7&&x<=cm).sort();const years=[...ks].filter(x=>x.length===4&&x<=String(TODAY.getFullYear())).sort();
+ const out=[],seen=new Set();const push=d=>{if(d>TODAY)return;const R=rangeFor(pt,d);const v=ymd(R.from);if(seen.has(v))return;seen.add(v);out.push({v,l:optLabel(pt,R)})};
+ for(const m of months){const y=+m.slice(0,4),mo=+m.slice(5,7)-1,first=new Date(y,mo,1),last=new Date(y,mo+1,0);
+  if(pt==='D'){for(let d=first;d<=last;d=addD(d,1))push(d)}else if(pt==='W'){for(let d=first;d<=last;d=addD(d,7))push(d);push(last)}else if(pt==='H'){push(first);push(new Date(y,mo,16))}else push(first)}
+ if(!months.length)for(const y of years){if(pt==='Y')push(new Date(+y,0,1));else if(pt==='Q'){for(let q=0;q<4;q++)push(new Date(+y,q*3,1))}else if(pt==='M'||pt==='H'){for(let m=0;m<12;m++){push(new Date(+y,m,1));if(pt==='H')push(new Date(+y,m,16))}}}
+ return out.sort((x,y)=>x.v<y.v?-1:1)})}
 function pnav(k,o={}){
- const st=S(k); const pts=(o.pts||['D','W','H','M','Y','C','ALL']); if(!pts.includes(st.pt))st.pt=pts.includes('M')?'M':pts[0];
- const R=rangeOf(st); const nextStart=st.pt==='C'?addD(R.to,1):st.pt==='ALL'?TODAY:rangeFor(st.pt,shiftDate(st.pt,parseD(st.anchor)||TODAY,1)).from;
- const canNext=st.pt!=='ALL'&&nextStart<=TODAY, canPrev=st.pt!=='ALL'&&R.from>DATA_START;
- let h=`<div class="pnav" role="group" aria-label="${tt('期間','Period')}"><div class="pn-row"><div class="seg pn-pt">${pts.map(p=>`<button class="${st.pt===p?'on':''}" onclick="navPt('${k}','${p}')">${esc(t(p))}</button>`).join('')}</div>`;
- if(st.pt!=='ALL')h+=`<div class="pn-sel"><button class="icon-btn" aria-label="${tt('上一期','Previous')}" ${canPrev?'':'disabled'} onclick="navShift('${k}',-1)">◀</button>${selectorsHTML(k,st.pt,st.anchor,st)}<button class="icon-btn" aria-label="${tt('下一期','Next')}" ${canNext?'':'disabled'} onclick="navShift('${k}',1)">▶</button><button class="btn sm" onclick="navToday('${k}')">${tt('本期','Current')}</button></div>`;
+ const st=S(k); const pts=(o.pts||['D','W','H','M','Q','Y']); if(!pts.includes(st.pt))st.pt=pts.includes('M')?'M':pts[0];
+ const R=rangeOf(st); const lbl=periodLabel(st.pt,R); const hint=o.snapshot?tt('時點值，不加總','point-in-time'):tt('僅統計選定期間','Selected period only');
+ let h=`<div class="pnav" role="group" aria-label="${tt('期間','Period')}"><div class="pn-row">`;
+ if(st.pt==='C')h+=`<div class="pn-sel">${selectorsHTML(k,'C',st.anchor,st)}</div>`;
+ else if(st.pt!=='ALL'){const opts=periodOpts(k,st.pt).slice();const cur=ymd(R.from);if(!opts.some(x=>x.v===cur)){opts.push({v:cur,l:optLabel(st.pt,R)+' · '+tt('無資料','no data')});opts.sort((x,y)=>x.v<y.v?-1:1)}
+  const i=opts.findIndex(x=>x.v===cur);
+  h+=`<div class="pn-sel"><button class="icon-btn pn-arrow" aria-label="${tt('上一期','Previous')}" ${i>0?'':'disabled'} onclick="navStep('${k}',-1)">◀</button><select class="inp pn-period" aria-label="${tt('期間','Period')}" onchange="navSet('${k}',this.value)">${opts.slice().reverse().map(x=>`<option value="${x.v}" ${x.v===cur?'selected':''}>${esc(x.l)}</option>`).join('')}</select><button class="icon-btn pn-arrow" aria-label="${tt('下一期','Next')}" ${i<opts.length-1?'':'disabled'} onclick="navStep('${k}',1)">▶</button></div>`}
+ h+=`<span class="pn-hint">${esc(lbl)} · ${esc(hint)}</span>`;
  if(o.views)h+=`<div class="seg pn-view">${[['summary',tt('摘要','Summary')],['detail',tt('明細','Detail')]].map(([v,l])=>`<button class="${st.view===v?'on':''}" onclick="navView('${k}','${v}')">${l}</button>`).join('')}</div>`;
- h+=`</div><div class="pn-label"><b>${esc(periodLabel(st.pt,R))}</b> <span class="small muted">${o.snapshot?tt('時點值，不加總','point-in-time'):tt('期間累計','period total')}</span></div>`;
+ h+=`</div><div class="pn-row"><span class="pn-cap">${tt('時間','Time')}</span><div class="seg pn-pt">${pts.map(p=>`<button class="${st.pt===p?'on':''}" onclick="navPt('${k}','${p}')">${esc(t(p))}</button>`).join('')}</div></div>`;
  return h+noDataHint(k)+`</div>`;
 }
+function navStep(k,n){const st=S(k);const opts=periodOpts(k,st.pt);if(!opts.length)return navShift(k,n);const cur=ymd(rangeOf(st).from);let i=opts.findIndex(x=>x.v===cur);
+ if(i<0){i=n>0?opts.findIndex(x=>x.v>cur):opts.length-1-[...opts].reverse().findIndex(x=>x.v<cur);if(i<0||i>=opts.length)return;st.anchor=opts[i].v;return navDone(k)}
+ const j=Math.min(opts.length-1,Math.max(0,i+n));if(j!==i){st.anchor=opts[j].v;navDone(k)}}
 function navDone(k){S(k).page=0;saveNav(k);rerender()}
-function navPt(k,p){const st=S(k);if(p==='C'&&st.pt!=='C'&&st.pt!=='ALL'){const R=rangeOf(st);st.from=ymd(R.from);st.to=ymd(R.to>TODAY?TODAY:R.to)}st.pt=p;if(p==='ALL'&&st.view==='detail')st.view='summary';navDone(k)}
+function navPt(k,p){const st=S(k);if(!['C','ALL'].includes(p)){const os=periodOpts(k,p);const v=ymd(rangeFor(p,parseD(st.anchor)||TODAY).from);if(os.length&&!os.some(x=>x.v===v))st.anchor=os[os.length-1].v}if(p==='C'&&st.pt!=='C'&&st.pt!=='ALL'){const R=rangeOf(st);st.from=ymd(R.from);st.to=ymd(R.to>TODAY?TODAY:R.to)}st.pt=p;if(p==='ALL'&&st.view==='detail')st.view='summary';navDone(k)}
 function navSet(k,v){if(!v)return;S(k).anchor=v;navDone(k)}
 function navShift(k,n){const st=S(k);if(st.pt==='C'){const R=rangeOf(st);const span=Math.round((R.to-R.from)/864e5)+1;st.from=ymd(addD(R.from,n*span));st.to=ymd(addD(R.to,n*span))}else st.anchor=ymd(shiftDate(st.pt,parseD(st.anchor)||TODAY,n));navDone(k)}
 function navToday(k){const st=S(k);st.anchor=ymd(TODAY);if(st.pt==='C'){st.from=ymd(new Date(TODAY.getFullYear(),TODAY.getMonth(),1));st.to=ymd(TODAY)}navDone(k)}
@@ -1117,10 +1138,10 @@ function topList(rows,key,val,unit){const by={};rows.forEach(r=>{const o=by[r[ke
 /* ---------- employees (snapshot) ---------- */
 function renderEmp(){
  const k='emp'; if(!hasData(k))return pageHead(k)+needHTML(k);
- const st=S(k); if(!st._init){st.status='在職';st._init=1} if(!['D','W','H','M','Y'].includes(st.pt)){st.pt='M';st.anchor=ymd(TODAY)} const all=[...empIdx().values()].filter(e=>e.name||e.status);
+ const st=S(k); if(!st._init){st.status='在職';st._init=1} if(!['D','W','H','M','Q','Y'].includes(st.pt)){st.pt='M';st.anchor=ymd(TODAY)} const all=[...empIdx().values()].filter(e=>e.name||e.status);
  const R=rangeOf(st),asof=ymd(R.to>TODAY?TODAY:R.to),{a:pa}=rangeStr(R); const atAsof=e=>e.join_date&&e.join_date<=asof&&(e.leave_date?e.leave_date>asof:e.status!=='離職'); const nAsof=all.filter(atAsof).length; const jn=all.filter(e=>inRange(e.join_date,pa,asof)).length, lv=all.filter(e=>inRange(e.leave_date,pa,asof)).length;
  const act=all.filter(e=>e.status==='在職'); const sen=act.map(e=>{const j=parseD(e.join_date);return j?(TODAY-j)/864e5/365.25:null}).filter(x=>x!=null); const ages=act.map(e=>age(e.birthday)).filter(x=>x!=='');
- let h=pageHead(k,`<button class="btn sm pri" onclick="openEdit('emp',null)">＋ ${tt('新增員工','Add employee')}</button>`+stdActs(k))+conflictsHTML()+pnav(k,{pts:['D','W','H','M','Y'],snapshot:1})+`<div class="kpis">${kpi(tt('期末在職（依到離職日）','Headcount at period end'),fmt(nAsof),'',asof)}${kpi(tt('期間新進','Joiners in period'),fmt(jn))}${kpi(tt('期間離職','Leavers in period'),fmt(lv))}</div><div class="kpis" style="margin-top:10px">${kpi(esc(t('kpi_head')),fmt(act.length),'',DB.asof.emp?tt('員工清冊 ','list ')+DB.asof.emp:'')}${kpi(tt('留職停薪','Unpaid leave'),fmt(all.filter(e=>e.status==='留職停薪').length))}${kpi(tt('離職（歷史）','Left (history)'),fmt(all.filter(e=>e.status==='離職').length))}${kpi(tt('女 / 男（在職）','F / M (active)'),fmt(act.filter(e=>e.sex==='女').length)+' / '+fmt(act.filter(e=>e.sex==='男').length))}${kpi(tt('平均年資','Avg seniority'),sen.length?fmt(sum(sen,x=>x)/sen.length,1):'—',t('years'))}${kpi(tt('平均年齡','Avg age'),ages.length?fmt(sum(ages,x=>x)/ages.length,1):'—')}</div>`;
+ let h=pageHead(k,`<button class="btn sm pri" onclick="openEdit('emp',null)">＋ ${tt('新增員工','Add employee')}</button>`+stdActs(k))+conflictsHTML()+pnav(k,{pts:['D','W','H','M','Q','Y'],snapshot:1})+`<div class="kpis">${kpi(tt('期末在職（依到離職日）','Headcount at period end'),fmt(nAsof),'',asof)}${kpi(tt('期間新進','Joiners in period'),fmt(jn))}${kpi(tt('期間離職','Leavers in period'),fmt(lv))}</div><div class="kpis" style="margin-top:10px">${kpi(esc(t('kpi_head')),fmt(act.length),'',DB.asof.emp?tt('員工清冊 ','list ')+DB.asof.emp:'')}${kpi(tt('留職停薪','Unpaid leave'),fmt(all.filter(e=>e.status==='留職停薪').length))}${kpi(tt('離職（歷史）','Left (history)'),fmt(all.filter(e=>e.status==='離職').length))}${kpi(tt('女 / 男（在職）','F / M (active)'),fmt(act.filter(e=>e.sex==='女').length)+' / '+fmt(act.filter(e=>e.sex==='男').length))}${kpi(tt('平均年資','Avg seniority'),sen.length?fmt(sum(sen,x=>x)/sen.length,1):'—',t('years'))}${kpi(tt('平均年齡','Avg age'),ages.length?fmt(sum(ages,x=>x)/ages.length,1):'—')}</div>`;
  const byD={};act.forEach(e=>{byD[e.dept||'—']=(byD[e.dept||'—']||0)+1});const ks=Object.keys(byD).sort((a,b)=>byD[b]-byD[a]).slice(0,20);
  if(ks.length)h+=`<div class="panel mt"><h2>${tt('在職人數依部門','Active headcount by department')}</h2>${barChart(ks.map(x=>byD[x]),ks,{full:1})}</div>`;
  const rows=filterRows(k,all); h+=`<div class="panel mt">${toolbar(k,all.map(e=>enrichRow(k,e)),{dept:1,status:1})}${tableHTML(k,rows.sort((a,b)=>(b.join_date||'').localeCompare(a.join_date||'')))}</div>`;
@@ -1144,7 +1165,7 @@ function renderDashboard(){
  const k='dashboard'; const any=(DB.hrfiles||[]).length; if(!any)return pageHead(k)+syncCardHTML()+`<div class="panel empty"><h2>${tt('還沒有資料','No data yet')}</h2><p>${tt('把「下載\\HR_系統匯出」裡的檔案拖到畫面上，或到智慧匯入。','Drop the files from 下載\\HR_系統匯出 on this page, or open Smart Import.')}</p><div class="drop drop-mini" onclick="$('#fileIn').click()" role="button" tabindex="0"><b>📤 ${tt('拖檔到這裡 / 點選檔案','Drop files here / choose files')}</b></div>${cloudBanner()}</div>`;
  const act=DB.emp.filter(e=>e.status==='在職').length; const M=rangeOf(S(k)); const A=attAgg(M);
  const Mn=M; const JL=agg('joinleave',Mn); const LV=agg('leave',M); const EX=agg('attexc',M);
- let h=pageHead(k,`<button class="btn sm" onclick="tgPreview('dashboard')">${esc(t('send_tg'))}</button>`)+cloudBanner()+syncCardHTML()+conflictsHTML()+pnav(k,{pts:['D','W','H','M','Y']});
+ let h=pageHead(k,`<button class="btn sm" onclick="tgPreview('dashboard')">${esc(t('send_tg'))}</button>`)+cloudBanner()+syncCardHTML()+conflictsHTML()+pnav(k,{pts:['D','W','H','M','Q','Y']});
  h+=`<div class="kpis">${kpi(esc(t('kpi_head')),fmt(act),'',DB.asof.emp?tt('清冊 ','list ')+DB.asof.emp:tt('尚無員工清冊','no employee list'))}${kpi(esc(t('kpi_join'))+' · '+periodLabel('M',Mn),fmt(JL.join))}${kpi(esc(t('kpi_leave'))+' · '+periodLabel('M',Mn),fmt(JL.leave))}
   ${kpi(tt('出勤率','Attendance rate')+' · '+periodLabel('M',M),fmtM(A.rate,'pct'),'',fmt(A.present_w)+' / '+fmt(A.sched)+' '+tt('工作日人日','person-days'))}${kpi(esc(t('kpi_hours'))+' · '+periodLabel('M',M),fmt(A.act),'h')}${kpi(esc(t('kpi_absent'))+' · '+periodLabel('M',M),fmt(A.miss,1),'h')}${kpi(esc(t('kpi_lv'))+' · '+periodLabel('M',M),fmt(LV.hours,1),'h',fmt(LV.n)+' '+t('records'))}${kpi(esc(t('kpi_exc'))+' · '+periodLabel('M',M),fmt(EX.n),'',fmt(EX.emps)+' '+tt('人','people'))}</div>`;
  const months=[];for(let i=11;i>=0;i--){const d=new Date(TODAY.getFullYear(),TODAY.getMonth()-i,1);months.push({d,R:rangeFor('M',d),l:MN(d.getMonth())+(d.getMonth()===0||i===11?' '+String(d.getFullYear()).slice(2):'')})}
@@ -1497,7 +1518,7 @@ const halfKey=d=>monthKey(d)+':'+(d.getDate()<=15?1:2);
 function halvesIn(R){const out=[];for(let d=new Date(R.from.getFullYear(),R.from.getMonth(),R.from.getDate()<=15?1:16);d<=R.to&&d<=TODAY;){out.push(halfKey(d));d=d.getDate()===1?new Date(d.getFullYear(),d.getMonth(),16):new Date(d.getFullYear(),d.getMonth()+1,1)}return out}
 function renderMeal(){
  const k='meal';if(!hasData('att'))return pageHead(k)+needHTML('att');const st=S(k);const R=rangeOf(st);const c=C().meal;
- let h=pageHead(k,`<button class="btn sm" onclick="exportCalc('meal')">${esc(t('export'))}</button><button class="btn sm" onclick="openMealCfg()">⚙️ ${tt('費率','Rates')}</button>`)+conflictsHTML()+pnav(k,{pts:['H','M','Y']});
+ let h=pageHead(k,`<button class="btn sm" onclick="exportCalc('meal')">${esc(t('export'))}</button><button class="btn sm" onclick="openMealCfg()">⚙️ ${tt('費率','Rates')}</button>`)+conflictsHTML()+pnav(k,{pts:['D','W','H','M','Y']});
  const detailed=st.pt==='H'||st.pt==='M';
  if(detailed){const need=attNeed(R);if(need.length){loadAtt(need);return h+loadingHTML()}}
  const rows=detailed?mealCalc(R):mealApprox(R);const hk=halvesIn(R);const H=HPD();
