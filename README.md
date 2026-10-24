@@ -27,6 +27,13 @@ VRT HR 是 BEST 人事管理系統（`D:\per\per.exe`）的雲端唯讀鏡像：
 | `DEPLOY_ONCE.md` | 部署重點摘要 |
 | `.nojekyll` | 讓 GitHub Pages 原樣提供檔案 |
 
+## v0.2.7（2026-10-24）
+
+- **員工照片**：智慧匯入可以一次拖進整個照片資料夾（.jpg / .png，檔名＝工號，例 `5913.jpg`；`5913 (1).jpg` 這種也認得）。匯入前核對：對到幾人（新／更換／相同略過）、找不到工號的檔名、同一工號多個檔（用最新修改的）、匯入後還沒照片的在職員工。
+- 照片在瀏覽器縮成 ≤360px JPEG（每張約 30–45 KB），存本機 IndexedDB，雲端存 Google 試算表 `PSJHR_PHOTOS`（一人一列，同樣要同步密碼）；其他裝置自動下載。
+- 員工資料抽屜左上顯示照片，點照片放大；可單張「上傳／更換照片」「移除照片」。
+- 需要 Apps Script **PSJHR.gs v0.2.1**（新增 hr_photo_list / hr_photo_get / hr_photo_put / hr_photo_del）。舊版 Apps Script 時照片只存在本機，畫面提示一次，不影響其他同步。
+
 ## v0.2.6（2026-10-24）
 
 - **智慧匯入認得「固定薪資」檔**（`每月薪資_固定薪資_StaffSalaryMaintenance_YYYYMMDD.xlsx`，從 BEST HR-Phary 帳號 Staff salary maintenance w_per285 逐人抄錄）：表頭有 `Staff#`、`01 Basic`、`11 Skill` 就辨識。
