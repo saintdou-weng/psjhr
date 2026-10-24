@@ -970,6 +970,7 @@ function periodKeys(k){return cached('pk|'+k,()=>{const set=new Set();const ds=K
  else if(ds==='joinleave')DB.joinleave.forEach(r=>{add(r.join_date);add(r.leave_date)});
  else if(ds==='annual')DB.annual.forEach(r=>set.add(String(r.year)));
  else if(ds==='holiday')DB.holiday.forEach(r=>add(r.date));
+ if(k==='emp')empIdx().forEach(e=>{add(e.join_date);add(e.leave_date)});
  return set})}
 function latestKey(k){const cm=monthKey(TODAY),cy=String(TODAY.getFullYear());const ks=[...periodKeys(k)].filter(x=>x.length===7&&x<=cm).sort();const ys=[...periodKeys(k)].filter(x=>x.length===4&&x<=cy).sort();if(ks.length)return ks[ks.length-1];return ys.length?ys[ys.length-1]:null}
 function initST(k){
@@ -1179,6 +1180,7 @@ function renderEmp(){
  const act=all.filter(e=>e.status==='在職'); const sen=act.map(e=>{const j=parseD(e.join_date);return j?(TODAY-j)/864e5/365.25:null}).filter(x=>x!=null); const ages=act.map(e=>age(e.birthday)).filter(x=>x!=='');
  let h=pageHead(k,`<button class="btn sm pri" onclick="openEdit('emp',null)">＋ ${tt('新增員工','Add employee')}</button>`+stdActs(k))+conflictsHTML()+pnav(k,{pts:['D','W','H','M','Q','Y'],snapshot:1})+`<div class="kpis">${kpi(tt('期末在職（依到離職日）','Headcount at period end'),fmt(nAsof),'',asof)}${kpi(tt('期間新進','Joiners in period'),fmt(jn))}${kpi(tt('期間離職','Leavers in period'),fmt(lv))}</div><div class="kpis" style="margin-top:10px">${kpi(esc(t('kpi_head')),fmt(act.length),'',DB.asof.emp?tt('員工清冊 ','list ')+DB.asof.emp:'')}${kpi(tt('留職停薪','Unpaid leave'),fmt(all.filter(e=>e.status==='留職停薪').length))}${kpi(tt('離職（歷史）','Left (history)'),fmt(all.filter(e=>e.status==='離職').length))}${kpi(tt('女 / 男（在職）','F / M (active)'),fmt(act.filter(e=>e.sex==='女').length)+' / '+fmt(act.filter(e=>e.sex==='男').length))}${kpi(tt('平均年資','Avg seniority'),sen.length?fmt(sum(sen,x=>x)/sen.length,1):'—',t('years'))}${kpi(tt('平均年齡','Avg age'),ages.length?fmt(sum(ages,x=>x)/ages.length,1):'—')}</div>`;
  const byD={};act.forEach(e=>{byD[e.dept||'—']=(byD[e.dept||'—']||0)+1});const ks=Object.keys(byD).sort((a,b)=>byD[b]-byD[a]).slice(0,20);
+ h+=photoPanelHTML(act);
  if(ks.length)h+=`<div class="panel mt"><h2>${tt('在職人數依部門','Active headcount by department')}</h2>${barChart(ks.map(x=>byD[x]),ks,{full:1})}</div>`;
  const rows=filterRows(k,all); h+=`<div class="panel mt">${toolbar(k,all.map(e=>enrichRow(k,e)),{dept:1,status:1})}${tableHTML(k,rows.sort((a,b)=>(b.join_date||'').localeCompare(a.join_date||'')))}</div>`;
  return h;
@@ -1281,6 +1283,11 @@ async function photoGet(id){id=String(id);if(PHOTO_CACHE.has(id))return PHOTO_CA
 async function photoSet(id,data,fromCloud,h){id=String(id);await IDB.set('photo|'+id,data);PHOTO_CACHE.set(id,data);DB.photos=DB.photos||{};DB.photos[id]={h:h||photoHash(data),at:nowStamp(),dirty:!fromCloud}}
 async function photoDel(id,fromCloud){id=String(id);await IDB.del('photo|'+id);PHOTO_CACHE.delete(id);if(DB.photos)delete DB.photos[id];if(!fromCloud)(DB.photodel=DB.photodel||[]).push(id)}
 function hasPhoto(no){return !!(DB.photos&&DB.photos[String(no)])}
+function photoPanelHTML(act){const have=act.filter(e=>hasPhoto(e.emp_no)),miss=act.filter(e=>!hasPhoto(e.emp_no)),all=Object.keys(DB.photos||{}).length,dirty=Object.values(DB.photos||{}).filter(x=>x.dirty).length;
+ const chip=e=>`<button class="btn sm" onclick="openEmp('${esc(e.emp_no)}')"><span class="mono">${esc(e.emp_no)}</span> ${esc(e.name||'')}</button>`;
+ return `<div class="panel mt"><h2>📷 ${tt('員工照片','Employee photos')}</h2><div class="kpis">${kpi(tt('在職有照片','Active with photo'),fmt(have.length)+' / '+fmt(act.length))}${kpi(tt('在職沒照片','Active without photo'),fmt(miss.length))}${kpi(tt('照片總數（含離職）','Photos total (incl. leavers)'),fmt(all))}${kpi(tt('待上傳雲端','Waiting to upload'),fmt(dirty))}</div>
+ ${have.length?`<p class="small muted" style="margin:10px 0 6px">${tt('有照片的人（點開看）：','With photo (click to open):')}</p><div style="display:flex;gap:6px;flex-wrap:wrap">${have.slice(0,8).map(chip).join('')}</div>`:''}
+ ${miss.length?`<p class="small muted" style="margin:10px 0 6px">${tt('沒照片的在職員工（點開可「上傳照片」）：','Active without photo (open to add one):')}</p><div style="display:flex;gap:6px;flex-wrap:wrap;max-height:180px;overflow:auto">${miss.sort((a,b)=>String(a.emp_no).localeCompare(String(b.emp_no))).map(chip).join('')}</div>`:''}</div>`}
 /* 智慧匯入：一批照片 → 佇列一列 */
 async function parsePhotos(imgs){
  const rows=[],unknown=[],dup=[],same=[],bad=[];const seen=new Map();
@@ -1330,7 +1337,7 @@ async function readAOA(file){
  return {aoa:XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''}),sheets:wb.SheetNames};
 }
 async function handleFiles(list){
- const all=[...list].filter(f=>!/^00_export/i.test(f.name)); if(!all.length)return; const imgs=all.filter(isImg), files=all.filter(f=>!isImg(f)); toast(tt('讀取中…','Reading…')+' '+all.length);
+ const all=[...list].filter(f=>!/^00_export/i.test(f.name)&&!/(\.thumb|^thumbs\.db|^desktop\.ini|^\._.*|\.tmp)$/i.test(f.name)); if(!all.length)return; const imgs=all.filter(isImg), files=all.filter(f=>!isImg(f)); toast(tt('讀取中…','Reading…')+' '+all.length);
  if(imgs.length){try{const P=await parsePhotos(imgs);IMPQ=IMPQ.filter(q=>!(q.P&&q.P.rep==='photo'&&!q.done));IMPQ.push({file:'📷 '+P.meta.label,size:0,R:PHOTO_R,P})}catch(e){IMPQ.push({file:tt('員工照片','Photos'),err:String(e.message||e)})}}
  for(const f of files){
   try{const {aoa}=await readAOA(f); if(isFixSal(aoa)){const P=parseFixSal(aoa,f);IMPQ=IMPQ.filter(q=>!(q.P&&q.P.meta.key===P.meta.key));IMPQ.push({file:f.name,size:f.size,R:FIXSAL_R,P});continue}
