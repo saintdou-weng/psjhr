@@ -346,8 +346,9 @@ table.t.list tr.sel td{background:#FFF7ED}
 /* ---- PSJHR additions ---- */
 .hr-chip{display:inline-block;padding:1px 7px;border-radius:5px;font-size:11.5px;font-weight:600;background:var(--sunk);color:var(--ink-2)}
 .hr-chip.active{background:var(--good-soft);color:var(--good)}.hr-chip.left{background:var(--crit-soft);color:var(--crit)}.hr-chip.lsp{background:var(--warn-soft);color:var(--warn)}
-.prof{display:grid;grid-template-columns:64px 1fr;gap:12px;align-items:center;margin-bottom:12px}
+.prof{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;margin-bottom:12px}
 .prof .av{width:64px;height:64px;border-radius:12px;background:var(--accent-soft);color:var(--accent-2);display:grid;place-items:center;font-family:var(--f-disp);font-weight:700;font-size:22px}
+.prof .av{cursor:pointer}.prof .av.ph{width:96px;height:120px;padding:0;overflow:hidden;background:var(--sunk)}.prof .av.ph img{width:100%;height:100%;object-fit:cover;display:block}
 .prof h2{margin:0;font-size:20px}.prof .sub{color:var(--muted);font-size:12.5px}
 .month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;font-size:11px}
 .month-grid .dcell{border:1px solid var(--line-2);border-radius:5px;padding:4px 5px;min-height:44px;background:var(--surface-2)}
@@ -395,7 +396,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
 <div id="modal" class="modal" hidden></div>
 <div id="toast" class="toast" hidden></div>
 <div id="tip" class="tip" hidden></div>
-<input type="file" id="fileIn" accept=".xlsx,.xls,.XLS,.csv" multiple hidden>
+<input type="file" id="fileIn" accept=".xlsx,.xls,.XLS,.csv,.jpg,.jpeg,.JPG,.png,.webp" multiple hidden>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 /* ============ VRT HR / PSJHR v0.1.1 (2026-10-15) ============
@@ -487,7 +488,7 @@ const IDB={_db:null,
    is stored one batch per IndexedDB key and loaded only for the months on screen; DB.attsum keeps per-batch summaries. */
 const SNAP={emp:1,emp2:1,contact:1,basepay:1,jobcode:1};
 const BIG={att:1};
-function emptyDB(){return {_v:1,emp:[],emp2:[],contact:[],basepay:[],jobcode:[],joinleave:[],leave:[],attexc:[],annual:[],holiday:[],attsum:{},asof:{},snaps:{},hrfiles:[],importlog:[],audit:[],notes:{},edits:{},config:{},sys:{},hp:{pay:{},adv:{},meal:{},at:{}},payadj:[],conflicts:[],sync:{gas:'',time:'16:00'}}}
+function emptyDB(){return {_v:1,photos:{},photodel:[],emp:[],emp2:[],contact:[],basepay:[],jobcode:[],joinleave:[],leave:[],attexc:[],annual:[],holiday:[],attsum:{},asof:{},snaps:{},hrfiles:[],importlog:[],audit:[],notes:{},edits:{},config:{},sys:{},hp:{pay:{},adv:{},meal:{},at:{}},payadj:[],conflicts:[],sync:{gas:'',time:'16:00'}}}
 let DB=emptyDB(); let SAVE_OK=true;
 async function loadDB(){let d=await IDB.get('db_v1');if(!d)d=emptyDB();const base=emptyDB();Object.keys(base).forEach(k=>{if(d[k]==null)d[k]=base[k]});DB=d;if(!IDB._db)SAVE_OK=false;GC.clear();try{applyEdits()}catch(e){console.error(e)}}
 let persistT; function persist(){clearTimeout(persistT);persistT=setTimeout(async()=>{const ok=await IDB.set('db_v1',DB);if(!ok&&SAVE_OK){SAVE_OK=false;toast(tt('瀏覽器無法儲存資料（可能是無痕模式），關閉後會遺失','This browser cannot save data (private mode?) — it will be lost on close'))}},400)}
@@ -804,6 +805,7 @@ async function cloudSync(manual,filt){
   for(const f of (DB.hrfiles||[]).filter(f=>(f.dirty||!f.version)&&ok(f))){await pushBatch(f);justPushed.add(f.key);pushed++;persist();CLOUD.man=CLOUD.man.filter(m=>m.key!==f.key).concat([{key:f.key,rep:f.rep,label:f.label,range:f.range,year:f.year,asof:f.asof,version:f.version}]);CLOUD.files=CLOUD.man.length}
   for(const m of files){if(SYS_REPS.has(m.rep)){if(!justPushed.has(m.key)&&String((DB.sys[m.rep]||{}).version)!==String(m.version)){cloudSetState('busy',tt('下載網頁編輯…','Downloading edits…'));await pullSys(m);pulled++;persist()}continue}if(justPushed.has(m.key)||!ok(m))continue;const loc=(DB.hrfiles||[]).find(f=>f.key===m.key);if(loc&&(loc.dirty||String(loc.version)===String(m.version)))continue;await pullBatch(m);pulled++;persist()}
   for(const n of NOTEQ.splice(0)){await cpost({action:'hr_note',id:n.id,notes:n.notes,user:'paul.weng'})}
+  if(!filt)await photoSync();
   (man.notes||[]).forEach(n=>{const cur=DB.notes[n.id];if(cur&&cur.at>String(n.at))return;DB.notes[n.id]={notes:String(n.notes||''),at:String(n.at||'')}});
   CLOUD.last=nowStamp(); LS.set('cloud_last',CLOUD.last); cloudSetState('ok'); persist();
   if(pulled||pushed||manual){toast((filt?tt('選擇更新完成','Selected update done'):tt('雲端同步完成','Cloud sync done'))+(pushed?` · ${tt('上傳','up')} ${pushed}`:'')+(pulled?` · ${tt('下載','down')} ${pulled}`:''));rerender()}
@@ -1237,9 +1239,9 @@ function openEmp(no){
  const lv=DB.leave.filter(r=>r.emp_no===no).sort((a,b)=>b.start.localeCompare(a.start)); const ex=DB.attexc.filter(r=>r.emp_no===no).sort((a,b)=>b.date.localeCompare(a.date));
  const attKeys=(DB.hrfiles||[]).filter(f=>f.rep==='att'&&DB.attsum[f.key]&&DB.attsum[f.key].emps[no]).sort((a,b)=>b.range[0].localeCompare(a.range[0])); const lastYm=attKeys.length?attKeys[0].range[0].slice(0,7):null;
  const p=e.pay; const note=(DB.notes[no]||{}).notes||'';
- let h=`<div class="dh"><div class="prof"><div class="av">${esc((e.name||'?').slice(0,2))}</div><div><h2>${esc(e.name||'—')} <span class="mono muted" style="font-size:14px">${esc(no)}</span></h2><div class="sub">${esc(e.dept||'—')} · ${esc(e.title||'—')} ${statusChip(e.status)}</div></div></div><button class="icon-btn" onclick="closeDrawer()" aria-label="Close">✕</button></div>
+ let h=`<div class="dh"><div class="prof">${photoBoxHTML(no,e.name)}<div><h2>${esc(e.name||'—')} <span class="mono muted" style="font-size:14px">${esc(no)}</span></h2><div class="sub">${esc(e.dept||'—')} · ${esc(e.title||'—')} ${statusChip(e.status)}</div></div></div><button class="icon-btn" onclick="closeDrawer()" aria-label="Close">✕</button></div>
  <div class="db"><div class="kv">${kv(t('sex'),esc(e.sex||'—'))}${kv(t('join_date'),esc(e.join_date||'—'))}${kv(t('seniority'),esc(seniority(e.join_date,e.leave_date)||'—'))}${kv(t('leave_date'),esc(e.leave_date||'—'))}${kv(t('birthday'),(e.birthday?pii(e.birthday)+(age(e.birthday)!==''?` <span class="muted small">(${age(e.birthday)})</span>`:''):'—'))}${kv(t('id_no'),pii(e.id_no))}${kv(t('mobile'),pii(e.mobile))}${kv(t('phone'),pii(e.phone))}${kv(t('emergency'),esc(e.emergency||'—')+(e.relation?` <span class="muted small">(${esc(e.relation)})</span>`:''))}${kv(t('address'),pii(e.address))}${kv(t('title_code'),esc(e.title_code||'—'))}${kv(t('dept_code'),esc(e.dept_code||'—'))}</div>`;
- h+=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 0"><button class="btn sm" onclick="openEdit('emp','${esc(no)}')">✏️ ${tt('編輯基本資料','Edit details')}</button><button class="btn sm" onclick="openEdit('basepay','${esc(no)}',{emp_no:'${esc(no)}'})">💵 ${tt('編輯薪資設定','Edit pay setup')}</button><button class="btn sm" onclick="openEdit('leave',null,{emp_no:'${esc(no)}'})">＋ ${tt('新增請假','Add leave')}</button></div>`+edBadge('emp',no);
+ h+=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 0"><button class="btn sm" onclick="openEdit('emp','${esc(no)}')">✏️ ${tt('編輯基本資料','Edit details')}</button><button class="btn sm" onclick="openEdit('basepay','${esc(no)}',{emp_no:'${esc(no)}'})">💵 ${tt('編輯薪資設定','Edit pay setup')}</button><button class="btn sm" onclick="openEdit('leave',null,{emp_no:'${esc(no)}'})">＋ ${tt('新增請假','Add leave')}</button><button class="btn sm" onclick="photoPick('${esc(no)}')">📷 ${hasPhoto(no)?tt('更換照片','Replace photo'):tt('上傳照片','Add photo')}</button></div>`+edBadge('emp',no);
  if(p)h+=`<h3 style="margin:14px 0 6px">💵 ${esc(t('basepay'))} <span class="small muted">${esc(DB.asof.basepay||'')}</span>${edBadge('basepay',no)}</h3><div class="kv">${kv(t('pay_type'),esc(p.pay_type))}${kv(t('base'),fUSD(p.base))}${kv(t('allow_pos'),fUSD(p.allow_pos))}${kv(t('allow_pro'),fUSD(p.allow_pro))}${kv(t('allow_tech'),fUSD(p.allow_tech))}${kv(t('allow_other'),fUSD(p.allow_other))}${kv(t('allow_full'),fKHR(p.allow_full))}${kv(t('allow_trans'),fUSD(p.allow_trans))}${kv(t('allow_meal'),fKHR(p.allow_meal))}${(()=>{const u=payUSD(p);return kv(t('pay_usd'),'<b>'+fUSD(u.total)+'</b><div class="small muted">'+fUSD(u.usd)+(/日/.test(p.pay_type||'')?tt('（日薪×30）','(daily×30)'):'')+' ＋ '+fKHR(u.khr)+' ÷ '+fmt(payFx())+'</div>')})()}</div>`;
  if(e.annual&&e.annual.length)h+=`<h3 style="margin:14px 0 6px">🌴 ${esc(t('annual'))}</h3><div class="tbl-wrap"><table class="t"><thead><tr><th>${esc(t('year'))}</th><th class="r">${esc(t('al_days'))}</th><th class="r">${esc(t('al_hrs'))}</th><th class="r">${esc(t('al_used_hrs'))}</th><th class="r">${esc(t('al_left'))}</th></tr></thead><tbody>${e.annual.sort((a,b)=>String(b.year).localeCompare(String(a.year))).map(r=>`<tr><td>${esc(r.year)}</td><td class="r">${fmt(r.al_days)}</td><td class="r">${fmt(r.al_hrs)}</td><td class="r">${fmt(r.al_used_hrs,1)}</td><td class="r"><b>${fmt(r.al_left,1)}</b></td></tr>`).join('')}</tbody></table></div>`;
  if(attKeys.length){const ms=attKeys.map(f=>DB.attsum[f.key].emps[no]).slice(0,12);
@@ -1248,7 +1250,7 @@ function openEmp(no){
  if(ex.length)h+=`<h3 style="margin:14px 0 6px">⚠️ ${esc(t('attexc'))} <span class="small muted">${fmt(ex.length)}</span></h3><div class="tbl-wrap"><table class="t"><tbody>${ex.slice(0,8).map(r=>`<tr><td class="mono">${esc(r.date)}</td><td>${cell(r,{f:'kind',ty:'kind'})}</td><td class="mono small">${esc(r.time_in||'—')} → ${esc(r.time_out||'—')}</td><td class="r">${fmt(r.lv_missing,1)}h</td></tr>`).join('')}</tbody></table></div>`;
  h+=`<h3 style="margin:14px 0 6px">🗒️ ${tt('備註（雲端同步）','Notes (synced)')}</h3><textarea class="inp" id="empNote" rows="3" style="width:100%">${esc(note)}</textarea><div style="display:flex;gap:8px;margin-top:8px"><button class="btn pri sm" onclick="cloudNote('${esc(no)}',$('#empNote').value);toast('${esc(tt('已儲存','Saved'))}')">${tt('儲存備註','Save note')}</button><a class="btn sm" href="#emp" onclick="S('emp').q='${esc(no)}';S('emp').status='';closeDrawer()">${tt('在員工頁開啟','Open in Employees')}</a></div>
  <p class="small muted" style="margin-top:12px">${tt('來源：BEST 人事系統匯出檔（唯讀）。改資料請回人事系統。','Source: BEST HR export files (read-only). Edit in the HR system.')}</p></div>`;
- openDrawer(h);
+ openDrawer(h); photoPaint(no);
 }
 function monthGridHTML(no,ym){
  if(!ym)return ''; const f=(DB.hrfiles||[]).filter(x=>x.rep==='att'&&x.range[0].slice(0,7)===ym); const need=f.map(x=>x.key).filter(k=>!ATT_CACHE.has(k));
@@ -1261,6 +1263,65 @@ function monthGridHTML(no,ym){
  return g+'</div>';
 }
 
+/* ---------- v0.2.7 員工照片：檔名＝工號（例 5913.jpg）。縮成 ≤360px JPEG 存本機 IndexedDB（photo|工號），雲端存 PSJHR_PHOTOS 試算表 ---------- */
+const PHOTO_CACHE=new Map();
+const PHOTO_R={k:'photo',fn:'PHOTO',zh:'員工照片',en:'Employee photos',ds:'emp'};
+const isImg=f=>/^image\//.test(f.type||'')||/\.(jpe?g|png|webp|bmp|gif)$/i.test(f.name||'');
+function photoHash(s){let h=2166136261>>>0;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0}return h.toString(36)+'_'+s.length.toString(36)}
+function photoIdOf(name){const b=String(name||'').replace(/^.*[\\/]/,'').replace(/\.[^.]+$/,'').trim();const m=b.match(/^0*([A-Za-z]?\d+)(?:[\s_\-（(].*)?$/);return m?m[1]:b}
+function photoEmp(id){return emp(id)||emp(String(id).replace(/^0+/,''))||null}
+async function photoShrink(file){
+ let bmp;try{bmp=await createImageBitmap(file,{imageOrientation:'from-image'})}catch(e){bmp=await createImageBitmap(file)}
+ let max=360,q=0.85,out='';
+ for(let k=0;k<8;k++){const s=Math.min(1,max/Math.max(bmp.width,bmp.height));const w=Math.max(1,Math.round(bmp.width*s)),h=Math.max(1,Math.round(bmp.height*s));
+  const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,w,h);g.drawImage(bmp,0,0,w,h);out=c.toDataURL('image/jpeg',q);
+  if(out.length<=45000)break; if(q>0.6)q-=0.1;else max=Math.round(max*0.85)}
+ try{bmp.close()}catch(e){} if(out.length>45000)throw new Error(tt('照片太大','Photo too large'));return out}
+async function photoGet(id){id=String(id);if(PHOTO_CACHE.has(id))return PHOTO_CACHE.get(id);const d=await IDB.get('photo|'+id);if(d)PHOTO_CACHE.set(id,d);return d||null}
+async function photoSet(id,data,fromCloud,h){id=String(id);await IDB.set('photo|'+id,data);PHOTO_CACHE.set(id,data);DB.photos=DB.photos||{};DB.photos[id]={h:h||photoHash(data),at:nowStamp(),dirty:!fromCloud}}
+async function photoDel(id,fromCloud){id=String(id);await IDB.del('photo|'+id);PHOTO_CACHE.delete(id);if(DB.photos)delete DB.photos[id];if(!fromCloud)(DB.photodel=DB.photodel||[]).push(id)}
+function hasPhoto(no){return !!(DB.photos&&DB.photos[String(no)])}
+/* 智慧匯入：一批照片 → 佇列一列 */
+async function parsePhotos(imgs){
+ const rows=[],unknown=[],dup=[],same=[],bad=[];const seen=new Map();
+ imgs.forEach(f=>{const id=photoIdOf(f.name);const e=photoEmp(id);if(!e||!e.name){unknown.push(f.name);return}const no=e.emp_no;if(seen.has(no)){dup.push(f.name);if(f.lastModified<=seen.get(no).lastModified)return}seen.set(no,f)});
+ let i=0;for(const [no,f] of seen){i++;if(i%25===0)toast(tt('處理照片 ','Processing photos ')+i+'/'+seen.size);
+  try{const data=await photoShrink(f);const h=photoHash(data);if(DB.photos&&DB.photos[no]&&DB.photos[no].h===h){same.push(no);continue}rows.push({emp_no:no,data,h,file:f.name,replace:hasPhoto(no)})}catch(e){bad.push(f.name)}}
+ const willHave=new Set([...Object.keys(DB.photos||{}),...rows.map(r=>r.emp_no)]);const act=[...empIdx().values()].filter(e=>e.status==='在職');const missing=act.filter(e=>!willHave.has(e.emp_no));
+ const nRep=rows.filter(r=>r.replace).length;const list=a=>a.slice(0,12).join('、')+(a.length>12?` …（${a.length}）`:'');
+ const checks=[{ok:rows.length+same.length>0?true:false,msg:tt(`對到員工 ${fmt(seen.size)} 人（新照片 ${fmt(rows.length-nRep)}、更換 ${fmt(nRep)}、和雲端相同略過 ${fmt(same.length)}）`,`Matched ${fmt(seen.size)} employees (new ${fmt(rows.length-nRep)}, replaced ${fmt(nRep)}, unchanged ${fmt(same.length)})`)}];
+ if(unknown.length)checks.push({ok:null,msg:tt(`找不到工號、不匯入 ${unknown.length} 個：`,`No matching employee, skipped ${unknown.length}: `)+list(unknown)});
+ if(dup.length)checks.push({ok:null,msg:tt(`同一工號有多個檔（用最新修改的）：`,`Several files for one employee (newest used): `)+list(dup)});
+ if(bad.length)checks.push({ok:null,msg:tt(`讀不到的檔：`,`Unreadable: `)+list(bad)});
+ checks.push({ok:missing.length?null:true,msg:tt(`匯入後在職員工還沒照片：${fmt(missing.length)} 人`,`Active employees still without a photo: ${fmt(missing.length)}`)+(missing.length?' · '+list(missing.map(e=>e.emp_no)):'')});
+ return {rep:'photo',rows,checks,missing:missing.map(e=>e.emp_no),meta:{key:'photo|'+Date.now(),label:tt(`員工照片 ${fmt(imgs.length)} 個檔`,`${fmt(imgs.length)} photo files`)}};
+}
+async function applyPhotos(P){for(const r of P.rows)await photoSet(r.emp_no,r.data,false,r.h);persist();audit('smart-import',P.meta.key,'PHOTO',null,{added:P.rows.length});return {added:P.rows.length,removed:0}}
+/* 員工抽屜：照片框、單張更換／移除、放大 */
+function photoBoxHTML(no,name){return `<div class="av${hasPhoto(no)?' ph':''}" id="profPh" title="${esc(tt('員工照片','Photo'))}" onclick="photoZoom('${esc(no)}')">${hasPhoto(no)?'':esc((name||'?').slice(0,2))}</div>`}
+async function photoPaint(no){if(!hasPhoto(no))return;const d=await photoGet(no);const el=$('#profPh');if(el&&PROF_NO===no&&d){el.classList.add('ph');el.innerHTML=`<img src="${d}" alt="">`}}
+async function photoZoom(no){if(!hasPhoto(no)){photoPick(no);return}const d=await photoGet(no);const e=emp(no)||{};
+ showModal(`<h2>📷 ${esc(e.name||'')} <span class="mono muted">${esc(no)}</span></h2><div style="text-align:center"><img src="${d}" alt="" style="max-width:100%;max-height:60vh;border-radius:12px"></div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn pri" onclick="photoPick('${esc(no)}')">📷 ${tt('更換照片','Replace photo')}</button><button class="btn" onclick="photoRemove('${esc(no)}')">🗑️ ${tt('移除照片','Remove photo')}</button><button class="btn" onclick="$('#modal').hidden=true">${esc(t('cancel'))}</button></div>`)}
+function photoPick(no){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.onchange=async()=>{const f=inp.files&&inp.files[0];if(!f)return;try{const d=await photoShrink(f);await photoSet(no,d,false);persist();audit('emp',no,'PHOTO',null,{file:f.name});$('#modal').hidden=true;toast(tt('照片已更新','Photo updated'));openEmp(no);if(cloudReady())setTimeout(()=>cloudSync(false),200)}catch(e){toast(String(e.message||e))}};inp.click()}
+async function photoRemove(no){if(!confirm(tt('移除這位員工的照片（本機與雲端）？','Remove this photo (device and cloud)?')))return;await photoDel(no,false);persist();audit('emp',no,'PHOTO_DEL',null,{});$('#modal').hidden=true;toast(tt('已移除','Removed'));openEmp(no);if(cloudReady())setTimeout(()=>cloudSync(false),200)}
+/* 雲端：上傳本機新照片／刪除、下載雲端較新的。Apps Script 沒更新時只提示一次，不影響其他同步 */
+async function photoSync(){
+ DB.photos=DB.photos||{};
+ try{
+  const del=(DB.photodel||[]).slice(0);if(del.length){await cpost({action:'hr_photo_del',ids:del});DB.photodel=(DB.photodel||[]).filter(x=>!del.includes(x));persist()}
+  const up=Object.keys(DB.photos).filter(id=>DB.photos[id].dirty);
+  for(let i=0;i<up.length;i+=15){const ids=up.slice(i,i+15);cloudSetState('busy',tt('上傳照片 ','Uploading photos ')+Math.min(up.length,i+15)+'/'+up.length);
+   const items=[];for(const id of ids){const d=await photoGet(id);if(d)items.push({id,h:DB.photos[id].h,data:d})}
+   await cpost({action:'hr_photo_put',items,user:'paul.weng'});ids.forEach(id=>{if(DB.photos[id])DB.photos[id].dirty=false});persist()}
+  const L=(await cget({action:'hr_photo_list'})).rows||[];const inCloud=new Set();const need=[];
+  L.forEach(r=>{const id=String(r.id);inCloud.add(id);const loc=DB.photos[id];if(loc&&loc.dirty)return;if(!loc||loc.h!==String(r.h))need.push(id)});
+  for(const id of Object.keys(DB.photos)){if(!DB.photos[id].dirty&&!inCloud.has(id)&&!up.includes(id))await photoDel(id,true)}
+  for(let i=0;i<need.length;i+=25){const ids=need.slice(i,i+25);cloudSetState('busy',tt('下載照片 ','Downloading photos ')+Math.min(need.length,i+25)+'/'+need.length);
+   const j=await cget({action:'hr_photo_get',ids:ids.join(',')});for(const r of (j.rows||[]))if(/^data:image\//.test(String(r.data)))await photoSet(String(r.id),String(r.data),true,String(r.h));persist()}
+  CLOUD.photoErr='';return up.length+need.length+del.length;
+ }catch(e){console.error(e);const m=String(e.message||e);if(CLOUD.photoErr!==m){CLOUD.photoErr=m;toast(/BAD_ACTION/.test(m)?tt('照片未同步：Apps Script（PSJHR.gs）還沒更新到 v0.2.1','Photos not synced: update PSJHR.gs to v0.2.1'):tt('照片同步失敗：','Photo sync failed: ')+m)}return 0}
+}
+
 /* ---------- smart import ---------- */
 let IMPQ=[];
 async function readAOA(file){
@@ -1269,7 +1330,8 @@ async function readAOA(file){
  return {aoa:XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''}),sheets:wb.SheetNames};
 }
 async function handleFiles(list){
- const files=[...list].filter(f=>!/^00_export/i.test(f.name)); if(!files.length)return; toast(tt('讀取中…','Reading…')+' '+files.length);
+ const all=[...list].filter(f=>!/^00_export/i.test(f.name)); if(!all.length)return; const imgs=all.filter(isImg), files=all.filter(f=>!isImg(f)); toast(tt('讀取中…','Reading…')+' '+all.length);
+ if(imgs.length){try{const P=await parsePhotos(imgs);IMPQ=IMPQ.filter(q=>!(q.P&&q.P.rep==='photo'&&!q.done));IMPQ.push({file:'📷 '+P.meta.label,size:0,R:PHOTO_R,P})}catch(e){IMPQ.push({file:tt('員工照片','Photos'),err:String(e.message||e)})}}
  for(const f of files){
   try{const {aoa}=await readAOA(f); if(isFixSal(aoa)){const P=parseFixSal(aoa,f);IMPQ=IMPQ.filter(q=>!(q.P&&q.P.meta.key===P.meta.key));IMPQ.push({file:f.name,size:f.size,R:FIXSAL_R,P});continue}
    const R=detectReport(aoa);
@@ -1300,7 +1362,7 @@ function queueHTML(){
 }
 async function confirmAll(){
  const todo=IMPQ.filter(q=>q.P&&!q.done&&!q.skip); if(!todo.length)return; toast(tt('匯入中…','Importing…'));
- for(const q of todo){try{q.done=q.P.rep==='fixsal'?await applyFixSal(q.P,q.file):await applyHR(q.P,q.file)}catch(e){q.err=String(e.message||e);q.P=null}}
+ for(const q of todo){try{q.done=q.P.rep==='photo'?await applyPhotos(q.P):q.P.rep==='fixsal'?await applyFixSal(q.P,q.file):await applyHR(q.P,q.file)}catch(e){q.err=String(e.message||e);q.P=null}}
  GC.clear(); Object.keys(ST).forEach(k=>{if(!LS.get('nav_'+k,null))delete ST[k]});
  toast(tt('已匯入 ','Imported ')+todo.length+tt(' 個檔',' files')); rerender(); if(cloudReady())setTimeout(()=>cloudSync(false),300);
 }
@@ -1316,7 +1378,7 @@ function coverageHTML(compact){
 }
 function renderImport(){
  const k='smart-import';
- let h=pageHead(k)+`<div class="drop" id="drop" role="button" tabindex="0"><b>📤 ${tt('把人事系統匯出檔拖到這裡（可一次多個，整個資料夾的檔也行）','Drop HR export files here — many at once is fine')}</b><br><span class="small muted">${tt('支援 .xls / .xlsx；不用先選種類。00_export.xls 會自動略過。','.xls / .xlsx; no need to choose a type. 00_export.xls is skipped.')}</span></div>`+cloudBanner()+queueHTML()+coverageHTML();
+ let h=pageHead(k)+`<div class="drop" id="drop" role="button" tabindex="0"><b>📤 ${tt('把人事系統匯出檔拖到這裡（可一次多個，整個資料夾的檔也行）','Drop HR export files here — many at once is fine')}</b><br><span class="small muted">${tt('支援 .xls / .xlsx；不用先選種類。00_export.xls 會自動略過。員工照片（.jpg，檔名＝工號，例 5913.jpg）也可以整批拖進來。','.xls / .xlsx; no need to choose a type. 00_export.xls is skipped. Employee photos (.jpg named by employee no., e.g. 5913.jpg) can be dropped in bulk too.')}</span></div>`+cloudBanner()+queueHTML()+coverageHTML();
  h+=`<div class="panel mt"><h2>${tt('認得的報表','Recognised reports')}</h2><div class="tbl-wrap"><table class="t cards"><thead><tr><th>${tt('報表','Report')}</th><th>${tt('用途','Used for')}</th><th>${tt('在人事系統哪裡','Where in the HR system')}</th></tr></thead><tbody>${REPORTS.map(R=>`<tr><td class="lead" data-l=""><b class="mono">${esc(R.fn)}</b> ${esc(LANG===0?R.zh:R.en)}</td><td class="wrap small" data-l="${tt('用途','Used for')}">${esc(R.use[LANG===0?0:1])}</td><td class="wrap small muted" data-l="">${esc(R.menu)}</td></tr>`).join('')}</tbody></table></div></div>`;
  if(DB.importlog.length)h+=`<div class="panel mt"><h2>${tt('匯入紀錄','Import log')}</h2><div class="tbl-wrap"><table class="t cards"><thead><tr><th>${tt('時間','Time')}</th><th>${tt('檔案','File')}</th><th>${tt('報表','Report')}</th><th class="r">${tt('筆數','Rows')}</th><th class="r">${tt('取代','Replaced')}</th></tr></thead><tbody>${DB.importlog.slice(0,30).map(l=>`<tr><td class="mono small" data-l="">${esc(l.time)}</td><td class="lead mono small" data-l="">${esc(l.file)}</td><td data-l="">${esc(l.report)}</td><td class="r" data-l="${tt('筆數','Rows')}">${fmt(l.rows)}</td><td class="r" data-l="${tt('取代','Replaced')}">${fmt(l.replaced)}</td></tr>`).join('')}</tbody></table></div></div>`;
  return h;
