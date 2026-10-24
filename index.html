@@ -405,7 +405,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.2.4';
+const APPV='0.2.8';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -622,11 +622,11 @@ function parseAtt(aoa,file){
 /* 異常工時明細表 */
 function parseAttExc(aoa,file){
  const hi=hdrRow(aoa,['員工代號','組別','應請假']); const H=headerMap(aoa[hi]);
- const rows=[]; let ym='';
+ const rows=[]; let ym=''; const ymc={};
  for(let i=hi+1;i<aoa.length;i++){const r=aoa[i];const no=cellS(r[H['員工代號']]);const dd=cellS(r[H['日期']]);if(!isCode(no)||!/^\d{1,2}$/.test(dd))continue;
-  const tin=r[H['上班時間']],tout=r[H['下班時間']]; if(!ym){const d=anyDate(tin)||anyDate(tout);if(d)ym=d.slice(0,7)}
+  const tin=r[H['上班時間']],tout=r[H['下班時間']]; [anyDate(tin),anyDate(tout)].forEach(d=>{if(d)ymc[d.slice(0,7)]=(ymc[d.slice(0,7)]||0)+1});
   rows.push({emp_no:no,name:cellS(r[H['姓名']]),dept:cellS(r[H['部門']]),group:cellS(r[H['組別']]),leave_type:cellS(r[H['假別']]),day:+dd,time_in:anyTime(tin),time_out:anyTime(tout),lv_should:numV(r[H['應請假']]),lv_taken:numV(r[H['已請假']]),lv_missing:numV(r[H['未請假']]),hrs_actual:numV(r[H['實際工時']]),_row:i+1})}
- if(!ym)ym=ymDigits(file.name); if(!ym)throw new Error('找不到年月');
+ ym=Object.keys(ymc).sort((a,b)=>ymc[b]-ymc[a])[0]||''; if(!ym)ym=ymDigits(file.name); if(!ym)throw new Error('找不到年月');
  rows.forEach(r=>{r.date=ym+'-'+pad(r.day);r.kind=!r.time_in&&!r.time_out?'noclock':(!r.time_in||!r.time_out)?'oneclock':r.lv_missing>0?'missing':'other'});
  const days=rows.map(r=>r.day); const d1=rows.length?Math.min(...days):1,d2=rows.length?Math.max(...days):31; const emps=new Set(rows.map(r=>r.emp_no)).size;
  return {rep:'attexc',rows,meta:{key:`attexc|${ym}|${pad(d1)}-${pad(d2)}`,asof:listDate(aoa),label:`異常工時 ${ym} ${pad(d1)}–${pad(d2)}日`,range:[ym+'-'+pad(d1),ym+'-'+pad(d2)],year:+ym.slice(0,4),totals:{n:rows.length,emps,missing:sum(rows,'lv_missing')}},
@@ -1334,8 +1334,13 @@ let IMPQ=[];
 async function readAOA(file){
  if(!window.XLSX)throw new Error(tt('Excel 解析器載入失敗，請檢查網路後重新整理','Excel parser failed to load — check the connection and reload'));
  const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false,raw:true});const sn=wb.SheetNames[0];
- return {aoa:XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''}),sheets:wb.SheetNames};
+ return {aoa:enToZh(XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''})),sheets:wb.SheetNames};
 }
+/* v0.2.8 BEST 英文介面（例 HR-Phary 帳號）匯出的報表：表頭／標籤換回中文再辨識，資料不動 */
+const EN2ZH={'ID Staff':'員工代號','Name':'姓名','Department':'部門','Group':'組別','Leave':'假別','Date':'日期','Working hours':'上班時間','Off Work time':'下班時間','Absent':'應請假','Took leave':'已請假','Not take leave':'未請假','Actual hr':'實際工時','Printed date:':'列表日期:','Group workers:':'組別人數:','Abnormal w. hr list (by staff)':'異常工時明細表(依員工排序)',
+ 'Staff #':'員工工號','staff full name':'員工姓名','Gender':'性別','Employment date':'到職日','Resign date':'離職日'};
+function enToZh(aoa){const lim=Math.min(aoa.length,15);let hit=false;for(let i=0;i<lim;i++)if(aoa[i].some(c=>EN2ZH[cellS(c)]&&/[A-Za-z]/.test(cellS(c))&&(cellS(c)==='ID Staff'||cellS(c)==='Staff #'||cellS(c)==='Printed date:')))hit=true;if(!hit)return aoa;
+ return aoa.map((r,i)=>r.map(c=>{const z=EN2ZH[cellS(c)];if(!z)return c;if(i<lim||/:$/.test(z))return z;return c}))}
 async function handleFiles(list){
  const all=[...list].filter(f=>!/^00_export/i.test(f.name)&&!/(\.thumb|^thumbs\.db|^desktop\.ini|^\._.*|\.tmp)$/i.test(f.name)); if(!all.length)return; const imgs=all.filter(isImg), files=all.filter(f=>!isImg(f)); toast(tt('讀取中…','Reading…')+' '+all.length);
  if(imgs.length){try{const P=await parsePhotos(imgs);IMPQ=IMPQ.filter(q=>!(q.P&&q.P.rep==='photo'&&!q.done));IMPQ.push({file:'📷 '+P.meta.label,size:0,R:PHOTO_R,P})}catch(e){IMPQ.push({file:tt('員工照片','Photos'),err:String(e.message||e)})}}
