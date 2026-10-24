@@ -668,6 +668,32 @@ function parseJobcode(aoa,file){
 }
 const PARSERS={parseEmp,parseEmp2,parseContact,parseJoinLeave,parseLeave,parseAtt,parseAttExc,parseBasePay,parseAnnual,parseHoliday,parseJobcode};
 /*PARSERS-END*/
+/* v0.2.6 固定薪資（BEST Staff salary maintenance w_per285 逐人抄錄 xlsx）→ 寫入「薪資設定」手改（和 HRA-PAY 補齊同一機制，不寫回 BEST） */
+const FIXSAL_R={k:'fixsal',fn:'W_PER285',zh:'固定薪資（Staff salary maintenance）',en:'Fixed salary (Staff salary maintenance)',ds:'basepay'};
+function isFixSal(aoa){return aoa.slice(0,3).some(r=>{const x=r.map(cellS);return x.includes('Staff#')&&x.includes('01 Basic')&&x.includes('11 Skill')})}
+function parseFixSal(aoa,file){
+ const hi=aoa.findIndex(r=>r.map(cellS).includes('Staff#')); const H=headerMap(aoa[hi]); const g=(r,k)=>{const v=r[H[k]];return v===''||v==null?null:numV(v)};
+ const m=String(file&&file.name||'').match(/(20\d{2})(\d{2})(\d{2})/); const asof=m?`${m[1]}-${m[2]}-${m[3]}`:ymd(TODAY);
+ const rows=[];let bad=0;
+ for(let i=hi+1;i<aoa.length;i++){const r=aoa[i];const no=cellS(r[H['Staff#']]);if(!no)continue;
+  const rec={emp_no:no,base:g(r,'01 Basic'),sen_pay:g(r,'02 Seniority'),lang_pay:g(r,'03 Language'),allow_pos:g(r,'04 Position'),allow_trans:g(r,'05 Housing/T'),allow_tech:g(r,'11 Skill'),total:g(r,'Total(畫面)'),note:cellS(r[H['備註']]),_row:i+1};
+  if(rec.base==null)bad++; rows.push(rec)}
+ const flag=rows.filter(r=>/CHECK/.test(r.note)).length;
+ return {rep:'fixsal',rows,meta:{key:'fixsal|'+asof,asof,label:'固定薪資 '+asof+'（生效 '+asof.slice(0,7)+'-01）',range:[asof,asof],totals:{n:rows.length}},
+  checks:[chk(bad===0,bad?`${bad} 人沒有 Basic`:`${rows.length} 人都有 Basic`),chk(flag?null:true,flag?`${flag} 人在 BEST 畫面有疑點（見檔案「備註」CHECK），照畫面值匯入`:'無疑點')]};
+}
+async function applyFixSal(P,fileName){
+ const E=EDITS();const ed=E.basepay||(E.basepay={});let n=0,same=0;const eff=P.meta.asof.slice(0,7)+'-01';
+ for(const r of P.rows){const cur=(DB.basepay||[]).find(x=>x.emp_no===r.emp_no);
+  const f={pay_type:'月薪制',base:r.base||0,sen_pay:r.sen_pay||0,lang_pay:r.lang_pay||0,allow_pos:r.allow_pos||0,allow_trans:r.allow_trans||0,allow_tech:r.allow_tech||0,eff_from:eff};
+  if(cur&&Object.entries(f).every(([k,v])=>k==='eff_from'||String(cur[k]??'')===String(v))){same++;continue}
+  const e=ed[r.emp_no]||{f:{},base:{},add:!cur};for(const [k,v] of Object.entries(f)){if(!(k in e.f)&&cur)e.base[k]=cur[k]??'';e.f[k]=v}
+  e.at=nowStamp();e.by='BEST 固定薪資 '+P.meta.asof;e.note='Staff salary maintenance '+P.meta.asof+(r.note?' · '+r.note:'');ed[r.emp_no]=e;n++}
+ DB.sys=DB.sys||{};DB.sys.edits=Object.assign(DB.sys.edits||{},{dirty:true,at:nowStamp()});applyEdits('basepay');
+ DB.importlog.unshift({time:nowStamp().slice(0,16),file:fileName,report:'W_PER285 固定薪資',key:P.meta.key,rows:P.rows.length,replaced:0,user:'paul.weng'});if(DB.importlog.length>500)DB.importlog.length=500;
+ audit('smart-import',P.meta.key,'IMPORT',null,{file:fileName,report:'W_PER285',updated:n,same});persist();return {added:n,removed:0};
+}
+
 
 /* ================= store batches (local) ================= */
 const REP_DS=Object.fromEntries(REPORTS.map(r=>[r.k,r.ds]));
@@ -1245,9 +1271,10 @@ async function readAOA(file){
 async function handleFiles(list){
  const files=[...list].filter(f=>!/^00_export/i.test(f.name)); if(!files.length)return; toast(tt('讀取中…','Reading…')+' '+files.length);
  for(const f of files){
-  try{const {aoa}=await readAOA(f); const R=detectReport(aoa);
+  try{const {aoa}=await readAOA(f); if(isFixSal(aoa)){const P=parseFixSal(aoa,f);IMPQ=IMPQ.filter(q=>!(q.P&&q.P.meta.key===P.meta.key));IMPQ.push({file:f.name,size:f.size,R:FIXSAL_R,P});continue}
+   const R=detectReport(aoa);
    if(R){const P=PARSERS[R.parser](aoa,f,R.k); const existing=(DB.hrfiles||[]).find(x=>x.key===P.meta.key); IMPQ=IMPQ.filter(q=>!(q.P&&q.P.meta.key===P.meta.key)); IMPQ.push({file:f.name,size:f.size,R,P,existing})}
-   else IMPQ.push({file:f.name,err:tt('不是已知的人事系統報表（支援：員工清冊、清冊2、通訊錄、新離職人員、請假明細、每月工時明細、異常工時、薪資清冊、年度特休、國定假日、職務代碼）','Not a known HR report')});
+   else IMPQ.push({file:f.name,err:tt('不是已知的人事系統報表（支援：員工清冊、清冊2、通訊錄、新離職人員、請假明細、每月工時明細、異常工時、薪資清冊、年度特休、國定假日、職務代碼、固定薪資）','Not a known HR report')});
   }catch(e){IMPQ.push({file:f.name,err:String(e.message||e)})}
  }
  go('smart-import'); rerender();
@@ -1273,7 +1300,7 @@ function queueHTML(){
 }
 async function confirmAll(){
  const todo=IMPQ.filter(q=>q.P&&!q.done&&!q.skip); if(!todo.length)return; toast(tt('匯入中…','Importing…'));
- for(const q of todo){try{q.done=await applyHR(q.P,q.file)}catch(e){q.err=String(e.message||e);q.P=null}}
+ for(const q of todo){try{q.done=q.P.rep==='fixsal'?await applyFixSal(q.P,q.file):await applyHR(q.P,q.file)}catch(e){q.err=String(e.message||e);q.P=null}}
  GC.clear(); Object.keys(ST).forEach(k=>{if(!LS.get('nav_'+k,null))delete ST[k]});
  toast(tt('已匯入 ','Imported ')+todo.length+tt(' 個檔',' files')); rerender(); if(cloudReady())setTimeout(()=>cloudSync(false),300);
 }

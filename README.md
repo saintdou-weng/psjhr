@@ -27,6 +27,12 @@ VRT HR 是 BEST 人事管理系統（`D:\per\per.exe`）的雲端唯讀鏡像：
 | `DEPLOY_ONCE.md` | 部署重點摘要 |
 | `.nojekyll` | 讓 GitHub Pages 原樣提供檔案 |
 
+## v0.2.6（2026-10-24）
+
+- **智慧匯入認得「固定薪資」檔**（`每月薪資_固定薪資_StaffSalaryMaintenance_YYYYMMDD.xlsx`，從 BEST HR-Phary 帳號 Staff salary maintenance w_per285 逐人抄錄）：表頭有 `Staff#`、`01 Basic`、`11 Skill` 就辨識。
+- 匯入時寫進「薪資設定」的網頁手改（和「用 HRA-PAY 補齊」同一機制，每筆記錄來源，手改優先，不寫回 BEST）：月薪制，01 Basic→底薪、02 Seniority→年資加給、03 Language→語言加給、04 Position→職務加給、05 Housing/T→交通津貼、11 Skill→技術加給；生效日＝檔名日期當月 1 日。12～17（OT 費率、全勤）畫面只顯示整數，不匯入。
+- 和現有值完全相同的人略過；檔案「備註」有 CHECK 的人照畫面值匯入，核對欄顯示 ⚠️ 人數。
+
 ## v0.2.5（2026-10-23）
 
 - **薪資設定分幣別**：BEST 薪資清冊的「全勤獎金」「伙食津貼」是柬幣（៛），其他（薪資、職務／專業／技術加給、其他津貼、交通津貼）是美元（$）。畫面分別標示 $／៛。
