@@ -505,7 +505,7 @@ async function loadDB(){let d=await IDB.get('db_v1');if(!d)d=emptyDB();const bas
  if(SPLIT.some(k=>Array.isArray(DB[k])?DB[k].length:Object.keys(DB[k]||{}).length)){SPLIT_LOADED=true;SPLIT.forEach(k=>SPLIT_SIG[k]='');persist()}
  else{SPLIT_READY=new Promise(res=>setTimeout(async()=>{try{for(const k of SPLIT){const v=await IDB.get('ds|'+k);if(v)DB[k]=v}}catch(e){console.warn('split',e)}SPLIT_LOADED=true;SPLIT.forEach(k=>SPLIT_SIG[k]=splitSig(k));try{applyEdits()}catch(e){}GC.clear();if(typeof rerender==='function')rerender();res()},30))}
  if(DB.hp&&Object.keys(DB.hp.pay||{}).length+Object.keys(DB.hp.meal||{}).length){HP_LOADED=true;HP_DIRTY=true;persist()}
- else{DB.hp={pay:{},adv:{},meal:{},at:{}};setTimeout(()=>IDB.get('hp_v1').then(h=>{if(h){const c=DB.hp;['pay','adv','meal','at','sig'].forEach(k=>{h[k]=Object.assign(h[k]||{},c[k]||{})});DB.hp=h}HP_LOADED=true;if(HP_DIRTY)persist();GC.clear();if(['payroll','meal','basepay','benefits','emp'].includes(CUR))rerender()}).catch(()=>{HP_LOADED=true}),50)}
+ else{DB.hp={pay:{},adv:{},meal:{},at:{}};setTimeout(()=>IDB.get('hp_v1').then(h=>{if(h){const c=DB.hp;['pay','adv','meal','at','sig'].forEach(k=>{h[k]=Object.assign(h[k]||{},c[k]||{})});Object.keys(c).forEach(k=>{if(h[k]==null&&c[k]!=null)h[k]=c[k]});DB.hp=h}HP_LOADED=true;if(HP_DIRTY)persist();GC.clear();if(['payroll','meal','basepay','benefits','emp'].includes(CUR))rerender()}).catch(()=>{HP_LOADED=true}),50)}
  GC.clear();try{applyEdits()}catch(e){console.error(e)}}
 let persistT; function persist(){clearTimeout(persistT);persistT=setTimeout(async()=>{const {hp,...rest}=DB;SPLIT.forEach(k=>delete rest[k]);if(HP_LOADED&&HP_DIRTY&&hp){HP_DIRTY=false;await IDB.set('hp_v1',hp)}if(SPLIT_LOADED)for(const k of SPLIT){const sg=splitSig(k);if(sg!==SPLIT_SIG[k]){await IDB.set('ds|'+k,DB[k]);SPLIT_SIG[k]=sg}}const ok=await IDB.set('db_v1',rest);if(!ok&&SAVE_OK){SAVE_OK=false;toast(tt('瀏覽器無法儲存資料（可能是無痕模式），關閉後會遺失','This browser cannot save data (private mode?) — it will be lost on close'))}},400)}
 const GC=new Map();   // computed caches, cleared on any data change
@@ -1711,7 +1711,8 @@ function orgFindTitle(cands){const T=orgTitles();for(const c of cands){const t=T
 function orgSec(s){return String(s||'').replace(/\s+/g,' ').trim().replace(/^line\s*(\d+)$/i,'Line $1').replace(/^qc\s*([ab])$/i,'QC $1').replace(/^packing\s*([ab])$/i,'Packing $1')}
 function orgTitleOf(pos,dept){const p=String(pos||'').replace(/\s+/g,' ').trim().toLowerCase();if(!p)return null;
  if(dept==='accounting'&&/^assist/.test(p))return orgFindTitle(['Accounting Assistant']);if(dept==='shipping'&&/^assist/.test(p))return orgFindTitle(['Shipping Assistant']);
- for(const [re,c] of ORG_RULES)if(re.test(p))return orgFindTitle(c);return null}
+ const lv=/leader|supervisor|manager|captain|director/,as=/assist/;
+ for(const [re,c] of ORG_RULES)if(re.test(p)){const t=orgFindTitle(c);if(!t)return null;const en=String(t.en).toLowerCase();if(lv.test(p)!==lv.test(en)||as.test(p)!==as.test(en))return null;return t}return null}
 const ORG_TDEPT={'生產':'production','行政支援':'admin center','行政':'admin center','行政中心':'admin center','HRA':'admin center','GAS':'admin center'};
 function orgOf(e){const H=HPD();const no=String(e.emp_no);const r=H.org&&H.org.rows&&H.org.rows[no];const ov=((DB.config||{}).org||{})[no];
  const dl=k=>{const x=ORG_DEPT[k];return x?tt(x[0],x[1]):k};let o=null;
@@ -1722,7 +1723,7 @@ function orgOf(e){const H=HPD();const no=String(e.emp_no);const r=H.org&&H.org.r
 function OD(no,fb){const e=emp(no);return (e&&e.dept)||fb||'—'}
 function orgLine(e){return esc(e.dept||'—')+(e.section?' · '+esc(e.section):'')+' · '+esc(e.title||'—')+(e.grade?` <span class="mono small">${esc(e.grade)}</span>`:'')}
 let ORG_P=null;
-async function orgEnsure(force){if(ORG_P&&!force)return ORG_P;ORG_P=(async()=>{const H=HPD();let ch=false;
+async function orgEnsure(force){if(ORG_P&&!force)return ORG_P;ORG_P=(async()=>{for(let i=0;i<120&&!HP_LOADED;i++)await new Promise(r=>setTimeout(r,500));const H=HPD();let ch=false;
  try{const man=await hpManifest('hrpay_employee');const ks=Object.keys(man.hashes||{});const per=[...new Set(ks.map(k=>(k.match(/^m:(\d{4}-\d{2}):e\d+$/)||[])[1]).filter(Boolean))].sort().pop();
   if(per){const bk=ks.filter(k=>k.startsWith('m:'+per+':e'));const sig=per+'|'+bk.map(k=>man.hashes[k]).join(',');
    if(!H.org||H.org.sig!==sig){const rows={};await Promise.all(bk.map(async k=>{const j=await fetch(HP_URL+'?action=smartBucket&tool=hrpay_employee&bucket='+encodeURIComponent(k)).then(r=>r.json());for(const x of (((j.data||j).records)||[])){const r=x.row;if(x.kind!=='row'||!r||r.id==null)continue;rows[String(r.id).trim()]={d:r.dept||'',s:r.section||'',p:r.position||'',n:r.name||''}}}));
