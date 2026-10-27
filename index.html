@@ -1716,7 +1716,7 @@ function orgTitleOf(pos,dept){const p=String(pos||'').replace(/\s+/g,' ').trim()
 const ORG_TDEPT={'生產':'production','行政支援':'admin center','行政':'admin center','行政中心':'admin center','HRA':'admin center','GAS':'admin center'};
 function orgOf(e){const H=HPD();const no=String(e.emp_no);const r=H.org&&H.org.rows&&H.org.rows[no];const ov=((DB.config||{}).org||{})[no];
  const dl=k=>{const x=ORG_DEPT[k];return x?tt(x[0],x[1]):k};let o=null;
- if(r){const dk=String(r.d||'').trim().toLowerCase();const t=orgTitleOf(r.p,dk);o={dept:dl(dk)||e.dept,section:orgSec(r.s),title:t?tt(t.zh,t.en):String(r.p||'').trim(),grade:t?t.grade:'',src:'HRA-PAY '+H.org.ym,pos:String(r.p||'').trim(),miss:!t}}
+ if(r){let dk=String(r.d||'').trim().toLowerCase();if(/^production/.test(dk))dk='production';else if(/^admin/.test(dk))dk='admin center';else if(/^accounting/.test(dk))dk='accounting';else if(/^shipping/.test(dk))dk='shipping';const t=orgTitleOf(r.p,dk);o={dept:dl(dk)||e.dept,section:orgSec(r.s),title:t?tt(t.zh,t.en):String(r.p||'').trim(),grade:t?t.grade:'',src:'HRA-PAY '+H.org.ym,pos:String(r.p||'').trim(),miss:!t}}
  else{const t=orgTitleOf(e.title,'');if(t){const k=t.zh==='會計助理'?'accounting':t.zh==='船務助理'?'shipping':ORG_TDEPT[t.dept]||'';o={dept:k?dl(k):e.dept,section:'',title:tt(t.zh,t.en),grade:t.grade,src:tt('依 BEST 職稱對照','mapped from BEST title'),pos:e.title,miss:false,best:true}}else o={dept:e.dept,section:'',title:e.title,grade:'',src:'BEST',pos:e.title,miss:true,best:true}}
  if(ov){Object.assign(o,Object.fromEntries(Object.entries(ov).filter(([k,v])=>['dept','section','title','grade'].includes(k)&&v)));o.src=tt('手動設定','manual');o.miss=false}
  return o}
