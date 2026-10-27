@@ -1732,7 +1732,8 @@ function hpFlags(no,ym){const H=HPD();const ks=Object.keys(H.pay).filter(k=>k<=y
  else if(khr>P.taxMin){const need=Math.ceil((khr-P.taxMin)/P.taxDep);if(need<=P.taxDepMax)deps=need;else taxEx=true}
  const od=h.AK!=null?Math.round((h.AK-Math.round(((+h.AG||0)+(+h.AE||0)+(+h.AJ||0)+(+h.AH||0))*10)/10)*10)/10:0;
  const incBase=+h.N>0?Math.round(((+h.N)+P.incDed*((+h.U||0)+(+h.V||0)))*4)/4:0;
- return {ym:k,noAdv:Object.keys(adv).length>0&&!adv[no],nssfEx:h.AK!=null&&!(+h.AH),taxEx,deps,incBase,other:Math.abs(od)>=0.5&&Math.abs(od)<=20?od:0}}
+ const jm=((emp(no)||{}).join_date||'').slice(0,7);const advNow=H.adv[ym]||{};const noAdv=Object.keys(advNow).length?!advNow[no]:(Object.keys(adv).length>0&&!adv[no]&&!(jm===k&&ym>k));
+ return {ym:k,noAdv,nssfEx:h.AK!=null&&!(+h.AH),taxEx,deps,incBase,other:Math.abs(od)>=0.5&&Math.abs(od)<=20?od:0}}
 function payCalc(R){const P=C().pay;const ym=monthKey(R.from);const inp=payInputs({from:new Date(R.from.getFullYear(),R.from.getMonth(),1),to:new Date(R.from.getFullYear(),R.from.getMonth()+1,0)});const out=[];const me=ymd(new Date(R.from.getFullYear(),R.from.getMonth()+1,0));
  for(const o of Object.values(inp)){const r=payRates(o.emp_no,ym);if(!r||!r.E)continue;const adj=(DB.payadj||[]).find(x=>x.rk===o.emp_no+'|'+ym)||{};const e=emp(o.emp_no)||{};
   const J=o.J,J1=o.J1,U=adj.unpaid_hrs!=null&&adj.unpaid_hrs!==''&&adj._ed?+adj.unpaid_hrs:o.U,V=o.V,AB=adj.ot_hrs!=null&&adj._ed&&adj.ot_hrs!==''?+adj.ot_hrs:o.AB;
