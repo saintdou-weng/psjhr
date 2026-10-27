@@ -1625,7 +1625,9 @@ async function hpFillPay(){const H=HPD();const ks=Object.keys(H.pay).sort();if(!
 /* ---------- pay rates per employee (edits > HRA-PAY > BEST) ---------- */
 function payRates(no,ym){const p=(DB.basepay||[]).find(r=>r.emp_no===no);const daily=p&&/日/.test(p.pay_type||'');
  if(p&&p._ed&&(!p.eff_from||p.eff_from.slice(0,7)<=ym))return {src:'edit',E:daily?(+p.base||0)*30:+p.base||0,F:+p.sen_pay||0,G:+p.allow_tech||0,H:+p.allow_pos||0,I:+p.lang_pay||0,meal:+p.meal_rate||0};
- const h=hpLatestPay(ym,no);if(h)return {src:'HRA-PAY '+h.ym,E:h.E,F:h.F,G:h.G,H:h.H,I:h.I,meal:0};
+ const h=hpLatestPay(ym,no);if(h){/* v0.2.9 HRA-PAY 到職當月的底薪類已按天數打折（例 208÷26×12＝96）：換回整月費率，避免估算再打折一次 */
+  const e=emp(no)||{};const jm=(e.join_date||'').slice(0,7);const f=(jm===h.ym&&h.J>0&&h.J<26)?26/h.J:1;const r2=v=>f===1?v:Math.round((+v||0)*f*100)/100;
+  return {src:'HRA-PAY '+h.ym+(f!==1?tt('（到職當月已還原整月）',' (join month, scaled to full month)'):''),E:r2(h.E),F:h.F,G:r2(h.G),H:r2(h.H),I:r2(h.I),meal:0}}
  if(p)return {src:'BEST',E:daily?(+p.base||0)*30:+p.base||0,F:+p.allow_pro||0,G:+p.allow_tech||0,H:+p.allow_pos||0,I:0,meal:0};
  return null}
 const monthlyGross=r=>r?(r.E+r.F+r.G+r.H+r.I):0;
