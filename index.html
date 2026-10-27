@@ -495,8 +495,13 @@ const SNAP={emp:1,emp2:1,contact:1,basepay:1,jobcode:1};
 const BIG={att:1};
 function emptyDB(){return {_v:1,photos:{},photodel:[],emp:[],emp2:[],contact:[],basepay:[],jobcode:[],joinleave:[],leave:[],attexc:[],annual:[],holiday:[],attsum:{},asof:{},snaps:{},hrfiles:[],importlog:[],audit:[],notes:{},edits:{},config:{},sys:{},hp:{pay:{},adv:{},meal:{},at:{}},payadj:[],conflicts:[],sync:{gas:'',time:'16:00'}}}
 let DB=emptyDB(); let SAVE_OK=true;
-async function loadDB(){let d=await IDB.get('db_v1');if(!d)d=emptyDB();const base=emptyDB();Object.keys(base).forEach(k=>{if(d[k]==null)d[k]=base[k]});DB=d;if(!IDB._db)SAVE_OK=false;GC.clear();try{applyEdits()}catch(e){console.error(e)}}
-let persistT; function persist(){clearTimeout(persistT);persistT=setTimeout(async()=>{const ok=await IDB.set('db_v1',DB);if(!ok&&SAVE_OK){SAVE_OK=false;toast(tt('瀏覽器無法儲存資料（可能是無痕模式），關閉後會遺失','This browser cannot save data (private mode?) — it will be lost on close'))}},400)}
+/* v0.2.11 HRA-PAY 對照資料（DB.hp，含 2020 起的伙食費）很大，另存 hp_v1，不跟主資料一起讀寫，開網頁和每次存檔才不會卡住 */
+let HP_LOADED=false,HP_DIRTY=false;
+async function loadDB(){let d=await IDB.get('db_v1');if(!d)d=emptyDB();const base=emptyDB();Object.keys(base).forEach(k=>{if(d[k]==null)d[k]=base[k]});DB=d;if(!IDB._db)SAVE_OK=false;
+ if(DB.hp&&Object.keys(DB.hp.pay||{}).length+Object.keys(DB.hp.meal||{}).length){HP_LOADED=true;HP_DIRTY=true;persist()}
+ else{DB.hp={pay:{},adv:{},meal:{},at:{}};setTimeout(()=>IDB.get('hp_v1').then(h=>{if(h){const c=DB.hp;['pay','adv','meal','at','sig'].forEach(k=>{h[k]=Object.assign(h[k]||{},c[k]||{})});DB.hp=h}HP_LOADED=true;if(HP_DIRTY)persist();GC.clear();if(['payroll','meal','basepay','benefits','emp'].includes(CUR))rerender()}).catch(()=>{HP_LOADED=true}),50)}
+ GC.clear();try{applyEdits()}catch(e){console.error(e)}}
+let persistT; function persist(){clearTimeout(persistT);persistT=setTimeout(async()=>{const {hp,...rest}=DB;if(HP_LOADED&&HP_DIRTY&&hp){HP_DIRTY=false;await IDB.set('hp_v1',hp)}const ok=await IDB.set('db_v1',rest);if(!ok&&SAVE_OK){SAVE_OK=false;toast(tt('瀏覽器無法儲存資料（可能是無痕模式），關閉後會遺失','This browser cannot save data (private mode?) — it will be lost on close'))}},400)}
 const GC=new Map();   // computed caches, cleared on any data change
 const ATT_CACHE=new Map();   // batch key → rows (objects); small LRU
 function audit(module,rec,action,before,after){DB.audit.unshift({time:nowStamp(),module,record_id:rec,action,user:'paul.weng',before,after});if(DB.audit.length>2000)DB.audit.length=2000}
@@ -1652,12 +1657,12 @@ async function hpLoadMonth(ym,force){const H=HPD();if(!force&&H.pay[ym]&&H.at['p
  try{const recs=await hpBuckets('hrpay_payroll',new RegExp('^m:'+ym+':[ap]\\d'));const pay={},adv={};
   for(const rec of recs){const r=rec.row;if(!r||r.id==null)continue;const id=String(r.id).trim();const g=xlCols(r);const tgt=/:a\d/.test(rec._syncBucket||'')?adv:pay;
    tgt[id]={name:r.nameKh||r.name||'',dept:r.dept||'',E:+r.basicPay||0,F:+r.seniority||0,G:+r.skill||0,H:+r.position||0,I:+r.language||0,J:+r.workDays||g('J','in')||0,K:g('K'),N:g('N'),S:g('S'),X:g('X'),Y:g('Y'),AE:g('AE'),AG:g('AG'),AH:g('AH'),AJ:g('AJ','out'),AJ1:g('AJ','in'),AK:g('AK'),U:g('U','in'),V:g('V','in'),AB:g('AB','in'),AD:g('AD','in'),AA:g('AA','in'),join:r._excel&&Object.entries(r._excel.cells).find(([k,v])=>/^C\d/.test(k))?.[1]?.v||''}}
-  H.pay[ym]=pay;H.adv[ym]=adv;H.at['pay|'+ym]=nowStamp();if(typeof GC!=='undefined')GC.clear();persist();return true}
+  H.pay[ym]=pay;H.adv[ym]=adv;H.at['pay|'+ym]=nowStamp();HP_DIRTY=true;if(typeof GC!=='undefined')GC.clear();persist();return true}
  catch(e){console.warn('HRA-PAY',e);return false}finally{HP.busy.delete(key)}}
 async function hpLoadMeal(hk,force){const H=HPD();if(!force&&H.meal[hk])return true;const key='meal|'+hk;if(HP.busy.has(key))return false;HP.busy.add(key);
  try{const [ym,b]=hk.split(':');const recs=await hpBuckets('hrpay_meal',new RegExp('^m:'+ym+':b'+b+':m\\d'));const out={};
   for(const rec of recs){if(rec.kind!=='meal'||!rec.row)continue;const r=rec.row;const id=String(r.id).trim();const rate=Math.max(0,...r.days.map(d=>+d.present||0));out[id]={name:r.name,dept:r.dept,pos:r.position||'',riel:+r.riel||0,usd:+r.usd||0,rate,days:r.days.filter(d=>d.present||d.ot).length,ot:r.days.reduce((s,d)=>s+(+d.ot||0),0)}}
-  H.meal[hk]=out;H.at[key]=nowStamp();persist();return true}
+  H.meal[hk]=out;H.at[key]=nowStamp();HP_DIRTY=true;persist();return true}
  catch(e){console.warn('HRA-PAY meal',e);return false}finally{HP.busy.delete(key)}}
 function hpAvailable(tool,re){const m=HP.man[tool];if(!m)return null;return Object.keys(m.d.hashes||{}).some(k=>re.test(k))}
 function hpLatestPay(ym,no){const H=HPD();const ks=Object.keys(H.pay).filter(k=>k<=ym).sort().reverse();for(const k of ks){const r=H.pay[k][no];if(r&&(r.E||r.H||r.G))return Object.assign({ym:k},r)}return null}
@@ -1665,7 +1670,7 @@ function hpLatestPay(ym,no){const H=HPD();const ks=Object.keys(H.pay).filter(k=>
 let HP_ALL=null;
 async function hpEnsureAll(force){if(HP_ALL&&!force)return HP_ALL;HP_ALL=(async()=>{try{const man=await hpManifest('hrpay_payroll');const H=HPD();H.sig=H.sig||{};const by={};
   for(const [k,h] of Object.entries(man.hashes||{})){const m=(k.match(/^m:(\d{4}-\d{2}):[ap]\d/)||[])[1];if(m)(by[m]=by[m]||[]).push(k+'='+h)}let n=0;
-  for(const m of Object.keys(by).sort()){const sig=by[m].sort().join('|');if(H.sig[m]===sig&&(H.pay[m]||H.adv[m]))continue;if(await hpLoadMonth(m,true)){H.sig[m]=sig;n++}}
+  for(const m of Object.keys(by).sort()){const sig=by[m].sort().join('|');if(H.sig[m]===sig&&(H.pay[m]||H.adv[m]))continue;if(await hpLoadMonth(m,true)){H.sig[m]=sig;HP_DIRTY=true;n++}}
   if(n){persist();GC.clear();if(['basepay','payroll','benefits','emp'].includes(CUR))rerender();if(PROF_NO&&!$('#drawer').hidden)openEmp(PROF_NO)}return n}catch(e){console.warn('HRA-PAY all',e);return 0}})();return HP_ALL}
 function hpRateHist(no){no=String(no);return cached('hph|'+no,()=>{const H=HPD();const e=emp(no)||{};const jm=(e.join_date||'').slice(0,7);const out=[];
  for(const m of [...new Set([...Object.keys(H.pay||{}),...Object.keys(H.adv||{})])].sort()){const r=(H.pay[m]||{})[no],a=(H.adv[m]||{})[no];const x=r&&(r.E||r.H||r.G)?r:a&&(a.E||a.H||a.G)&&jm!==m?a:null;if(!x)continue;
