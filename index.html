@@ -1657,8 +1657,9 @@ async function hpEnsureAll(force){if(HP_ALL&&!force)return HP_ALL;HP_ALL=(async(
   for(const m of Object.keys(by).sort()){const sig=by[m].sort().join('|');if(H.sig[m]===sig&&(H.pay[m]||H.adv[m]))continue;if(await hpLoadMonth(m,true)){H.sig[m]=sig;n++}}
   if(n){persist();GC.clear();if(['basepay','payroll','benefits','emp'].includes(CUR))rerender();if(PROF_NO&&!$('#drawer').hidden)openEmp(PROF_NO)}return n}catch(e){console.warn('HRA-PAY all',e);return 0}})();return HP_ALL}
 function hpRateHist(no){no=String(no);return cached('hph|'+no,()=>{const H=HPD();const e=emp(no)||{};const jm=(e.join_date||'').slice(0,7);const out=[];
- for(const m of [...new Set([...Object.keys(H.pay||{}),...Object.keys(H.adv||{})])].sort()){const r=(H.pay[m]||{})[no],a=(H.adv[m]||{})[no];const x=r&&(r.E||r.H||r.G)?r:a&&(a.E||a.H||a.G)?a:null;if(!x)continue;
-  const f=x===r&&jm===m&&x.J>0&&x.J<26?26/x.J:1;const z=v=>Math.round((+v||0)*f*100)/100;out.push({ym:m,kind:x===r?'pay':'adv',E:z(x.E),F:+x.F||0,G:z(x.G),H:z(x.H),I:z(x.I),J:x.J,scaled:f!==1})}
+ for(const m of [...new Set([...Object.keys(H.pay||{}),...Object.keys(H.adv||{})])].sort()){const r=(H.pay[m]||{})[no],a=(H.adv[m]||{})[no];const x=r&&(r.E||r.H||r.G)?r:a&&(a.E||a.H||a.G)&&jm!==m?a:null;if(!x)continue;
+  /* 預支只有半個月：底薪、技術、職務、語言 ×2 還原成月費率（年資加給是全額）；到職當月的預支不當費率 */
+  const f=x===r?(jm===m&&x.J>0&&x.J<26?26/x.J:1):2;const z=v=>Math.round((+v||0)*f*100)/100;out.push({ym:m,kind:x===r?'pay':'adv',E:z(x.E),F:+x.F||0,G:z(x.G),H:z(x.H),I:z(x.I),J:x.J,scaled:x===r&&f!==1})}
  return out})}
 function hpRateAt(no,ym){const h=hpRateHist(no);if(!h.length)return null;let r=null;for(const x of h)if(x.ym<=ym)r=x;return r?Object.assign({early:false},r):Object.assign({early:true},h[0])}
 const PAYF=['base','sen_pay','allow_tech','allow_pos','lang_pay'];
