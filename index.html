@@ -497,11 +497,17 @@ function emptyDB(){return {_v:1,photos:{},photodel:[],emp:[],emp2:[],contact:[],
 let DB=emptyDB(); let SAVE_OK=true;
 /* v0.2.11 HRA-PAY 對照資料（DB.hp，含 2020 起的伙食費）很大，另存 hp_v1，不跟主資料一起讀寫，開網頁和每次存檔才不會卡住 */
 let HP_LOADED=false,HP_DIRTY=false;
+/* v0.2.12 請假、出勤異常（2014 起）和舊名單快照很大（約 40MB），另存 ds|leave、ds|attexc、ds|snaps：開網頁先顯示、隨後補上；存檔時只有變動才重寫 */
+const SPLIT=['leave','attexc','snaps'];let SPLIT_LOADED=false,SPLIT_SIG={},SPLIT_READY=Promise.resolve();
+function splitSig(k){const v=DB[k];if(k==='snaps')return Object.entries(v||{}).map(([d,o])=>d+':'+Object.entries(o||{}).map(([a,r])=>a+'='+(r||[]).length).join(',')).join(';');
+ return (v||[]).length+'|'+(DB.hrfiles||[]).filter(f=>REP_DS[f.rep]===k).map(f=>f.key+'@'+f.version+(f.dirty?'*':'')).join(',')+'|'+((DB.sys&&DB.sys.edits&&DB.sys.edits.at)||'')+'|'+Object.keys((DB.edits||{})[k]||{}).length}
 async function loadDB(){let d=await IDB.get('db_v1');if(!d)d=emptyDB();const base=emptyDB();Object.keys(base).forEach(k=>{if(d[k]==null)d[k]=base[k]});DB=d;if(!IDB._db)SAVE_OK=false;
+ if(SPLIT.some(k=>Array.isArray(DB[k])?DB[k].length:Object.keys(DB[k]||{}).length)){SPLIT_LOADED=true;SPLIT.forEach(k=>SPLIT_SIG[k]='');persist()}
+ else{SPLIT_READY=new Promise(res=>setTimeout(async()=>{try{for(const k of SPLIT){const v=await IDB.get('ds|'+k);if(v)DB[k]=v}}catch(e){console.warn('split',e)}SPLIT_LOADED=true;SPLIT.forEach(k=>SPLIT_SIG[k]=splitSig(k));try{applyEdits()}catch(e){}GC.clear();if(typeof rerender==='function')rerender();res()},30))}
  if(DB.hp&&Object.keys(DB.hp.pay||{}).length+Object.keys(DB.hp.meal||{}).length){HP_LOADED=true;HP_DIRTY=true;persist()}
  else{DB.hp={pay:{},adv:{},meal:{},at:{}};setTimeout(()=>IDB.get('hp_v1').then(h=>{if(h){const c=DB.hp;['pay','adv','meal','at','sig'].forEach(k=>{h[k]=Object.assign(h[k]||{},c[k]||{})});DB.hp=h}HP_LOADED=true;if(HP_DIRTY)persist();GC.clear();if(['payroll','meal','basepay','benefits','emp'].includes(CUR))rerender()}).catch(()=>{HP_LOADED=true}),50)}
  GC.clear();try{applyEdits()}catch(e){console.error(e)}}
-let persistT; function persist(){clearTimeout(persistT);persistT=setTimeout(async()=>{const {hp,...rest}=DB;if(HP_LOADED&&HP_DIRTY&&hp){HP_DIRTY=false;await IDB.set('hp_v1',hp)}const ok=await IDB.set('db_v1',rest);if(!ok&&SAVE_OK){SAVE_OK=false;toast(tt('瀏覽器無法儲存資料（可能是無痕模式），關閉後會遺失','This browser cannot save data (private mode?) — it will be lost on close'))}},400)}
+let persistT; function persist(){clearTimeout(persistT);persistT=setTimeout(async()=>{const {hp,...rest}=DB;SPLIT.forEach(k=>delete rest[k]);if(HP_LOADED&&HP_DIRTY&&hp){HP_DIRTY=false;await IDB.set('hp_v1',hp)}if(SPLIT_LOADED)for(const k of SPLIT){const sg=splitSig(k);if(sg!==SPLIT_SIG[k]){await IDB.set('ds|'+k,DB[k]);SPLIT_SIG[k]=sg}}const ok=await IDB.set('db_v1',rest);if(!ok&&SAVE_OK){SAVE_OK=false;toast(tt('瀏覽器無法儲存資料（可能是無痕模式），關閉後會遺失','This browser cannot save data (private mode?) — it will be lost on close'))}},400)}
 const GC=new Map();   // computed caches, cleared on any data change
 const ATT_CACHE=new Map();   // batch key → rows (objects); small LRU
 function audit(module,rec,action,before,after){DB.audit.unshift({time:nowStamp(),module,record_id:rec,action,user:'paul.weng',before,after});if(DB.audit.length>2000)DB.audit.length=2000}
@@ -765,7 +771,7 @@ async function applyHR(P,fileName){
  audit('smart-import',P.meta.key,'IMPORT',null,{file:fileName,report:R.fn,added:r.added,replaced:r.removed}); persist(); return r;
 }
 async function clearReal(){if(!confirm(tt('清除這台裝置的所有 HR 資料？雲端不受影響，可再同步回來。','Clear all HR data on this device? The cloud is untouched.')))return;
- for(const f of (DB.hrfiles||[]).filter(f=>f.rep==='att'))await IDB.del('bat|'+f.key); ATT_CACHE.clear(); DB=emptyDB(); await IDB.set('db_v1',DB); GC.clear(); toast(tt('已清除','Cleared')); rerender(); if(cloudReady())setTimeout(()=>cloudSync(true),300)}
+ for(const f of (DB.hrfiles||[]).filter(f=>f.rep==='att'))await IDB.del('bat|'+f.key); ATT_CACHE.clear(); DB=emptyDB(); await IDB.set('db_v1',DB); for(const k of SPLIT)await IDB.del('ds|'+k); await IDB.del('hp_v1'); SPLIT_LOADED=true; SPLIT_SIG={}; GC.clear(); toast(tt('已清除','Cleared')); rerender(); if(cloudReady())setTimeout(()=>cloudSync(true),300)}
 
 /* ================= ☁️ cloud sync (Google Sheets via PSJHR.gs) ================= */
 const CLOUD={busy:false,state:'idle',msg:'',last:LS.get('cloud_last',''),url:'',files:0};
@@ -804,6 +810,7 @@ async function pullBatch(m){
 let NOTEQ=[];
 function cloudNote(no,notes){DB.notes[no]={notes,at:nowStamp()};NOTEQ=NOTEQ.filter(x=>x.id!==no);NOTEQ.push({id:no,notes});persist();if(cloudReady())cloudSync(false)}
 async function cloudSync(manual,filt){
+ await SPLIT_READY;
  if(CLOUD.busy)return; if(!cloudReady()){cloudSetState('off');if(manual)toast(tt('請先在「設定 → 雲端同步」填後端網址並輸入同步密碼','Set the backend URL and sync password in Settings → Cloud sync first'));return}
  CLOUD.busy=true; let pulled=0,pushed=0;
  try{
@@ -1411,7 +1418,7 @@ const EN2ZH={'ID Staff':'員工代號','Name':'姓名','Department':'部門','Gr
  'Staff #':'員工工號','staff full name':'員工姓名','Gender':'性別','Employment date':'到職日','Resign date':'離職日'};
 function enToZh(aoa){const lim=Math.min(aoa.length,15);let hit=false;for(let i=0;i<lim;i++)if(aoa[i].some(c=>EN2ZH[cellS(c)]&&/[A-Za-z]/.test(cellS(c))&&(cellS(c)==='ID Staff'||cellS(c)==='Staff #'||cellS(c)==='Printed date:')))hit=true;if(!hit)return aoa;
  return aoa.map((r,i)=>r.map(c=>{const z=EN2ZH[cellS(c)];if(!z)return c;if(i<lim||/:$/.test(z))return z;return c}))}
-async function handleFiles(list){
+async function handleFiles(list){await SPLIT_READY;
  const all=[...list].filter(f=>!/^00_export/i.test(f.name)&&!/(\.thumb|^thumbs\.db|^desktop\.ini|^\._.*|\.tmp)$/i.test(f.name)); if(!all.length)return; const imgs=all.filter(isImg), files=all.filter(f=>!isImg(f)); toast(tt('讀取中…','Reading…')+' '+all.length);
  if(imgs.length){try{const P=await parsePhotos(imgs);IMPQ=IMPQ.filter(q=>!(q.P&&q.P.rep==='photo'&&!q.done));IMPQ.push({file:'📷 '+P.meta.label,size:0,R:PHOTO_R,P})}catch(e){IMPQ.push({file:tt('員工照片','Photos'),err:String(e.message||e)})}}
  for(const f of files){
@@ -1570,7 +1577,7 @@ function EDITS(){return DB.edits||(DB.edits={})}
 function rowsOfDs(ds){return ds==='payadj'?(DB.payadj||(DB.payadj=[])):DB[ds]}
 function applyEdits(onlyDs){
  const E=EDITS();DB.conflicts=DB.conflicts||[];const addC=c=>{DB.conflicts=DB.conflicts.filter(x=>!(x.ds===c.ds&&x.rk===c.rk&&x.field===c.field));DB.conflicts.push(c)};
- for(const ds of (onlyDs?[onlyDs]:ED_DS)){const ed=E[ds];if(!ed)continue;const rows=rowsOfDs(ds);if(!rows)continue;
+ for(const ds of (onlyDs?[onlyDs]:ED_DS)){if(!SPLIT_LOADED&&SPLIT.includes(ds))continue;const ed=E[ds];if(!ed)continue;const rows=rowsOfDs(ds);if(!rows)continue;
   const idx=new Map();rows.forEach((r,i)=>idx.set(rkOf(ds,r),i));const kill=new Set();
   for(const [rk,e] of Object.entries(ed)){const i=idx.get(rk);
    if(e.del){if(i!=null)kill.add(i);continue}
