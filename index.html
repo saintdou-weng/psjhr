@@ -348,6 +348,11 @@ table.t.list tr.sel td{background:#FFF7ED}
 .hr-chip.active{background:var(--good-soft);color:var(--good)}.hr-chip.left{background:var(--crit-soft);color:var(--crit)}.hr-chip.lsp{background:var(--warn-soft);color:var(--warn)}
 .prof{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;margin-bottom:12px}
 .prof .av{width:64px;height:64px;border-radius:12px;background:var(--accent-soft);color:var(--accent-2);display:grid;place-items:center;font-family:var(--f-disp);font-weight:700;font-size:22px}
+.emp-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px}
+.ecard{display:flex;gap:12px;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface);cursor:pointer;min-width:0}.ecard:hover{border-color:var(--accent)}
+.ecph{flex:0 0 84px;width:84px;height:104px;border-radius:10px;background:var(--accent-soft);color:var(--accent-2);display:grid;place-items:center;font-weight:700;overflow:hidden}.ecph.ph{background:var(--sunk)}.ecph img{width:100%;height:100%;object-fit:cover;display:block}
+.ecname{font-weight:700;font-size:15px;line-height:1.3}.ecard .kv{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 12px}
+@media(max-width:520px){.emp-cards{grid-template-columns:minmax(0,1fr)}}
 .prof .av{cursor:pointer}.prof .av.ph{width:96px;height:120px;padding:0;overflow:hidden;background:var(--sunk)}.prof .av.ph img{width:100%;height:100%;object-fit:cover;display:block}
 .prof h2{margin:0;font-size:20px}.prof .sub{color:var(--muted);font-size:12.5px}
 .month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;font-size:11px}
@@ -405,7 +410,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.2.8';
+const APPV='0.2.9';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1182,7 +1187,10 @@ function renderEmp(){
  const byD={};act.forEach(e=>{byD[e.dept||'—']=(byD[e.dept||'—']||0)+1});const ks=Object.keys(byD).sort((a,b)=>byD[b]-byD[a]).slice(0,20);
  h+=photoPanelHTML(act);
  if(ks.length)h+=`<div class="panel mt"><h2>${tt('在職人數依部門','Active headcount by department')}</h2>${barChart(ks.map(x=>byD[x]),ks,{full:1})}</div>`;
- const rows=filterRows(k,all); h+=`<div class="panel mt">${toolbar(k,all.map(e=>enrichRow(k,e)),{dept:1,status:1})}${tableHTML(k,rows.sort((a,b)=>(b.join_date||'').localeCompare(a.join_date||'')))}</div>`;
+ const rows=filterRows(k,all).sort((a,b)=>(b.join_date||'').localeCompare(a.join_date||'')); EMP_LIST=rows.map(r=>String(r.emp_no));
+ const vt=`<div style="display:flex;gap:6px;margin:0 0 10px"><button class="btn sm${st.view!=='cards'?' pri':''}" onclick="S('emp').view='table';rerender()">☰ ${tt('表格','Table')}</button><button class="btn sm${st.view==='cards'?' pri':''}" onclick="S('emp').view='cards';rerender()">📇 ${tt('連續瀏覽（往下捲一直看）','Scroll through profiles')}</button></div>`;
+ if(st.view==='cards'){h+=`<div class="panel mt">${vt}${toolbar(k,all.map(e=>enrichRow(k,e)),{dept:1,status:1})}<div id="empCards" class="emp-cards"></div><div id="empMore" class="small muted" style="text-align:center;padding:18px">⏳</div></div>`;setTimeout(empCardsInit,0)}
+ else h+=`<div class="panel mt">${vt}${toolbar(k,all.map(e=>enrichRow(k,e)),{dept:1,status:1})}${tableHTML(k,rows)}</div>`;
  return h;
 }
 function renderBasePay(){
@@ -1232,6 +1240,17 @@ function healthHTML(){
 
 /* ---------- employee profile drawer ---------- */
 function openDrawer(html){$('#drawer').innerHTML=html;$('#drawer').hidden=false;$('#scrim').hidden=false;$('#drawer').scrollTop=0}
+/* v0.2.9 員工連續瀏覽：卡片一次載 20 人，捲到底自動接下一批；抽屜可 ◀ ▶（或鍵盤左右鍵）看上一位／下一位 */
+let EMP_LIST=[];
+function empCardHTML(no){const e=emp(no);if(!e)return '';const p=e.pay;const u=p?payUSD(p):null;const al=(e.annual||[]).slice().sort((a,b)=>String(b.year).localeCompare(String(a.year)))[0];
+ const kv=(l,v)=>`<div><dt>${esc(l)}</dt><dd>${v}</dd></div>`;
+ return `<div class="ecard" onclick="openEmp('${esc(no)}')"><div class="ecph" data-cph="${esc(no)}">${esc((e.name||'?').slice(0,2))}</div><div style="min-width:0;flex:1"><div class="ecname">${esc(e.name||'—')} <span class="mono muted small">${esc(no)}</span> ${statusChip(e.status)}</div><div class="small muted">${esc(e.dept||'—')} · ${esc(e.title||'—')}</div>
+ <div class="kv small" style="margin-top:6px">${kv(t('join_date'),esc(e.join_date||'—'))}${kv(t('seniority'),esc(seniority(e.join_date,e.leave_date)||'—'))}${kv(t('sex'),esc(e.sex||'—'))}${kv(t('birthday'),e.birthday?pii(e.birthday)+(age(e.birthday)!==''?` (${age(e.birthday)})`:''):'—')}${kv(t('mobile'),pii(e.mobile||e.phone))}${kv(t('pay_usd'),u?'<b>'+fUSD(u.total)+'</b> <span class="muted">'+esc(p.pay_type||'')+'</span>':'<span style="color:var(--crit)">'+tt('沒有薪資設定','No pay setup')+'</span>')}${al?kv(tt('特休剩餘','Annual leave left'),fmt(al.al_left,1)+'h <span class="muted">'+esc(al.year)+'</span>'):''}${e.leave_date?kv(t('leave_date'),esc(e.leave_date)):''}</div></div></div>`}
+function empCardsInit(){const box=$('#empCards'),more=$('#empMore');if(!box||!more)return;let i=0;const list=EMP_LIST.slice();
+ const add=()=>{const n=list.slice(i,i+20);i+=n.length;box.insertAdjacentHTML('beforeend',n.map(empCardHTML).join(''));n.forEach(no=>{if(hasPhoto(no))photoGet(no).then(d=>{const el=box.querySelector(`[data-cph="${CSS.escape(no)}"]`);if(el&&d){el.classList.add('ph');el.innerHTML=`<img src="${d}" alt="" loading="lazy">`}})});
+  more.textContent=i<list.length?tt(`已顯示 ${i} / ${list.length} 人，往下捲會自動載入更多`,`Showing ${i} of ${list.length} — scroll for more`):tt(`共 ${list.length} 人，已全部顯示`,`All ${list.length} shown`)};
+ add();if(window.IntersectionObserver){const io=new IntersectionObserver(es=>{if(!document.body.contains(more)){io.disconnect();return}if(es.some(x=>x.isIntersecting)&&i<list.length)add()},{rootMargin:'800px 0px'});io.observe(more)}else{more.onclick=add}}
+function empStep(d){if(!PROF_NO||!EMP_LIST.length)return;const i=EMP_LIST.indexOf(String(PROF_NO));if(i<0)return;const j=i+d;if(j<0||j>=EMP_LIST.length){toast(d>0?tt('已經是最後一位','Last one'):tt('已經是第一位','First one'));return}openEmp(EMP_LIST[j])}
 function closeDrawer(){$('#drawer').hidden=true;$('#scrim').hidden=true;$('#modal').hidden=true}
 function showModal(html){$('#modal').innerHTML=html;$('#modal').hidden=false;$('#scrim').hidden=false}
 let PROF_NO=null;
@@ -1241,7 +1260,7 @@ function openEmp(no){
  const lv=DB.leave.filter(r=>r.emp_no===no).sort((a,b)=>b.start.localeCompare(a.start)); const ex=DB.attexc.filter(r=>r.emp_no===no).sort((a,b)=>b.date.localeCompare(a.date));
  const attKeys=(DB.hrfiles||[]).filter(f=>f.rep==='att'&&DB.attsum[f.key]&&DB.attsum[f.key].emps[no]).sort((a,b)=>b.range[0].localeCompare(a.range[0])); const lastYm=attKeys.length?attKeys[0].range[0].slice(0,7):null;
  const p=e.pay; const note=(DB.notes[no]||{}).notes||'';
- let h=`<div class="dh"><div class="prof">${photoBoxHTML(no,e.name)}<div><h2>${esc(e.name||'—')} <span class="mono muted" style="font-size:14px">${esc(no)}</span></h2><div class="sub">${esc(e.dept||'—')} · ${esc(e.title||'—')} ${statusChip(e.status)}</div></div></div><button class="icon-btn" onclick="closeDrawer()" aria-label="Close">✕</button></div>
+ let h=`<div class="dh"><div class="prof">${photoBoxHTML(no,e.name)}<div><h2>${esc(e.name||'—')} <span class="mono muted" style="font-size:14px">${esc(no)}</span></h2><div class="sub">${esc(e.dept||'—')} · ${esc(e.title||'—')} ${statusChip(e.status)}</div></div></div><div style="display:flex;gap:4px;align-items:center">${EMP_LIST.includes(String(no))?`<span class="small muted">${EMP_LIST.indexOf(String(no))+1}/${EMP_LIST.length}</span><button class="icon-btn" onclick="empStep(-1)" title="${esc(tt('上一位（←）','Previous (←)'))}">◀</button><button class="icon-btn" onclick="empStep(1)" title="${esc(tt('下一位（→）','Next (→)'))}">▶</button>`:''}<button class="icon-btn" onclick="closeDrawer()" aria-label="Close">✕</button></div></div>
  <div class="db"><div class="kv">${kv(t('sex'),esc(e.sex||'—'))}${kv(t('join_date'),esc(e.join_date||'—'))}${kv(t('seniority'),esc(seniority(e.join_date,e.leave_date)||'—'))}${kv(t('leave_date'),esc(e.leave_date||'—'))}${kv(t('birthday'),(e.birthday?pii(e.birthday)+(age(e.birthday)!==''?` <span class="muted small">(${age(e.birthday)})</span>`:''):'—'))}${kv(t('id_no'),pii(e.id_no))}${kv(t('mobile'),pii(e.mobile))}${kv(t('phone'),pii(e.phone))}${kv(t('emergency'),esc(e.emergency||'—')+(e.relation?` <span class="muted small">(${esc(e.relation)})</span>`:''))}${kv(t('address'),pii(e.address))}${kv(t('title_code'),esc(e.title_code||'—'))}${kv(t('dept_code'),esc(e.dept_code||'—'))}</div>`;
  h+=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 0"><button class="btn sm" onclick="openEdit('emp','${esc(no)}')">✏️ ${tt('編輯基本資料','Edit details')}</button><button class="btn sm" onclick="openEdit('basepay','${esc(no)}',{emp_no:'${esc(no)}'})">💵 ${tt('編輯薪資設定','Edit pay setup')}</button><button class="btn sm" onclick="openEdit('leave',null,{emp_no:'${esc(no)}'})">＋ ${tt('新增請假','Add leave')}</button><button class="btn sm" onclick="photoPick('${esc(no)}')">📷 ${hasPhoto(no)?tt('更換照片','Replace photo'):tt('上傳照片','Add photo')}</button></div>`+edBadge('emp',no);
  if(p)h+=`<h3 style="margin:14px 0 6px">💵 ${esc(t('basepay'))} <span class="small muted">${esc(DB.asof.basepay||'')}</span>${edBadge('basepay',no)}</h3><div class="kv">${kv(t('pay_type'),esc(p.pay_type))}${kv(t('base'),fUSD(p.base))}${kv(t('allow_pos'),fUSD(p.allow_pos))}${kv(t('allow_pro'),fUSD(p.allow_pro))}${kv(t('allow_tech'),fUSD(p.allow_tech))}${kv(t('allow_other'),fUSD(p.allow_other))}${kv(t('allow_full'),fKHR(p.allow_full))}${kv(t('allow_trans'),fUSD(p.allow_trans))}${kv(t('allow_meal'),fKHR(p.allow_meal))}${(()=>{const u=payUSD(p);return kv(t('pay_usd'),'<b>'+fUSD(u.total)+'</b><div class="small muted">'+fUSD(u.usd)+(/日/.test(p.pay_type||'')?tt('（日薪×30）','(daily×30)'):'')+' ＋ '+fKHR(u.khr)+' ÷ '+fmt(payFx())+'</div>')})()}</div>`;
@@ -1279,7 +1298,10 @@ async function photoShrink(file){
   const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,w,h);g.drawImage(bmp,0,0,w,h);out=c.toDataURL('image/jpeg',q);
   if(out.length<=45000)break; if(q>0.6)q-=0.1;else max=Math.round(max*0.85)}
  try{bmp.close()}catch(e){} if(out.length>45000)throw new Error(tt('照片太大','Photo too large'));return out}
-async function photoGet(id){id=String(id);if(PHOTO_CACHE.has(id))return PHOTO_CACHE.get(id);const d=await IDB.get('photo|'+id);if(d)PHOTO_CACHE.set(id,d);return d||null}
+async function photoGet(id){id=String(id);if(PHOTO_CACHE.has(id))return PHOTO_CACHE.get(id);let d=await IDB.get('photo|'+id);
+ if(!d&&DB.photos&&DB.photos[id]&&!DB.photos[id].dirty&&typeof cloudReady==='function'&&cloudReady()){try{const j=await cget({action:'hr_photo_get',ids:id});const r=(j.rows||[]).find(x=>String(x.id)===id);if(r&&/^data:image\//.test(String(r.data))){d=String(r.data);await IDB.set('photo|'+id,d)}}catch(e){console.warn('photo',id,e)}}
+ if(d)PHOTO_CACHE.set(id,d);return d||null}
+IDB.keys=function(){return new Promise(res=>{if(!this._db)return res([]);try{const r=this._db.transaction('kv').objectStore('kv').getAllKeys();r.onsuccess=()=>res(r.result||[]);r.onerror=()=>res([])}catch(e){res([])}})};
 async function photoSet(id,data,fromCloud,h){id=String(id);await IDB.set('photo|'+id,data);PHOTO_CACHE.set(id,data);DB.photos=DB.photos||{};DB.photos[id]={h:h||photoHash(data),at:nowStamp(),dirty:!fromCloud}}
 async function photoDel(id,fromCloud){id=String(id);await IDB.del('photo|'+id);PHOTO_CACHE.delete(id);if(DB.photos)delete DB.photos[id];if(!fromCloud)(DB.photodel=DB.photodel||[]).push(id)}
 function hasPhoto(no){return !!(DB.photos&&DB.photos[String(no)])}
@@ -1320,8 +1342,8 @@ async function photoSync(){
   for(let i=0;i<up.length;i+=15){const ids=up.slice(i,i+15);cloudSetState('busy',tt('上傳照片 ','Uploading photos ')+Math.min(up.length,i+15)+'/'+up.length);
    const items=[];for(const id of ids){const d=await photoGet(id);if(d)items.push({id,h:DB.photos[id].h,data:d})}
    await cpost({action:'hr_photo_put',items,user:'paul.weng'});ids.forEach(id=>{if(DB.photos[id])DB.photos[id].dirty=false});persist()}
-  const L=(await cget({action:'hr_photo_list'})).rows||[];const inCloud=new Set();const need=[];
-  L.forEach(r=>{const id=String(r.id);inCloud.add(id);const loc=DB.photos[id];if(loc&&loc.dirty)return;if(!loc||loc.h!==String(r.h))need.push(id)});
+  const L=(await cget({action:'hr_photo_list'})).rows||[];const inCloud=new Set();const need=[];const have=new Set((await IDB.keys()).filter(k=>String(k).startsWith('photo|')).map(k=>String(k).slice(6)));
+  L.forEach(r=>{const id=String(r.id);inCloud.add(id);const loc=DB.photos[id];if(loc&&loc.dirty)return;if(!loc||loc.h!==String(r.h)||!have.has(id))need.push(id)});
   for(const id of Object.keys(DB.photos)){if(!DB.photos[id].dirty&&!inCloud.has(id)&&!up.includes(id))await photoDel(id,true)}
   for(let i=0;i<need.length;i+=25){const ids=need.slice(i,i+25);cloudSetState('busy',tt('下載照片 ','Downloading photos ')+Math.min(need.length,i+25)+'/'+need.length);
    const j=await cget({action:'hr_photo_get',ids:ids.join(',')});for(const r of (j.rows||[]))if(/^data:image\//.test(String(r.data)))await photoSet(String(r.id),String(r.data),true,String(r.h));persist()}
@@ -1808,7 +1830,7 @@ async function init(){
  $('#page').innerHTML=`<div class="note">${tt('載入資料中…','Loading data…')}</div>`;
  await IDB.open(); await loadDB(); document.documentElement.dataset.theme='light'; document.body.classList.toggle('show-pii',SHOW_PII); $('#piiBtn').textContent=SHOW_PII?'👁️':'🙈';
  $$('#langSw button').forEach(b=>b.onclick=()=>setLang(+b.dataset.l)); $('#piiBtn').onclick=()=>togglePii(!SHOW_PII);
- $('#menuBtn').onclick=()=>$('#rail').classList.toggle('open'); $('#scrim').onclick=closeDrawer; document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
+ $('#menuBtn').onclick=()=>$('#rail').classList.toggle('open'); $('#scrim').onclick=closeDrawer; document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();else if(!$('#drawer').hidden&&PROF_NO&&!/INPUT|TEXTAREA|SELECT/.test((document.activeElement||{}).tagName||'')){if(e.key==='ArrowRight')empStep(1);else if(e.key==='ArrowLeft')empStep(-1)}});
  $('#gsearch').oninput=e=>gsearch(e.target.value); document.addEventListener('click',e=>{if(!e.target.closest('.search'))$('#sres').hidden=true});
  $('#fileIn').onchange=e=>{const fs=[...e.target.files];if(fs.length)handleFiles(fs);e.target.value=''};
  window.addEventListener('hashchange',route); route();
