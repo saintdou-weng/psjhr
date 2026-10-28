@@ -1668,7 +1668,7 @@ function xlCols(row){const c=(row&&row._excel&&row._excel.cells)||{};const by={}
 async function hpLoadMonth(ym,force){const H=HPD();if(!force&&H.pay[ym]&&H.at['pay|'+ym])return true;const key='pay|'+ym;if(HP.busy.has(key))return false;HP.busy.add(key);
  try{const recs=await hpBuckets('hrpay_payroll',new RegExp('^m:'+ym+':[ap]\\d'));const pay={},adv={};
   for(const rec of recs){const r=rec.row;if(!r||r.id==null)continue;const id=String(r.id).trim();const g=xlCols(r);const tgt=/:a\d/.test(rec._syncBucket||'')?adv:pay;
-   tgt[id]={name:r.nameKh||r.name||'',en:r.nameLat||'',dept:r.dept||'',E:+r.basicPay||0,F:+r.seniority||0,G:+r.skill||0,H:+r.position||0,I:+r.language||0,J:+r.workDays||g('J','in')||0,K:g('K'),N:g('N'),S:g('S'),X:g('X'),Y:g('Y'),AE:g('AE'),AG:g('AG'),AH:g('AH'),AJ:g('AJ','out'),AJ1:g('AJ','in'),AK:g('AK'),U:g('U','in'),V:g('V','in'),AB:g('AB','in'),AD:g('AD','in'),AA:g('AA','in'),join:r._excel&&Object.entries(r._excel.cells).find(([k,v])=>/^C\d/.test(k))?.[1]?.v||''}}
+   tgt[id]={name:r.nameKh||r.name||'',en:r.nameLat||'',dept:r.dept||'',E:+r.basicPay||0,F:+r.seniority||0,G:+r.skill||0,H:+r.position||0,I:+r.language||0,J:+r.workDays||g('J','in')||0,K:g('K'),N:g('N')??(r.incentive!=null?+r.incentive:null),S:g('S')??(r.advGiven!=null?+r.advGiven:null),X:g('X')??(r.travel!=null?+r.travel:null),Y:g('Y')??(r.bonus!=null?+r.bonus:null),AE:g('AE'),AG:g('AG'),AH:g('AH'),AJ:g('AJ','out'),AJ1:g('AJ','in'),AK:g('AK'),U:g('U','in'),V:g('V','in'),AB:g('AB','in'),AD:g('AD','in'),AA:g('AA','in'),join:r._excel&&Object.entries(r._excel.cells).find(([k,v])=>/^C\d/.test(k))?.[1]?.v||''}}
   H.pay[ym]=pay;H.adv[ym]=adv;H.at['pay|'+ym]=nowStamp();HP_DIRTY=true;if(typeof GC!=='undefined')GC.clear();persist();return true}
  catch(e){console.warn('HRA-PAY',e);return false}finally{HP.busy.delete(key)}}
 async function hpLoadMeal(hk,force){const H=HPD();if(!force&&H.meal[hk])return true;const key='meal|'+hk;if(HP.busy.has(key))return false;HP.busy.add(key);
@@ -1680,7 +1680,7 @@ function hpAvailable(tool,re){const m=HP.man[tool];if(!m)return null;return Obje
 function hpLatestPay(ym,no){const H=HPD();const ks=Object.keys(H.pay).filter(k=>k<=ym).sort().reverse();for(const k of ks){const r=H.pay[k][no];if(r&&(r.E||r.H||r.G))return Object.assign({ym:k},r)}return null}
 /* v0.2.10 歷史薪資：HRA-PAY 每個月（實發 p／預支 a）都是一筆費率紀錄；估算取「當月或之前最近一筆」，年資、調薪自然跟著月份走 */
 let HP_ALL=null;
-async function hpEnsureAll(force){if(HP_ALL&&!force)return HP_ALL;HP_ALL=(async()=>{try{const man=await hpManifest('hrpay_payroll');const H=HPD();H.sig=H.sig||{};if(H.v!==2){H.sig={};H.v=2}const by={};
+async function hpEnsureAll(force){if(HP_ALL&&!force)return HP_ALL;HP_ALL=(async()=>{try{const man=await hpManifest('hrpay_payroll');const H=HPD();H.sig=H.sig||{};if(H.v!==3){H.sig={};H.v=3}const by={};
   for(const [k,h] of Object.entries(man.hashes||{})){const m=(k.match(/^m:(\d{4}-\d{2}):[ap]\d/)||[])[1];if(m)(by[m]=by[m]||[]).push(k+'='+h)}let n=0;
   for(const m of Object.keys(by).sort()){const sig=by[m].sort().join('|');if(H.sig[m]===sig&&(H.pay[m]||H.adv[m]))continue;if(await hpLoadMonth(m,true)){H.sig[m]=sig;HP_DIRTY=true;n++}}
   if(n){persist();GC.clear();if(['basepay','payroll','benefits','emp'].includes(CUR))rerender();if(PROF_NO&&!$('#drawer').hidden)openEmp(PROF_NO)}return n}catch(e){console.warn('HRA-PAY all',e);return 0}})();return HP_ALL}
