@@ -432,7 +432,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.2.19';
+const APPV='0.2.20';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1851,6 +1851,51 @@ function raiseLogHTML(){const H=HPD();const ms=[...new Set([...Object.keys(H.pay
  let h=`<div class="panel mt"><h2>📈 ${tt('歷史薪資／調薪紀錄','Pay history / raises')} <span class="small muted">HRA-PAY ${ms.length?esc(ms[0])+' ～ '+esc(ms[ms.length-1])+'（'+ms.length+tt(' 個月',' months')+'）':'—'}</span></h2><p class="small muted" style="margin:0 0 8px">${tt('每個月 HRA-PAY 的底薪、年資、技術、職務、語言都留一筆；估算某個月時用那個月（或之前最近一個月）的數字，所以每年調薪、年資加給、年資金、特休折現都照當時的薪資算。HRA-PAY 每多一個月，這裡自動多一筆。員工資料裡有個人的歷史薪資。','Each HRA-PAY month is kept as a pay record; estimates for a month use that month (or the latest before it), so yearly raises, seniority pay and leave payouts follow the pay at the time. New HRA-PAY months are added automatically; each profile shows its own history.')}</p>`;
  if(!rows.length)return h+`<p class="small muted">${ms.length>1?tt('目前各月之間沒有調薪變動。','No pay changes between months yet.'):tt('HRA-PAY 目前只有一個月，下個月起會開始看到變動。','Only one HRA-PAY month so far.')}</p></div>`;
  return h+`<div class="tbl-wrap" style="max-height:360px;overflow:auto"><table class="t"><thead><tr><th>${tt('月份','Month')}</th><th>${esc(t('emp_no'))}</th><th>${esc(t('name'))}</th><th>${tt('變動','Change')}</th></tr></thead><tbody>${rows.slice(0,500).map(r=>`<tr class="click" onclick="openEmp('${esc(r.no)}')"><td class="mono">${esc(r.ym)}</td><td class="mono">${esc(r.no)}</td><td>${esc(r.e.name||'')}</td><td class="small">${r.ch.map(c=>`${esc(c.l)} ${fmt(c.a)}→<b>${fmt(c.b)}</b>`).join('、')}</td></tr>`).join('')}</tbody></table></div></div>`}
+/* v0.2.20 個人薪資明細：固定 → 變動加項 → 扣項 → 實領，再列另發／福利（伙食、工齡、特休、NSSF 公司負擔）。
+   有 HRA-PAY 實發就照實發欄位（K 底薪類、Y 全勤、X 住宿交通、N $12、AE 加班、S 預支、AH NSSF、AJ 薪資稅、AK 實發）；沒有的欄位不硬算 */
+function slipMonths(no){const H=HPD();return Object.keys(H.pay||{}).filter(m=>{const r=H.pay[m][no];return r&&(r.AK!=null||r.E)}).sort()}
+function slipStep(d){const ms=slipMonths(String(PROF_NO));if(!ms.length)return;let i=ms.indexOf(PROF_PG.slipYm);if(i<0)i=ms.length-1;i=Math.min(ms.length-1,Math.max(0,i+d));PROF_PG.slipYm=ms[i];openEmp(PROF_NO,true)}
+function payslipHTML(no){const H=HPD();const P=C().pay;const ms=slipMonths(no);const e=emp(no)||{};const d=e.det||{};
+ let s=`<h3 style="margin:14px 0 6px">🧾 ${tt('薪資明細（加減到實領）','Payslip (from gross to take-home)','បញ្ជីប្រាក់ខែ (ពីសរុបដល់ទទួលពិត)')}</h3>`;
+ if(!ms.length)return s+`<p class="small muted">${tt('HRA-PAY 還沒有這個人的實發資料。','No HRA-PAY payslip for this person yet.','មិនទាន់មានប្រាក់ខែពិត HRA-PAY សម្រាប់អ្នកនេះ។')}</p>`;
+ let ym=PROF_PG.slipYm&&ms.includes(PROF_PG.slipYm)?PROF_PG.slipYm:ms[ms.length-1];const i=ms.indexOf(ym);const r=H.pay[ym][no];const n=v=>v==null||v===''||isNaN(+v)?null:+v;
+ const f2=v=>v==null?'—':(v<0?'−':'')+'$'+fmt(Math.abs(v),2);
+ const E=n(r.E)||0,F=n(r.F)||0,G=n(r.G)||0,Hh=n(r.H)||0,I=n(r.I)||0,J=n(r.J),K=n(r.K),Y=n(r.Y),X=n(r.X),N=n(r.N),AE=n(r.AE),S=n(r.S),AG=n(r.AG),AH=n(r.AH),AJ=n(r.AJ),AK=n(r.AK),U=n(r.U),V=n(r.V),AB=n(r.AB),AD=n(r.AD),AA=n(r.AA),AJ1=n(r.AJ1);
+ const full=E+F+G+Hh+I;const hrly=(E+G)/(P.hrs||208);const ded=-(hrly*((U||0)+(V||0)));
+ const varSum=[Y,X,N,AE].reduce((a,v)=>a+(v||0),0);
+ const nav=`<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><button class="btn sm" ${i>0?'':'disabled'} onclick="slipStep(-1)">◀ ${tt('上個月','Prev month','ខែមុន')}</button><b class="mono">${esc(ym)}</b><span class="small muted">HRA-PAY ${tt('實發','actual','ពិត')}</span><button class="btn sm" ${i<ms.length-1?'':'disabled'} onclick="slipStep(1)">${tt('下個月','Next month','ខែបន្ទាប់')} ▶</button></div>`;
+ const row=(ic,zh,en,km,v,note,cls)=>`<tr class="${cls||''}"><td>${ic} ${tt(zh,en,km)}${note?`<div class="small muted">${note}</div>`:''}</td><td class="r mono" style="white-space:nowrap">${v}</td></tr>`;
+ const sub=(zh,en,km,v)=>`<tr style="background:var(--surface-2)"><td><b>${tt(zh,en,km)}</b></td><td class="r mono"><b>${v}</b></td></tr>`;
+ let t=`<div class="tbl-wrap"><table class="t"><thead><tr><th>${tt('項目','Item','ធាតុ')}</th><th class="r">USD</th></tr></thead><tbody>`;
+ t+=row('①','底薪','Basic','ប្រាក់គោល',f2(E))+row('','年資加給','Seniority pay','ប្រាក់អតីតភាព',f2(F))+row('','技術津貼','Skill','ជំនាញ',f2(G))+row('','職務津貼','Position','តំណែង',f2(Hh))+row('','語言津貼','Language','ភាសា',f2(I));
+ t+=sub('A 固定月薪合計','A Fixed monthly pay','A ប្រាក់ខែថេរសរុប',f2(full));
+ if(K!=null)t+=row('','本月底薪類（依計薪天數）','Base items this month (by paid days)','ធាតុគោលខែនេះ',f2(K),J!=null?tt(`計薪 ${fmt(J,1)} 天 ÷ ${P.div}`,`${fmt(J,1)} paid days ÷ ${P.div}`,`${fmt(J,1)} ថ្ងៃ ÷ ${P.div}`):'');
+ t+=row('②','全勤獎金','Attendance bonus','រង្វាន់វត្តមាន',f2(Y),tt(`規定 $${P.attBonus}，缺勤按天扣`,`policy $${P.attBonus}, less absent days`,`គោលការណ៍ $${P.attBonus}`))+row('','住宿／交通津貼','Housing / transport','ស្នាក់នៅ / ធ្វើដំណើរ',f2(X),tt('$7 ＋ 2026-04 起 $2.50','$7 + $2.50 from 2026-04','$7 + $2.50 ចាប់ពី 2026-04'))+row('','$12 加給','$12 allowance','ប្រាក់បន្ថែម $12',f2(N),tt('部分人固定；部分要加班滿 14 小時','fixed for some; others need 14+ OT h','ថេរសម្រាប់ខ្លះ'))+row('','加班／週日／假日','OT / Sunday / holiday','ថែមម៉ោង / អាទិត្យ / ថ្ងៃបុណ្យ',f2(AE),[AB?tt(`加班 ${fmt(AB,1)} h`,`OT ${fmt(AB,1)} h`,`ថែម ${fmt(AB,1)} ម៉ោង`):'',AD?tt(`週日 ${fmt(AD)} 天`,`Sun ${fmt(AD)} d`,`អាទិត្យ ${fmt(AD)}`):'',AA?tt(`假日 ${fmt(AA)} 天`,`hol. ${fmt(AA)} d`,`បុណ្យ ${fmt(AA)}`):''].filter(Boolean).join(tt('、',', ',', ')));
+ t+=sub('B 變動加項小計','B Variable additions','B ការបន្ថែមប្រែប្រួល',f2(varSum));
+ if((U||0)+(V||0)>0)t+=row('③','時假／未請假扣款','Hourly leave / unexcused deduction','កាត់ម៉ោងឈប់ / គ្មានច្បាប់',f2(ded),tt(`${fmt((U||0)+(V||0),1)} h × 時薪 $${fmt(hrly,3)}`,`${fmt((U||0)+(V||0),1)} h × $${fmt(hrly,3)}/h`,`${fmt((U||0)+(V||0),1)} ម៉ោង × $${fmt(hrly,3)}`));
+ const gross=AG!=null?AG+(AE||0)+(S||0):null;
+ if(gross!=null&&K!=null){const rest=gross-(K+varSum+(((U||0)+(V||0))>0?ded:0));if(Math.abs(rest)>=0.01)t+=row('','其他加減（年假折現、補扣款、調整）','Other (leave pay-out, adjustments)','ផ្សេងៗ (ប្រាក់ច្បាប់, កែតម្រូវ)',f2(rest),tt('HRA-PAY 實發裡其他欄位的合計','sum of the other HRA-PAY columns','សរុបជួរឈរផ្សេងទៀត'))}
+ if(gross!=null)t+=sub('C 應發總額（扣稅前）','C Gross pay (before deductions)','C ប្រាក់សរុប (មុនកាត់)',f2(gross));
+ const nssfB=gross!=null?Math.min(P.nssfMax,Math.max(P.nssfMin,gross*P.nssfFx)):null;
+ t+=row('④','NSSF 退休金（員工 2%）','NSSF pension (employee 2%)','ប.ស.ស សោធន (បុគ្គលិក 2%)',f2(AH),nssfB?tt(`投保薪資 ${fmt(Math.round(nssfB))}៛ × 2% ÷ ${fmt(P.nssfFx)}`,`insured ${fmt(Math.round(nssfB))}៛ × 2% ÷ ${fmt(P.nssfFx)}`,`${fmt(Math.round(nssfB))}៛ × 2%`):'');
+ const deps=(hpFlags(no,ym)||{}).deps||0;
+ t+=row('','薪資所得稅','Tax on salary','ពន្ធលើប្រាក់ខែ',f2(AJ),AJ1!=null?tt(`課稅 $${fmt(AJ1,2)} × ${fmt(P.taxFx)} = ${fmt(Math.round(AJ1*P.taxFx))}៛${deps?`，扶養 ${deps} 人各減 ${fmt(P.taxDep)}៛`:''}；150 萬៛ 以下免稅，5%–20% 累進`,`taxable $${fmt(AJ1,2)} × ${fmt(P.taxFx)} = ${fmt(Math.round(AJ1*P.taxFx))}៛${deps?`, ${deps} dependants × ${fmt(P.taxDep)}៛`:''}; 0% up to 1.5M៛, then 5–20%`,`ពន្ធ 5%–20%`):tt('150 萬៛ 以下免稅，5%–20% 累進','0% up to 1.5M៛, then 5–20%','0% រហូតដល់ 1.5លាន៛'));
+ if(S)t+=row('','減：預支（25 日已發）','Less: advance (paid on the 25th)','ដក៖ ប្រាក់បុរេប្រទាន (ថ្ងៃ 25)',f2(-S));
+ if(gross!=null&&AK!=null){const rd=AK-(gross+(AH||0)+(AJ||0)-(S||0));if(Math.abs(rd)>=0.05)t+=row('','尾數／其他扣款','Rounding / other deductions','បង្គត់ / ការកាត់ផ្សេង',f2(rd),tt('實發四捨五入到 0.1','net rounded to 0.1','បង្គត់ 0.1'))}
+ t+=`<tr style="background:var(--accent-soft)"><td><b>💰 ${tt('D 10 日實發','D Paid on the 10th','D បើកថ្ងៃទី 10')}</b></td><td class="r mono"><b>${f2(AK)}</b></td></tr>`;
+ if(AK!=null&&S)t+=`<tr style="background:var(--accent-soft)"><td><b>${tt('本月實拿合計（預支＋10 日實發）','Total take-home this month (advance + 10th)','ទទួលសរុបខែនេះ')}</b></td><td class="r mono"><b>${f2(AK+S)}</b></td></tr>`;
+ /* 另發／福利 */
+ const mh=mealHist(no).find(o=>o.ym===ym);const dayW=full/P.div;const al=(e.annual||[]).slice().sort((a,b)=>String(b.year).localeCompare(String(a.year)))[0];
+ t+=`<tr><td colspan="2" class="small" style="padding-top:10px"><b>${tt('另發／福利（不在上面的實發裡）','Paid separately / benefits (not in the payslip above)','ទូទាត់ដាច់ដោយឡែក / អត្ថប្រយោជន៍')}</b></td></tr>`;
+ t+=row('🍚','伙食費（兩期）','Meal fee (both periods)','ថ្លៃអាហារ',mh?(mh.hp!=null?f2(mh.hp):mh.est!=null?f2(mh.est)+' '+tt('擬算','est.','ប៉ាន់'):'—'):'—',mh&&mh.rate?fmt(mh.rate)+'៛ '+tt('／天','/ day','/ ថ្ងៃ'):'');
+ const udc=/UDC/i.test(d.staff_type||'');const mo=+ym.slice(5);
+ t+=row('🎖️','工齡補償金（6 月、12 月各 7.5 天）','Seniority indemnity (7.5 days in Jun & Dec)','ប្រាក់បំណាច់អតីតភាព (7.5 ថ្ងៃ ខែ 6 និង 12)',udc?f2(Math.round(dayW*7.5*100)/100)+' '+tt('擬算','est.','ប៉ាន់'):'—',udc?tt(`(固定月薪 ÷ ${P.div}) × 7.5；${mo===6||mo===12?'本月應發':'下次 '+(mo<6?ym.slice(0,4)+'-06':mo<12?ym.slice(0,4)+'-12':'')}；HRA-PAY 實際有沒有另發請人事確認`,`(fixed pay ÷ ${P.div}) × 7.5; HR to confirm how HRA-PAY pays it`,`(ប្រាក់ខែ ÷ ${P.div}) × 7.5`):tt('FDC 定期合約改領合約期滿 5% 補償，不適用','FDC: 5% end-of-contract payment instead','FDC៖ 5% ពេលផុតកិច្ចសន្យា'));
+ t+=row('🌴','未休特休（折現值）','Unused annual leave (cash value)','ច្បាប់ប្រចាំឆ្នាំមិនទាន់ប្រើ',al&&al.al_left!=null?f2(Math.round(+al.al_left*(E/(P.hrs||208))*100)/100):'—',al?tt(`${al.year} 年剩 ${fmt(al.al_left,1)} h × 時薪 $${fmt(E/(P.hrs||208),3)}`,`${al.year}: ${fmt(al.al_left,1)} h left × $${fmt(E/(P.hrs||208),3)}/h`,`${al.year}: ${fmt(al.al_left,1)} ម៉ោង`):'');
+ const lact=d.lact_from&&!/^0000/.test(d.lact_from)&&d.lact_from<=ymd(TODAY)&&(!d.lact_to||d.lact_to>=ymd(TODAY));
+ t+=row('🍼','哺乳期','Nursing','បំបៅដោះកូន',lact?tt('照常計薪','paid as usual','បង់ធម្មតា'):'—',lact?tt(`至 ${d.lact_to}，每天${d.nurse_mode==='Late work'?'延後上班':'提早下班'} 1 小時不扣錢`,`until ${d.lact_to}: 1 hour a day ${d.nurse_mode==='Late work'?'later start':'early leave'}, not deducted`,`រហូតដល់ ${d.lact_to}`):'');
+ if(gross!=null)t+=row('🏢','公司另付 NSSF（退休 2%＋健保 2.6%＋職災 0.8%）','Employer NSSF (pension 2% + health 2.6% + injury 0.8%)','ប.ស.ស ក្រុមហ៊ុន',f2(Math.round((nssfB*0.02+nssfB*0.026+gross*P.nssfFx*0.008)/P.nssfFx*100)/100),tt('擬算；不從員工薪水扣','est.; not deducted from the employee','ប៉ាន់; មិនកាត់ពីបុគ្គលិក'));
+ t+=`</tbody></table></div><p class="small muted" style="margin:4px 0 0">${tt('實發數字照 HRA-PAY；標「擬算」的是依規定推算，人事確認後可以改成實際。','Actual figures come from HRA-PAY; “est.” rows are calculated from the rules — HR can confirm.','តួលេខពិតពី HRA-PAY; «ប៉ាន់» គណនាតាមច្បាប់។')}</p>`;
+ return s+nav+t}
 function payHistHTML(no){const h=hpRateHist(no);const e=emp(no)||{};const np=noPunchSet()[no];
  let s=`<h3 style="margin:14px 0 6px">📈 ${tt('歷史薪資（HRA-PAY 每月）','Pay history (HRA-PAY monthly)')}</h3>`;
  if(!h.length)s+=`<p class="small muted">${tt('HRA-PAY 沒有這個人的薪資紀錄。','No HRA-PAY pay records for this person.')}</p>`;
@@ -1994,6 +2039,7 @@ function openEmp(no,keep){
    +kv(tt('伙食費','Meal fee')+v,(mhp?fUSD(mhp.hp)+' <span class="small muted">'+mhp.ym+(mhp.halves===2?tt(' 兩期',' both periods','វគ្គទាំងពីរ'):tt(' 一期',' 1 period',' 1 វគ្គ'))+'</span>':mes?fUSD(Math.round(mes.est*100)/100)+' <span class="small" style="color:var(--warn)">'+mes.ym+' '+tt('擬算','est.','ប៉ាន់')+'</span>':'—')+'<div class="small muted">'+tt('每天 ','Per day ')+fmt(mealRateFor(no,ymd(TODAY)))+'៛ '+(mealRateFor(no,ymd(TODAY))>=5000?tt('（辦公室／主管）','(office/staff)'):tt('（一般員工）','(worker)'))+'</div>')})()}</div>`+(r.est?`<div class="note small" style="margin-top:6px">⚠️ ${tt('HRA-PAY 和 BEST 都沒有這個人的薪資（或底薪是 0），以上是依現有資料擬算的，預支、月底薪資估算也會用這組數字；知道正確數字後按「💵 編輯薪資設定」改掉即可。','Neither HRA-PAY nor BEST has pay for this person; these are estimates (also used for advance and payroll estimates). Use “Edit pay setup” once the real numbers are known.')}</div>`:'');
   else h+=e.excl?`<p class="small muted">${tt('不計薪（不在 HRA-PAY 發薪）','Not in payroll (not paid via HRA-PAY)')}</p>`:`<p class="small" style="color:var(--crit)">${tt('沒有薪資資料，也沒有可以拿來擬算的同事資料','No pay data and nothing to estimate from')}</p>`;
   h+=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 0"><button class="btn sm" onclick="openEdit('basepay','${esc(no)}',{emp_no:'${esc(no)}'})">💵 ${tt('編輯薪資設定','Edit pay setup')}</button></div>`;
+  h+=payslipHTML(no);
   h+=H3('🏦','銀行與保險薪資','Bank & insured pay','ធនាគារ និងប្រាក់ខែធានារ៉ាប់រង');
   h+=`<div class="kv">${K('發薪方式／銀行','Paid by / bank','វិធីបើកប្រាក់ / ធនាគារ',d.account==='現金'?tv('現金'):tv(d.bank_name&&d.bank_name!=='000'?d.bank_name:d.bank&&d.bank!=='000'?d.bank:''))}${K('帳號','Account no.','លេខគណនី',d.account==='現金'?'—':pii(d.account))}${K('健保薪資','Health-insured pay','ប្រាក់ខែធានារ៉ាប់រងសុខភាព',d.ins_pay!=null&&d.ins_pay!==''?fmt(d.ins_pay,2):'—')}${K('勞保薪資（NSSF）','NSSF-insured pay','ប្រាក់ខែ ប.ស.ស',d.nssf_pay!=null&&d.nssf_pay!==''?fmt(d.nssf_pay,2):'—')}</div>`;
   if((d.sal_items||[]).length||(d.allow_items||[]).length){h+=H3('🧾','BEST 薪資與津貼項目','BEST pay & allowance items','ធាតុប្រាក់ខែ និងប្រាក់បន្ថែម BEST',esc(d.asof||''));
