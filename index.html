@@ -410,7 +410,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.2.15';
+const APPV='0.2.16';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1210,7 +1210,7 @@ function renderEmp(){
 /* v0.2.9 薪資設定檢查：在職員工有沒有薪資設定、底薪是不是 0、和 HRA-PAY 最新一個月（實發依據）是否一致 */
 const PAYCHK_F=[['E','底薪','Basic'],['F','年資','Seniority'],['G','技術','Skill'],['H','職務','Position'],['I','語言','Language']];
 function payCheckRows(){const H=HPD();const all=[...new Set([...Object.keys(H.pay||{}),...Object.keys(H.adv||{})])].sort();const ym=all[all.length-1]||null;const now=monthKey(TODAY);const out=[];
- for(const e of [...empIdx().values()].filter(e=>e.status==='在職'&&!e.excl)){const no=String(e.emp_no);const p=e.pay;const h=hpRateAt(no,now);const b=p?{E:(/日/.test(p.pay_type||'')?(+p.base||0)*30:+p.base||0),F:+p.sen_pay||0,G:+p.allow_tech||0,H:+p.allow_pos||0,I:+p.lang_pay||0}:null;
+ for(const e of [...empIdx().values()].filter(e=>e.status==='在職'&&!e.excl)){const no=String(e.emp_no);const p=e.pay;const h=hpRateRecent(no,now);const b=p?{E:(/日/.test(p.pay_type||'')?(+p.base||0)*30:+p.base||0),F:+p.sen_pay||0,G:+p.allow_tech||0,H:+p.allow_pos||0,I:+p.lang_pay||0}:null;
   const hv=k=>h?(+h[k]||0):null;const diff=b&&h?PAYCHK_F.filter(([k])=>Math.abs((b[k]||0)-(hv(k)||0))>0.01).map(([k])=>k):[];
   const why=[];if(e.leave_date&&e.leave_date<now+'-01')why.push(tt('BEST 狀態在職但有離職日 ','BEST active but has leave date ')+e.leave_date);
   if(diff.includes('F'))why.push(tt('年資加給不同（BEST 可能沒每年調）','Seniority differs (BEST not updated yearly?)'));
@@ -1687,13 +1687,19 @@ async function hpEnsureAll(force,all){if(all)HP_OLD=true;if(HP_ALL&&!force)retur
 function hpRateHist(no){no=String(no);return cached('hph|'+no,()=>{const H=HPD();const e=emp(no)||{};const jm=(e.join_date||'').slice(0,7);const out=[];
  for(const m of [...new Set([...Object.keys(H.pay||{}),...Object.keys(H.adv||{})])].sort()){const r=(H.pay[m]||{})[no],a=(H.adv[m]||{})[no];const x=r&&(r.E||r.H||r.G)?r:a&&(a.E||a.H||a.G)&&jm!==m?a:null;if(!x)continue;
   /* 預支只有半個月：底薪、技術、職務、語言 ×2 還原成月費率（年資加給是全額）；到職當月的預支不當費率 */
-  const MW={2018:170,2019:182,2020:190,2021:192,2022:194,2023:200,2024:204,2025:206,2026:208,2027:210}[m.slice(0,4)]||200;const f=x===r?(jm===m&&x.J>0&&x.J<26&&(+x.E||0)>0&&(+x.E)<MW-1?26/x.J:1):2;const z=v=>Math.round((+v||0)*f*100)/100;out.push({ym:m,kind:x===r?'pay':'adv',E:z(x.E),F:+x.F||0,G:z(x.G),H:z(x.H),I:z(x.I),J:x.J,scaled:x===r&&f!==1})}
+  const MW={2018:170,2019:182,2020:190,2021:192,2022:194,2023:200,2024:204,2025:206,2026:208,2027:210}[m.slice(0,4)]||200;const f=x===r?(jm===m&&x.J>0&&x.J<26&&(+x.E||0)>0&&(+x.E)<MW-1?26/x.J:1):advF(m);const z=v=>Math.round((+v||0)*f*100)/100;out.push({ym:m,kind:x===r?'pay':'adv',E:z(x.E),F:+x.F||0,G:z(x.G),H:z(x.H),I:z(x.I),J:x.J,scaled:x===r&&f!==1})}
  return out})}
+/* 預支資料：2026 年 HRA-PAY 預支列是半個月金額（×2 還原），2022 以前是整月費率（不乘）；依同月實發比對自動判斷，沒有同月實發就看最近有比對的月份 */
+function advF(m){return cached('advF|'+m,()=>{const H=HPD();const r=k=>{const a=H.adv[k]||{},p=H.pay[k]||{};const v=Object.keys(a).filter(i=>p[i]&&+p[i].E>0&&+a[i].E>0).map(i=>+a[i].E/+p[i].E).sort((x,y)=>x-y);return v.length>=10?v[Math.floor(v.length/2)]:null};
+ let q=r(m);if(q==null){const ks=Object.keys(H.pay).filter(k=>Object.keys(H.adv[k]||{}).length).sort((a,b)=>Math.abs(ymDiff(a,m))-Math.abs(ymDiff(b,m)));for(const k of ks){q=r(k);if(q!=null)break}}return q!=null&&q<0.75?2:1})}
+const ymDiff=(a,b)=>(+b.slice(0,4)-+a.slice(0,4))*12+(+b.slice(5,7)-+a.slice(5,7));
+/* v0.2.16 只採用近 3 個月內的 HRA-PAY 費率；舊年份的 HRA-PAY 只當歷史，不拿來當現在的薪資 */
+function hpRateRecent(no,ym){const h=hpRateAt(no,ym);return h&&!h.early&&ymDiff(h.ym,ym)<=3?h:null}
 function hpRateAt(no,ym){const h=hpRateHist(no);if(!h.length)return null;let r=null;for(const x of h)if(x.ym<=ym)r=x;return r?Object.assign({early:false},r):Object.assign({early:true},h[0])}
 const PAYF=['base','sen_pay','allow_tech','allow_pos','lang_pay'];
 function manualPayEdit(ed){return !!(ed&&!/^(BEST 固定薪資|HRA-PAY)/.test(ed.by||'')&&ed.f&&PAYF.some(k=>k in ed.f))}
 async function hpFillPay(){toast(tt('從 HRA-PAY 載入各月薪資…','Loading HRA-PAY months…'));await hpEnsureAll(true);const ym=monthKey(TODAY);let n=0,skip=0,same=0;const E=EDITS();const ed=E.basepay||(E.basepay={});
- for(const e of [...empIdx().values()].filter(x=>x.status==='在職')){const no=String(e.emp_no);const h=hpRateAt(no,ym);if(!h)continue;if(manualPayEdit(ed[no])){skip++;continue}
+ for(const e of [...empIdx().values()].filter(x=>x.status==='在職')){const no=String(e.emp_no);const h=hpRateRecent(no,ym);if(!h)continue;if(manualPayEdit(ed[no])){skip++;continue}
   const cur=(DB.basepay||[]).find(x=>x.emp_no===no);const f={pay_type:'月薪制',base:h.E,sen_pay:h.F,allow_tech:h.G,allow_pos:h.H,lang_pay:h.I,eff_from:h.ym+'-01'};
   if(cur&&/月/.test(cur.pay_type||'')&&+cur.base===f.base&&+(cur.sen_pay||0)===f.sen_pay&&+(cur.allow_tech||0)===f.allow_tech&&+(cur.allow_pos||0)===f.allow_pos&&+(cur.lang_pay||0)===f.lang_pay){same++;continue}
   const x=ed[no]||{f:{},base:{},add:!cur};for(const [k,v] of Object.entries(f)){if(!(k in x.f)&&cur)x.base[k]=cur[k]??'';x.f[k]=v}x.at=nowStamp();x.by='HRA-PAY '+h.ym;x.note='HRA-PAY '+h.ym+(h.kind==='adv'?' 預支':' 實發');ed[no]=x;n++}
@@ -1756,13 +1762,13 @@ function orgPanelHTML(act){const H=HPD();const miss={},best=[];act.forEach(e=>{i
 function payRates(no,ym){if(excl(no))return null;const p=(DB.basepay||[]).find(r=>r.emp_no===no);const daily=p&&/日/.test(p.pay_type||'');const ed=((DB.edits||{}).basepay||{})[no];
  const fromP=src=>({src,E:daily?(+p.base||0)*30:+p.base||0,F:+p.sen_pay||0,G:+p.allow_tech||0,H:+p.allow_pos||0,I:+p.lang_pay||0,meal:+p.meal_rate||0});
  if(p&&p._ed&&manualPayEdit(ed)&&(!p.eff_from||p.eff_from.slice(0,7)<=ym))return fromP('edit');
- const h=hpRateAt(no,ym);if(h)return {src:'HRA-PAY '+h.ym+(h.kind==='adv'?tt(' 預支',' adv'):'')+(h.early?tt('（早於最早紀錄）',' (before first record)'):'')+(h.scaled?tt('（到職當月已還原整月）',' (join month scaled)'):''),E:h.E,F:h.F,G:h.G,H:h.H,I:h.I,meal:0};
+ const h=hpRateRecent(no,ym);if(h)return {src:'HRA-PAY '+h.ym+(h.kind==='adv'?tt(' 預支',' adv'):'')+(h.early?tt('（早於最早紀錄）',' (before first record)'):'')+(h.scaled?tt('（到職當月已還原整月）',' (join month scaled)'):''),E:h.E,F:h.F,G:h.G,H:h.H,I:h.I,meal:0};
  if(p&&p._ed&&(!p.eff_from||p.eff_from.slice(0,7)<=ym)){const r=fromP(ed&&ed.by||'edit');if(r.E>0)return r}
  if(p&&+p.base>0)return {src:'BEST',E:daily?(+p.base||0)*30:+p.base||0,F:+p.allow_pro||0,G:+p.allow_tech||0,H:+p.allow_pos||0,I:0,meal:0};
  return payEstimate(no,ym)}
 /* v0.2.11 HRA-PAY、BEST 都沒有薪資（或底薪 0）→ 依同職稱／同部門／全廠在職人員 HRA-PAY 當月費率的中位數擬算；新進 6 個月內優先比新進同事。標「擬算」，手改後就以手改為準 */
 function payEstimate(no,ym){no=String(no);return cached('pest|'+no+'|'+ym,()=>{const e=emp(no)||{};const ref=parseD(ym+'-28');const act=[...empIdx().values()].filter(x=>x.status==='在職'&&String(x.emp_no)!==no);
- const rate=x=>{const h=hpRateAt(String(x.emp_no),ym);return h&&h.E>0&&!h.early?h:null};const young=x=>{const j=parseD(x.join_date);return j&&ref&&(ref-j)/864e5<183};const newbie=young(e);
+ const rate=x=>{const h=hpRateRecent(String(x.emp_no),ym);return h&&h.E>0?h:null};const young=x=>{const j=parseD(x.join_date);return j&&ref&&(ref-j)/864e5<183};const newbie=young(e);
  const dk=x=>x.dept_code||x.dept||'';const groups=[[tt('同職稱','same title'),x=>{const tk=y=>y.title||y.title_code||'';return tk(e)&&tk(x)===tk(e)}],[tt('同部門','same dept'),x=>dk(e)&&dk(x)===dk(e)],[tt('全廠','all staff'),()=>true]];
  for(const [lb,f] of groups){let P=act.filter(f).map(x=>({x,h:rate(x)})).filter(y=>y.h);let nw=false;if(newbie){const q=P.filter(y=>young(y.x));if(q.length>=2){P=q;nw=true}}
   if(P.length){const md=k=>{const v=P.map(y=>+y.h[k]||0).sort((a,b)=>a-b);return v[Math.floor((v.length-1)/2)]};return {src:tt('擬算：','Est.: ')+lb+' '+P.length+tt(' 人中位數',' people median')+(nw?tt('（新進同事）',' (new hires)'):''),E:md('E'),F:0,G:md('G'),H:md('H'),I:md('I'),meal:0,est:true}}}
