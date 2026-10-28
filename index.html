@@ -368,6 +368,23 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
 .need-list{margin:6px 0 12px 18px;line-height:1.8}.drop-mini{margin:8px 0}
 .drop-ov{position:fixed;inset:0;z-index:90;background:rgba(15,110,99,.72);display:flex;align-items:center;justify-content:center;pointer-events:none}.drop-ov>div{background:#fff;border:3px dashed #0F6E63;border-radius:16px;padding:28px 36px;display:flex;flex-direction:column;gap:6px;align-items:center;font-size:20px;color:#0B5249}.drop-ov span{font-size:14px;color:#555}
 .pii{filter:blur(5px);transition:filter .15s}.pii:hover,.show-pii .pii{filter:none}
+
+/* v0.2.19 背景色可選（記在這台裝置） */
+:root[data-tint="green"]{--bg:#E3F1E8!important;--surface:#F5FBF7!important;--surface-2:#EAF6EE!important;--sunk:#D6EADD!important}
+:root[data-tint="yellow"]{--bg:#F4EDD3!important;--surface:#FFFCEE!important;--surface-2:#FBF4DA!important;--sunk:#ECE1BF!important}
+:root[data-tint="blue"]{--bg:#DFEAF6!important;--surface:#F4F8FD!important;--surface-2:#E7F0FA!important;--sunk:#D2E1F1!important}
+:root[data-tint="pink"]{--bg:#F5E2E9!important;--surface:#FFF6F9!important;--surface-2:#FBE9EF!important;--sunk:#EFD3DD!important}
+:root[data-tint="beige"]{--bg:#EEE6DA!important;--surface:#FCF9F4!important;--surface-2:#F6EFE4!important;--sunk:#E6DACA!important}
+:root[data-tint] body{background:var(--bg)!important}
+:root[data-tint] .icon-btn,:root[data-tint] .top .lang{background:var(--surface)!important}
+:root[data-tint] table.t.list th{background:var(--surface-2)}
+.tint-pop{position:absolute;right:8px;top:52px;z-index:60;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:10px;display:flex;gap:8px;flex-wrap:wrap;max-width:360px}
+.tint-sw{width:40px;height:40px;border-radius:50%;border:2px solid #CBD5E1;cursor:pointer;display:grid;place-items:center;font-size:16px;color:#0F766E}
+.tint-sw.on{border-color:#0F766E;box-shadow:0 0 0 2px #99F6E4}
+.tint-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.tint-lbl{font-size:11px;text-align:center;color:var(--muted);margin-top:3px}
+.icon-btn.navb{width:auto;padding:0 10px;gap:4px;display:inline-flex;align-items:center;font-size:13px}
+@media (max-width:480px){.icon-btn.navb .btxt{display:none}.icon-btn.navb{padding:0;width:34px;justify-content:center}}
 </style>
 </head><body>
 <div class="app" id="app">
@@ -395,7 +412,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
       </div>
       <a href="#settings" id="cloudBadge" class="cloud-badge" hidden></a>
       <div class="lang" id="langSw"><button data-l="0">中</button><button data-l="1">EN</button><button data-l="2">ខ្មែរ</button></div>
-      <button class="icon-btn" id="piiBtn" aria-label="Show personal data" title="顯示 / 隱藏個資">🙈</button>
+      <button class="icon-btn" id="tintBtn" aria-label="Background colour" title="背景顏色" onclick="tintPop(event)">🎨</button><button class="icon-btn" id="piiBtn" aria-label="Show personal data" title="顯示 / 隱藏個資">🙈</button>
       <div class="user-chip"><div class="avatar">PW</div><span class="nm">Paul Weng · Admin</span></div>
     </header>
     <main class="page" id="page"></main>
@@ -415,7 +432,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.2.18';
+const APPV='0.2.19';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1921,6 +1938,7 @@ function provL(v){if(LANG===2||!v)return v||'';const k=provKey(v);const p=PROV.f
 function staffTypeL(v){const s=String(v||'').toUpperCase().trim();return s==='UDC'?`UDC <span class="small muted">${tt('不定期合約','Undetermined-duration contract','កិច្ចសន្យាមិនកំណត់រយៈពេល')}</span>`:s==='FDC'?`FDC <span class="small muted">${tt('定期合約','Fixed-duration contract','កិច្ចសន្យាកំណត់រយៈពេល')}</span>`:tv(v)}
 function openEmp(no,keep){
  const e=emp(no); if(!e){toast(tt('找不到員工 ','No employee ')+no);return}
+ if(!EMP_LIST.includes(String(no))){EMP_LIST=uniq(DB.emp.filter(r=>r.status==='在職'||r.status==='留職停薪').sort((a,b)=>(b.join_date||'').localeCompare(a.join_date||'')).map(r=>String(r.emp_no)));if(!EMP_LIST.includes(String(no)))EMP_LIST.unshift(String(no))}
  if(!keep||PROF_NO!==no){PROF_PG={};if(PROF_NO!==no&&!keep)PROF_TAB=PROF_TAB||'prof'} PROF_NO=no;
  const hr=((HPD().org||{}).rows||{})[no]||{}; const d=Object.assign({},e.det||{}); if(!d.nssf&&hr.ns){d.nssf=hr.ns;d.nssf_src='HRA-PAY'} if(!d.birth_place&&hr.pv){d.birth_place=hr.pv;d.bp_src='HRA-PAY'} const kv=(l,v)=>`<div><dt>${esc(l)}</dt><dd>${v}</dd></div>`; const K=(zh,en,km,v)=>kv(tt(zh,en,km),v);
  const lv=DB.leave.filter(r=>r.emp_no===no).sort((a,b)=>b.start.localeCompare(a.start)); const ex=DB.attexc.filter(r=>r.emp_no===no).sort((a,b)=>b.date.localeCompare(a.date));
@@ -1933,7 +1951,7 @@ function openEmp(no,keep){
  if(pregY&&female)chips.push(`<span class="hr-chip lsp">🤰 ${tt('懷孕滿 3 個月','Pregnant (3M+)','មានផ្ទៃពោះ 3ខែ+')}</span>`);
  if(lactNow)chips.push(`<span class="hr-chip lsp">🍼 ${tt('哺乳期','Nursing','បំបៅដោះកូន')} ${tt('至','to','ដល់')} ${esc(lact.to||'')}</span>`);
  if(d.staff_type)chips.push(`<span class="hr-chip">${esc(String(d.staff_type).toUpperCase())}</span>`);
- let h=`<div class="dh"><div class="prof">${photoBoxHTML(no,e.name)}<div><h2>${esc(e.name||'—')} <span class="mono muted" style="font-size:14px">${esc(no)}</span></h2><div class="sub">${orgLine(e)}</div><div class="sub" style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap">${chips.join('')}</div></div></div><div style="display:flex;gap:4px;align-items:center">${EMP_LIST.includes(String(no))?`<span class="small muted">${EMP_LIST.indexOf(String(no))+1}/${EMP_LIST.length}</span><button class="icon-btn" onclick="empStep(-1)" title="${esc(tt('上一位（←）','Previous (←)'))}">◀</button><button class="icon-btn" onclick="empStep(1)" title="${esc(tt('下一位（→）','Next (→)'))}">▶</button>`:''}<button class="icon-btn" onclick="closeDrawer()" aria-label="Close">✕</button></div></div>`;
+ let h=`<div class="dh"><div class="prof">${photoBoxHTML(no,e.name)}<div><h2>${esc(e.name||'—')} <span class="mono muted" style="font-size:14px">${esc(no)}</span></h2><div class="sub">${orgLine(e)}</div><div class="sub" style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap">${chips.join('')}</div></div></div><div style="display:flex;gap:4px;align-items:center;flex-wrap:nowrap;flex:none">${EMP_LIST.includes(String(no))?`<span class="small muted">${EMP_LIST.indexOf(String(no))+1}/${EMP_LIST.length}</span><button class="icon-btn navb" onclick="empStep(-1)" title="${esc(tt('上一位（←）','Previous (←)','មុន (←)'))}">◀<span class="btxt">${tt('上一位','Prev','មុន')}</span></button><button class="icon-btn navb" onclick="empStep(1)" title="${esc(tt('下一位（→）','Next (→)','បន្ទាប់ (→)'))}"><span class="btxt">${tt('下一位','Next','បន្ទាប់')}</span>▶</button>`:''}<button class="icon-btn" onclick="closeDrawer()" aria-label="Close">✕</button></div></div>`;
  h+=`<div class="ptabs" role="tablist">${PROF_TABS.filter(x=>x[0]!=='mat'||female||ml.length||lact||lsp.length).map(x=>`<button role="tab" class="${PROF_TAB===x[0]?'on':''}" onclick="profTab('${x[0]}')">${x[1]} ${tt(x[2],x[3],x[4])}${x[0]==='leave'&&lv.length?` <span class="ct">${fmt(lv.length)}</span>`:''}${x[0]==='att'&&ex.length?` <span class="ct">${fmt(ex.length)}</span>`:''}</button>`).join('')}</div><div class="db">`;
  if(!PROF_TABS.some(x=>x[0]===PROF_TAB)||(PROF_TAB==='mat'&&!(female||ml.length||lact||lsp.length)))PROF_TAB='prof';
  const T0=PROF_TAB; const H3=(ic,zh,en,km,extra)=>`<h3 style="margin:14px 0 6px">${ic} ${tt(zh,en,km)}${extra?` <span class="small muted">${extra}</span>`:''}</h3>`;
@@ -2233,7 +2251,7 @@ function exportXLSX(k){
 /* ---------- settings ---------- */
 function renderSettings(){
  const k='settings'; let h=pageHead(k);
- h+=`<div class="grid2"><div class="panel"><h2>${tt('語言與個資顯示','Language & personal data')}</h2><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;align-items:center"><div class="lang">${['中','EN','ខ្មែរ'].map((l,i)=>`<button class="${LANG===i?'on':''}" onclick="setLang(${i})">${l}</button>`).join('')}</div>
+ h+=`<div class="grid2"><div class="panel"><h2>${tt('語言與個資顯示','Language & personal data')}</h2><div style="margin:8px 0 12px"><div class="small muted" style="margin-bottom:6px">🎨 ${tt('背景顏色（這台裝置會記住）','Background colour (remembered on this device)','ពណ៌ផ្ទៃខាងក្រោយ (ចងចាំលើឧបករណ៍នេះ)')}</div>${tintSwHTML()}</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;align-items:center"><div class="lang">${['中','EN','ខ្មែរ'].map((l,i)=>`<button class="${LANG===i?'on':''}" onclick="setLang(${i})">${l}</button>`).join('')}</div>
   <label class="chk"><input type="checkbox" ${SHOW_PII?'checked':''} onchange="togglePii(this.checked)"> ${tt('直接顯示身分證、電話、生日（預設模糊，滑鼠移過才顯示）','Show ID, phone, birthday directly (blurred by default; hover to reveal)')}</label></div></div>
  <div class="panel"><h2>${tt('這台裝置','This device')}</h2><div class="kv"><div><dt>${tt('批次','Batches')}</dt><dd>${fmt((DB.hrfiles||[]).length)}</dd></div><div><dt>${tt('員工','Employees')}</dt><dd>${fmt(DB.emp.length)}</dd></div><div><dt>${tt('請假 / 異常','Leave / exceptions')}</dt><dd>${fmt(DB.leave.length)} / ${fmt(DB.attexc.length)}</dd></div><div><dt>${tt('工時月份','Attendance months')}</dt><dd>${fmt(uniq((DB.hrfiles||[]).filter(f=>f.rep==='att').map(f=>f.range[0].slice(0,7))).length)}</dd></div></div>
   <div style="margin-top:10px"><button class="btn sm dng" onclick="clearReal()">${tt('清除這台裝置的資料（雲端不受影響）','Clear data on this device (cloud untouched)')}</button></div></div></div>`;
@@ -2242,6 +2260,12 @@ function renderSettings(){
  h+=`<div class="panel mt"><h2>${tt('關於','About')}</h2><div class="kv"><div><dt>${tt('系統','System')}</dt><dd>VRT HR · PSJHR v${APPV}</dd></div><div><dt>${tt('來源系統','Source system')}</dt><dd>${tt('BEST 人事管理系統','BEST HR system','ប្រព័ន្ធ HR BEST')}（D:\\per\\per.exe）· ${tt('唯讀','read-only')}</dd></div><div><dt>${tt('相關平台','Related')}</dt><dd><a href="https://saintdou-weng.github.io/vrt-asset/" target="_blank" rel="noopener">VRT ERP</a> · <a href="https://saintdou-weng.github.io/ac-hra-portal/" target="_blank" rel="noopener">AC HRA Portal</a></dd></div><div><dt>${tt('操作手冊','Manual')}</dt><dd><a href="https://claude.ai/code/artifact/ce562c4b-4a32-4a67-9e46-20917a9321c0" target="_blank" rel="noopener">${tt('人事管理系統操作手冊','HR system manual')} ↗</a></dd></div></div></div>`;
  return h;
 }
+const TINTS=[['white','#F0F2F5','白色','White','ពណ៌ស'],['green','#D9EEDF','淡綠','Light green','បៃតងខ្ចី'],['yellow','#F2E7C2','淡黃','Light yellow','លឿងខ្ចី'],['blue','#D5E5F5','淡藍','Light blue','ខៀវខ្ចី'],['pink','#F3D7E2','粉紅','Pink','ផ្កាឈូក'],['beige','#E9DCC9','米色','Beige','ពណ៌ក្រែម']];
+function applyTint(k){const d=document.documentElement;if(!k||k==='white')delete d.dataset.tint;else d.dataset.tint=k}
+function setTint(k){LS.set('tint',k);applyTint(k);const p=$('#tintPop');if(p)p.remove();if(CUR==='settings')rerender();toast(tt('背景顏色已記住','Background colour saved','បានរក្សាទុកពណ៌ផ្ទៃខាងក្រោយ'))}
+function tintSwHTML(){const cur=LS.get('tint','white');return `<div class="tint-row">${TINTS.map(([k,c,z,en,km])=>`<div><div class="tint-sw ${cur===k?'on':''}" style="background:${c}" onclick="setTint('${k}')" title="${esc(tt(z,en,km))}">${cur===k?'✓':''}</div><div class="tint-lbl">${esc(tt(z,en,km))}</div></div>`).join('')}</div>`}
+function tintPop(ev){ev&&ev.stopPropagation();const old=$('#tintPop');if(old){old.remove();return}const d=document.createElement('div');d.id='tintPop';d.className='tint-pop';d.innerHTML=`<div style="width:100%;font-weight:600;font-size:13px">🎨 ${tt('背景顏色','Background colour','ពណ៌ផ្ទៃខាងក្រោយ')}</div>`+tintSwHTML();d.onclick=e=>e.stopPropagation();document.body.appendChild(d);setTimeout(()=>document.addEventListener('click',()=>{const p=$('#tintPop');if(p)p.remove()},{once:true}),0)}
+applyTint(LS.get('tint','white'));
 function togglePii(on){SHOW_PII=on;LS.set('pii',on);document.body.classList.toggle('show-pii',on);$('#piiBtn').textContent=on?'👁️':'🙈'}
 
 /* ---------- global search ---------- */
@@ -2697,7 +2721,7 @@ function rerender(){
 }
 function go(k){if(location.hash!=='#'+k)location.hash=k;else route()}
 function route(){let h=decodeURIComponent((location.hash||'#dashboard').slice(1));SOLO=h.startsWith('solo-');if(SOLO)h=h.slice(5);let per='';const sl=h.indexOf('/');if(sl>0){per=h.slice(sl+1);h=h.slice(0,sl)}CUR=RENDER[h]?h:'dashboard';if(per&&CUR!=='dashboard'){const st=S(CUR);if(/^\d{4}-\d{2}$/.test(per)){st.pt='M';st.anchor=per+'-01';st.page=0;saveNav(CUR)}else if(/^\d{4}$/.test(per)){st.pt='Y';st.anchor=per+'-01-01';st.page=0;saveNav(CUR)}}document.body.classList.toggle('solo',SOLO);$('#rail').classList.remove('open');closeDrawer();rerender();window.scrollTo(0,0);document.title=SOLO?`${t(CUR)} · VRT HR`:'VRT HR · PSJHR'}
-function applyStatic(){const cb=$('#cloudBadge');if(cb)paintCloudBadge(cb);$$('[data-i]').forEach(el=>el.textContent=t(el.dataset.i));$('#gsearch').placeholder=t('search_ph');$$('#langSw button').forEach(b=>b.classList.toggle('on',+b.dataset.l===LANG));document.documentElement.lang=['zh-Hant','en','km'][LANG];const pb=$('#piiBtn');if(pb)pb.title=tt('顯示 / 隱藏個資','Show / hide personal data','បង្ហាញ / លាក់ទិន្នន័យផ្ទាល់ខ្លួន')}
+function applyStatic(){const cb=$('#cloudBadge');if(cb)paintCloudBadge(cb);$$('[data-i]').forEach(el=>el.textContent=t(el.dataset.i));$('#gsearch').placeholder=t('search_ph');$$('#langSw button').forEach(b=>b.classList.toggle('on',+b.dataset.l===LANG));document.documentElement.lang=['zh-Hant','en','km'][LANG];const tb=$('#tintBtn');if(tb)tb.title=tt('背景顏色','Background colour','ពណ៌ផ្ទៃខាងក្រោយ');const pb=$('#piiBtn');if(pb)pb.title=tt('顯示 / 隱藏個資','Show / hide personal data','បង្ហាញ / លាក់ទិន្នន័យផ្ទាល់ខ្លួន')}
 function bindPage(){const dz=$('#drop');if(dz){dz.onclick=()=>$('#fileIn').click();dz.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('#fileIn').click()}}}
  $$('.chart [data-tip]').forEach(el=>{el.onmousemove=e=>{const tp=$('#tip');tp.textContent=el.dataset.tip;tp.hidden=false;tp.style.left=Math.min(e.clientX+12,innerWidth-160)+'px';tp.style.top=(e.clientY-34)+'px'};el.onmouseleave=()=>$('#tip').hidden=true;el.ontouchstart=e=>{const tp=$('#tip');tp.textContent=el.dataset.tip;tp.hidden=false;const x=e.touches[0];tp.style.left=Math.min(x.clientX,innerWidth-160)+'px';tp.style.top=(x.clientY-44)+'px';setTimeout(()=>tp.hidden=true,1800)}})}
 function setLang(i){LANG=i;LS.set('lang',i);try{GC.clear()}catch(e){}try{(IMPQ||[]).forEach(q=>{if(q.re&&q.P)q.P.checks=q.re()})}catch(e){}rerender();try{if(PROF_NO&&!$('#drawer').hidden)openEmp(PROF_NO,true)}catch(e){}document.title=SOLO?`${t(CUR)} · VRT HR`:'VRT HR · PSJHR'}
