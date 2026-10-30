@@ -1506,7 +1506,7 @@ const stChip=(cls,txt)=>`<span class="st ${cls}">${esc(txt)}</span>`;
 const statusChip=s=>s==='在職'?`<span class="hr-chip active">${esc(tt('在職','Active'))}</span>`:s==='離職'?`<span class="hr-chip left">${esc(tt('離職','Left'))}</span>`:s==='留職停薪'?`<span class="hr-chip lsp">🤱 ${esc(tt('產假／留停','On maternity leave','ច្បាប់មាតុភាព'))}</span>`:s?`<span class="hr-chip">${esc(vl(s))}</span>`:'';
 const pii=v=>v?`<span class="pii">${esc(v)}</span>`:'—';
 function seniority(join,ref){const j=parseD(join);if(!j)return '';const r=ref?parseD(ref)||TODAY:TODAY;let m=(r.getFullYear()-j.getFullYear())*12+(r.getMonth()-j.getMonth());if(r.getDate()<j.getDate())m--;if(m<0)return '';return tt(`${Math.floor(m/12)} 年 ${m%12} 月`,`${Math.floor(m/12)}y ${m%12}m`,`${Math.floor(m/12)} ឆ្នាំ ${m%12} ខែ`)}
-function age(b){const d=parseD(b);if(!d)return '';let a=TODAY.getFullYear()-d.getFullYear();if(TODAY<new Date(TODAY.getFullYear(),d.getMonth(),d.getDate()))a--;return a}
+function age(b,at){const d=parseD(b);if(!d)return '';const T=at||TODAY;let a=T.getFullYear()-d.getFullYear();if(T<new Date(T.getFullYear(),d.getMonth(),d.getDate()))a--;return a}
 
 /* =================== Period Navigator (same component as VRT ERP) =================== */
 const ST={}; const S=k=>ST[k]||(ST[k]=initST(k));
@@ -1926,12 +1926,13 @@ function minWageAt(ym){const y=+ym.slice(0,4);const c=(C().pay.minWage||{})[y];r
 /* 一個人某月的防呆檢查（照 HRA-PAY 實發欄位）：NSSF 上下限、交通 $2.5、底薪低於最低工資 */
 function payGuards(no,ym,r){const P=C().pay;const out=[];if(!r)return out;const n=v=>v==null||v===''||isNaN(+v)?null:+v;
  const AG=n(r.AG),AE=n(r.AE),S=n(r.S),AH=n(r.AH),X=n(r.X),E=n(r.E),J=n(r.J);
- if(AG!=null&&AH!=null){const g=AG+(AE||0)+(S||0);const b=nssfAt(ym);const base=Math.min(b.max,Math.max(b.min,g*P.nssfFx));const exp=-base*b.pen/P.nssfFx;
+ const bd=(emp(no)||{}).birthday;const over60=bd&&age(bd,parseD(ym+'-01'))!==''?age(bd,parseD(ym+'-01'))>=60:false;
+ if(AG!=null&&AH!=null&&!over60){const g=AG+(AE||0)+(S||0);const b=nssfAt(ym);const base=Math.min(b.max,Math.max(b.min,g*P.nssfFx));const exp=-base*b.pen/P.nssfFx;
   if(Math.abs(AH)<0.005&&g>0)out.push({k:'nssf0',m:tt('HRA-PAY 沒有扣員工 NSSF 2%（是公司代付還是漏扣？）','No employee NSSF 2% deducted in HRA-PAY (company-paid or missed?)','HRA-PAY មិនបានកាត់ ប.ស.ស 2%')});
   else if(Math.abs(AH-exp)>0.06){const old=nssfAt(String(+ym.slice(0,4)-1)+ym.slice(4));const bo=NSSF_BANDS.find(x=>x.from<=ym&&x!==b&&Math.abs(-Math.min(x.max,Math.max(x.min,g*P.nssfFx))*x.pen/P.nssfFx-AH)<=0.06);
    out.push({k:'nssf',m:tt(`NSSF 員工扣款 ${fUSD(AH)}，照 ${ym} 規定（${fmt(b.min/1e4)}–${fmt(b.max/1e4)} 萬៛）應為 ${fUSD(Math.round(exp*100)/100)}`,`Employee NSSF ${fUSD(AH)}; ${ym} rule (${fmt(b.min)}–${fmt(b.max)}៛) gives ${fUSD(Math.round(exp*100)/100)}`,`ប.ស.ស ${fUSD(AH)} ≠ ${fUSD(Math.round(exp*100)/100)}`)+(bo?tt('（像是還在用舊上下限）',' (looks like the old floor/ceiling)',' (ដូចប្រើកម្រិតចាស់)'):'')})}}
  if(X!=null&&ym>='2026-04'&&J!=null&&J>14&&X>0&&X<P.trans-0.01)out.push({k:'trans',m:tt(`住宿／交通只有 ${fUSD(X)}，2026-04 起應為 $7＋$2.50＝${fUSD(P.trans)}（少了 $2.50？）`,`Housing/transport is ${fUSD(X)}; from 2026-04 it should be $7 + $2.50 = ${fUSD(P.trans)}`,`ធ្វើដំណើរ ${fUSD(X)} < ${fUSD(P.trans)}`)});
- const mw=minWageAt(ym);if(E!=null&&E>0&&mw!=null&&E<mw-2-0.01)out.push({k:'minw',m:tt(`底薪 ${fUSD(E)} 低於 ${ym.slice(0,4)} 年最低工資 ${fUSD(mw)}（試用期可少 $2）`,`Basic ${fUSD(E)} is below the ${ym.slice(0,4)} minimum wage ${fUSD(mw)} (probation may be $2 less)`,`ប្រាក់គោល ${fUSD(E)} < ${fUSD(mw)}`)});
+ const mw=minWageAt(ym);const jm=String((emp(no)||{}).join_date||'').slice(0,7);const E26=E!=null&&J&&J<26&&jm===ym?E*26/J:E;if(E26!=null&&E26>0&&mw!=null&&E26<mw-2-0.05)out.push({k:'minw',m:tt(`底薪 ${fUSD(Math.round(E26*100)/100)} 低於 ${ym.slice(0,4)} 年最低工資 ${fUSD(mw)}（試用期可少 $2）`,`Basic ${fUSD(Math.round(E26*100)/100)} is below the ${ym.slice(0,4)} minimum wage ${fUSD(mw)} (probation may be $2 less)`,`ប្រាក់គោល ${fUSD(E)} < ${fUSD(mw)}`)});
  if(E!=null&&mw==null)out.push({k:'minw?',m:tt(`${ym.slice(0,4)} 年最低工資還沒設定（參數 → 最低工資），底薪調整後請補上`,`The ${ym.slice(0,4)} minimum wage is not set yet (Parameters → minimum wage)`,`មិនទាន់កំណត់ប្រាក់ឈ្នួលអប្បបរមា ${ym.slice(0,4)}`)});
  return out}
 function payGuardPanel(ym){const H=HPD();const P=(H.pay||{})[ym];const b=nssfAt(ym),nx=NSSF_BANDS.find(x=>x.from>ym);
