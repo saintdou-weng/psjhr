@@ -2166,7 +2166,7 @@ function contInit(rs){const db=$('#drawer .db');if(CONT_IO){CONT_IO.disconnect()
  const near=()=>more.getBoundingClientRect().top<db.getBoundingClientRect().bottom+400;
  const fill=()=>{let g=0;while(near()&&g++<3&&add());};
  if(window.IntersectionObserver){CONT_IO=new IntersectionObserver(es=>{if(!document.body.contains(more)){CONT_IO&&CONT_IO.disconnect();return}if(es.some(x=>x.isIntersecting))fill()},{root:db,rootMargin:'0px 0px 400px 0px'});CONT_IO.observe(more)}else more.onclick=()=>add();
- let tk=0;db.addEventListener('scroll',()=>{if(tk)return;tk=requestAnimationFrame(()=>{tk=0;if(!document.body.contains(db))return;let cur=first;for(const s2 of db.querySelectorAll('.cont-sec')){if(s2.offsetTop<=db.scrollTop+60)cur=s2.dataset.no;else break}contSetCur(cur)})},{passive:true})}
+ let tk=0;db.addEventListener('scroll',()=>{if(tk)return;tk=setTimeout(()=>{tk=0;if(!document.body.contains(db))return;fill();let cur=first;for(const s2 of db.querySelectorAll('.cont-sec')){if(s2.offsetTop<=db.scrollTop+60)cur=s2.dataset.no;else break}contSetCur(cur)},80)},{passive:true})}
 function openEmp(no,keep){
  if(keep&&!PROF_CAPT&&!PROF_ALL&&!CONT_RESET&&contOn()){const pdb=$('#drawer .db');const f=pdb&&!$('#drawer').hidden?pdb.dataset.first:'';if(f&&f!==String(no)&&pdb.querySelector(`.cont-sec[data-no="${CSS.escape(String(no))}"]`)){no=f;PROF_NO=f}}
  const e=emp(no); if(!e){toast(tt('找不到員工 ','No employee ')+no);return}
