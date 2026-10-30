@@ -433,7 +433,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.2.21';
+const APPV='0.2.22';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1586,7 +1586,7 @@ function pnav(k,o={}){
   const i=opts.findIndex(x=>x.v===cur);
   h+=`<div class="pn-sel"><button class="icon-btn pn-arrow" aria-label="${tt('上一期','Previous')}" ${i>0?'':'disabled'} onclick="navStep('${k}',-1)">◀</button><select class="inp pn-period" aria-label="${tt('期間','Period')}" onchange="navSet('${k}',this.value)">${opts.slice().reverse().map(x=>`<option value="${x.v}" ${x.v===cur?'selected':''}>${esc(x.l)}</option>`).join('')}</select><button class="icon-btn pn-arrow" aria-label="${tt('下一期','Next')}" ${i<opts.length-1?'':'disabled'} onclick="navStep('${k}',1)">▶</button></div>`}
  h+=`<span class="pn-hint">${esc(lbl)} · ${esc(hint)}</span>`;
- if(o.views)h+=`<div class="seg pn-view">${[['summary',tt('摘要','Summary')],['detail',tt('明細','Detail')]].map(([v,l])=>`<button class="${st.view===v?'on':''}" onclick="navView('${k}','${v}')">${l}</button>`).join('')}</div>`;
+ if(o.views)h+=`<div class="seg pn-view">${[['summary',tt('摘要','Summary')],['detail',tt('明細','Detail')]].concat(o.trend?[['trend',tt('月年報表','Month / year','ប្រចាំខែ / ឆ្នាំ')]]:[]).filter(x=>!o.noDetail||x[0]!=='detail').map(([v,l])=>`<button class="${st.view===v?'on':''}" onclick="navView('${k}','${v}')">${l}</button>`).join('')}</div>`;
  h+=`</div><div class="pn-row"><span class="pn-cap">${tt('時間','Time')}</span><div class="seg pn-pt">${pts.map(p=>`<button class="${st.pt===p?'on':''}" onclick="navPt('${k}','${p}')">${esc(t(p))}</button>`).join('')}</div></div>`;
  return h+noDataHint(k)+`</div>`;
 }
@@ -1634,7 +1634,12 @@ function buckets(R){
 /* ================= data access per module ================= */
 const attBatches=R=>{const {a,b}=rangeStr(R);return (DB.hrfiles||[]).filter(f=>f.rep==='att'&&f.range[0]<=b&&f.range[1]>=a)};
 /* rate = present ÷ scheduled, counted on working days only (Sundays and 國定假日 excluded); hours include every day */
-function attAgg(R){const {a,b}=rangeStr(R);const o={rows:0,sched:0,present:0,present_w:0,act:0,tot:0,miss:0,taken:0,clock:0};const emps=new Set();const H=holidaySet();
+function attAgg(R){const ES=CUR==='att'?efSet('att'):null;if(ES)return attAggF(R,ES);return attAgg0(R)}
+function attAggF(R,ES){const {a,b}=rangeStr(R);const o={rows:0,sched:0,present:0,present_w:0,act:0,tot:0,miss:0,taken:0,clock:0};const emps=new Set();const H=holidaySet();
+ attBatches(R).forEach(f=>{const S2=DB.attsum[f.key];if(!S2)return;const ym=f.range[0].slice(0,7);let all=0,inR=0,wdAll=0,pAll=0,pw=0;Object.entries(S2.days).forEach(([dd,v])=>{const d=ym+'-'+pad(dd);all+=v[0];pAll+=v[1];const wd=!H.has(d)&&parseD(d).getDay()!==0;if(wd){wdAll+=v[0];pw+=v[1]}if(d>=a&&d<=b)inR+=v[0]});if(!inR)return;const share=all?inR/all:0;const fw=all?wdAll/all:1,fp=pAll?pw/pAll:1;
+  for(const [no,e] of Object.entries(S2.emps)){if(!ES.has(String(no)))continue;emps.add(no);o.rows+=e[0]*share;o.present+=e[1]*share;o.sched+=e[0]*share*fw;o.present_w+=e[1]*share*fp;o.act+=e[2]*share;o.tot+=e[3]*share;o.miss+=e[4]*share;o.taken+=e[5]*share;o.clock+=(e[6]||0)*share}});
+ o.emps=emps.size;o.rate=o.sched?o.present_w/o.sched*100:null;['rows','sched','present','present_w'].forEach(k=>o[k]=Math.round(o[k]));['act','tot','miss','taken','clock'].forEach(k=>o[k]=Math.round(o[k]*10)/10);return o}
+function attAgg0(R){const {a,b}=rangeStr(R);const o={rows:0,sched:0,present:0,present_w:0,act:0,tot:0,miss:0,taken:0,clock:0};const emps=new Set();const H=holidaySet();
  attBatches(R).forEach(f=>{const S2=DB.attsum[f.key];if(!S2)return;const ym=f.range[0].slice(0,7);let any=false;Object.entries(S2.days).forEach(([dd,v])=>{const d=ym+'-'+pad(dd);if(d<a||d>b)return;any=true;const wd=!H.has(d)&&parseD(d).getDay()!==0;o.rows+=v[0];o.present+=v[1];if(wd){o.sched+=v[0];o.present_w+=v[1]}o.act+=v[2];o.tot+=v[3];o.miss+=v[4];o.taken+=v[5];o.clock+=v[6]});if(any)Object.keys(S2.emps).forEach(e=>emps.add(e))});
  o.emps=emps.size;o.rate=o.sched?o.present_w/o.sched*100:null;['act','tot','miss','taken','clock'].forEach(k=>o[k]=Math.round(o[k]*10)/10);return o}
 let ATT_LOADING=new Set();
@@ -1643,7 +1648,8 @@ function loadAtt(keys){const miss=keys.filter(k=>!ATT_LOADING.has(k));if(!miss.l
 function attRowsIn(R){const {a,b}=rangeStr(R);let out=[];attBatches(R).forEach(f=>{const rows=ATT_CACHE.get(f.key);if(rows)out=out.concat(rows.filter(r=>r.date>=a&&r.date<=b))});return out}
 const loadingHTML=()=>`<div class="panel"><div class="note info">⏳ ${tt('載入這個期間的工時明細…','Loading attendance rows for this period…')}</div></div>`;
 function jlRows(){return cached('jl',()=>{const seen=new Set();return DB.joinleave.filter(r=>{const k=r.emp_no+'|'+r.join_date+'|'+r.leave_date;if(seen.has(k))return false;seen.add(k);return true})})}
-function rowsIn(k,R){const {a,b}=rangeStr(R);
+function rowsIn(k,R){return efKeep(k,rowsIn0(k,R))}
+function rowsIn0(k,R){const {a,b}=rangeStr(R);
  if(k==='att')return attRowsIn(R);
  if(k==='attexc')return DB.attexc.filter(r=>r.date>=a&&r.date<=b);
  if(k==='leave')return DB.leave.filter(r=>r.start_date>=a&&r.start_date<=b);
@@ -1779,10 +1785,46 @@ function renderNav(){let g='',h='';MODS.forEach(([k,ic,grp])=>{if(grp!==g){h+=`<
 function navCount(k){if(k==='emp'&&DB.emp.length)return `<span class="ct">${fmt(DB.emp.filter(e=>e.status==='在職').length)}</span>`;if(k==='smart-import'&&IMPQ.length)return `<span class="ct">${IMPQ.length}</span>`;return ''}
 
 /* ---------- generic period module ---------- */
+/* v0.2.22 各頁共用的員工分類（部門、組別、職稱、性別、合約、年齡層、特殊狀態）＋ 月報／年報（像 sewing 月年趨勢） */
+const EF_F=['edept','sec','ttl','sex','stype','ageb','sp'];
+function efOn(k){const st=S(k);return EF_F.some(f=>st['ef_'+f])}
+function efSet(k){if(!efOn(k))return null;const st=S(k);const key='ef|'+k+'|'+EF_F.map(f=>st['ef_'+f]||'').join('|');return cached(key,()=>{const o={};EF_F.forEach(f=>o[f]=st['ef_'+f]||'');let rows=[...empIdx().values()].map(e=>enrichRow('emp',e));if(o.edept)rows=rows.filter(r=>(r.dept||'')===o.edept);rows=empFilt(rows,o);return new Set(rows.map(r=>String(r.emp_no)))})}
+const efKeep=(k,arr,f)=>{const S2=CUR===k?efSet(k):null;return S2?arr.filter(r=>S2.has(String(f?f(r):r.emp_no))):arr};
+function efBarHTML(k){const st=S(k);const all=[...empIdx().values()].map(e=>enrichRow('emp',e));const u=f=>uniq(all.map(f).filter(Boolean)).sort();const n=EF_F.filter(f=>st['ef_'+f]).length;
+ const sl=(f,label,opts)=>`<select class="inp" style="width:auto" onchange="S('${k}').ef_${f}=this.value;S('${k}').page=0;GC.clear();rerender()"><option value="">${esc(label)}: ${esc(t('ALL'))}</option>${opts.map(o=>`<option value="${esc(o[0])}" ${st['ef_'+f]===o[0]?'selected':''}>${esc(vl(o[1]))}</option>`).join('')}</select>`;
+ const S2=efSet(k);
+ return `<div class="panel" style="padding:10px 12px;margin-top:10px"><div class="toolbar" style="margin:0"><span class="small muted">🔎 ${tt('分類','Filter','តម្រង')}</span>${sl('edept',t('dept'),u(e=>e.dept).map(x=>[x,x]))}${sl('sec',tt('組別','Section','ផ្នែក'),u(e=>e.section).map(x=>[x,x]))}${sl('ttl',tt('職稱','Title','មុខតំណែង'),u(e=>e.title).map(x=>[x,x]))}${sl('sex',t('sex'),u(e=>e.sex).map(x=>[x,x]))}${sl('stype',tt('合約','Contract','កិច្ចសន្យា'),[['UDC','UDC'],['FDC','FDC']])}${sl('ageb',t('age'),AGEB.map(x=>[x[0],tt(x[1],x[2],x[3])]))}${sl('sp',tt('特殊狀態','Special','ស្ថានភាពពិសេស'),[['preg',tt('🤰 懷孕滿 3 個月','🤰 Pregnant 3M+','🤰 មានផ្ទៃពោះ')],['nurse',tt('🍼 哺乳期中','🍼 Nursing now','🍼 កំពុងបំបៅ')],['lsp',tt('🤱 產假／留停','🤱 Maternity leave','🤱 ច្បាប់មាតុភាព')],['new',tt('🆕 到職 90 天內','🆕 Joined ≤ 90 days','🆕 ចូល ≤ 90 ថ្ងៃ')]])}${n?`<button class="btn sm" onclick="EF_F.forEach(f=>S('${k}')['ef_'+f]='');S('${k}').page=0;GC.clear();rerender()">✕ ${tt('清除','Clear','សម្អាត')} (${n})</button><span class="small" style="color:var(--accent-2)">${tt('符合','Matching','ត្រូវគ្នា')} ${fmt(S2?S2.size:0)} ${tt('人（含離職）；下面的數字只算這些人','people (incl. left); figures below count only them','នាក់')}</span>`:''}</div></div>`}
+/* 月報／年報：每列一個月（或一年），點一列跳到那個期間 */
+function trendCols(k){if(k==='meal')return [['n','人數','People','n'],['days','餐數（人日）','Meals (person-days)','n'],['hpn','HRA-PAY 期數','HRA-PAY periods','n'],['hp','HRA-PAY 實發 USD','HRA-PAY actual USD','usd'],['est','出勤估算 USD','Estimate USD','usd'],['diff','差異','Difference','usd']];
+ if(k==='payroll')return [['n','人數','People','n'],['gross','應發總額','Gross','usd'],['Y','全勤','Attendance','usd'],['X','住宿／交通','Housing / transport','usd'],['N','$12 加給','$12','usd'],['AE','加班／假日','OT / holiday','usd'],['AH','NSSF','NSSF','usd'],['AJ','薪資稅','Tax','usd'],['S','預支','Advance','usd'],['AK','10 日實發','Paid on 10th','usd'],['take','實拿合計','Take-home','usd']];
+ return (k==='att'?[['emps','人數','People','n']]:[]).concat(PM[k]||[])}
+function trendKeys(k,ty){const cm=monthKey(TODAY);let ms=[];
+ if(k==='meal'){const X=mealIx();ms=uniq(Object.keys(X).map(h=>h.slice(0,7)).concat((DB.hrfiles||[]).filter(f=>f.rep==='att').map(f=>f.range[0].slice(0,7))))}
+ else if(k==='payroll'){ms=Object.keys(HPD().pay||{})}
+ else ms=[...periodKeys(k)].filter(x=>x.length===7);
+ ms=ms.filter(m=>m<=cm).sort().reverse();if(ty==='Y')return uniq(ms.map(m=>m.slice(0,4))).sort().reverse().concat(k==='annual'?[...periodKeys(k)].filter(x=>x.length===4&&!ms.some(m=>m.startsWith(x))):[]).filter((x,i,a)=>a.indexOf(x)===i).sort().reverse();return ms}
+function trendAgg(k,key){const y=key.length===4;const R=y?{from:new Date(+key,0,1),to:new Date(+key,11,31)}:{from:parseD(key+'-01'),to:new Date(+key.slice(0,4),+key.slice(5,7),0)};
+ if(k==='meal'){const ms=y?trendKeys('meal','M').filter(m=>m.startsWith(key)):[key];const X=mealIx();const S2=efSet(k);let n=new Set(),days=0,hp=0,hpHave=false,est=0,hpn=0;
+  for(const m of ms){for(const b of [1,2]){const H2=X[m+':'+b];if(!H2)continue;hpHave=true;hpn++;for(const [id,v] of Object.entries(H2)){if(S2&&!S2.has(id))continue;n.add(id);days+=v[1];hp+=v[0]}}
+   const ap=efKeep(k,mealApprox({from:parseD(m+'-01'),to:new Date(+m.slice(0,4),+m.slice(5,7),0)}));est+=sum(ap,'usd');if(!hpHave)ap.forEach(o=>{n.add(o.emp_no);days+=o.days})}
+  return {n:n.size,days,hpn:hpHave?hpn:null,hp:hpHave?hp:null,est,diff:hpHave&&hpn>=ms.length*2?est-hp:null}}
+ if(k==='payroll'){const ms=y?trendKeys('payroll','M').filter(m=>m.startsWith(key)):[key];const H=HPD();const o={n:new Set(),gross:0,Y:0,X:0,N:0,AE:0,AH:0,AJ:0,S:0,AK:0,take:0};const S2=efSet(k);
+  for(const m of ms){for(const [id,r] of Object.entries(H.pay[m]||{})){if(S2&&!S2.has(id))continue;o.n.add(id);const g=(+r.AG||0)+(+r.AE||0)+(+r.S||0);o.gross+=g;['Y','X','N','AE','AH','AJ','S','AK'].forEach(f=>o[f]+=(+r[f]||0));o.take+=(+r.AK||0)+(+r.S||0)}}
+  o.n=o.n.size;return o}
+ return agg(k,R)}
+function trendHTML(k){const st=S(k);const ty=st.tr==='Y'?'Y':'M';const cols=trendCols(k);const keys=trendKeys(k,ty);const curKey=ty==='Y'?String(rangeOf(st).from.getFullYear()):monthKey(rangeOf(st).from);
+ const fm=(v,t2)=>v==null||isNaN(v)?'—':t2==='usd'?(v<0?'−$':'$')+fmt(Math.abs(v),2):fmtM(v,t2);
+ const go=key=>k==='meal'||k==='payroll'?`S('${k}').pt='${key.length===4?'Y':'M'}';S('${k}').view='summary';navSet('${k}','${key.length===4?key+'-01-01':key+'-01'}')`:`drill('${k}','${key.length===4?'Y':'M'}','${key.length===4?key+'-01-01':key+'-01'}','summary')`;
+ let h=`<div class="panel mt"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><h2 style="margin:0">📅 ${ty==='Y'?tt('年別報表','Yearly report','របាយការណ៍ប្រចាំឆ្នាំ'):tt('月別報表','Monthly report','របាយការណ៍ប្រចាំខែ')}</h2><div class="seg"><button class="${ty==='M'?'on':''}" onclick="S('${k}').tr='M';saveNav('${k}');rerender()">${tt('月報','Monthly','ប្រចាំខែ')}</button><button class="${ty==='Y'?'on':''}" onclick="S('${k}').tr='Y';saveNav('${k}');rerender()">${tt('年報','Yearly','ប្រចាំឆ្នាំ')}</button></div><span class="small muted">${tt('點一列看那個期間','Tap a row to open that period','ចុចជួរដើម្បីបើក')}</span></div>`;
+ if(!keys.length)return h+`<p class="small muted">${esc(t('no_data'))}</p></div>`;
+ const rows=keys.map(key=>({key,A:cached('tr|'+k+'|'+key+'|'+EF_F.map(f=>st['ef_'+f]||'').join('|'),()=>trendAgg(k,key))}));
+ h+=`<div class="tbl-wrap"><table class="t list"><thead><tr><th>${tt('期間','Period','រយៈពេល')}</th>${cols.map(c=>`<th class="r">${esc(tt(c[1],c[2]))}</th>`).join('')}</tr></thead><tbody>${rows.map(({key,A})=>`<tr class="click ${key===curKey?'sel':''}" onclick="${go(key)}"><td class="per mono">${esc(key)}</td>${cols.map(c=>`<td class="r">${fm(A[c[0]],c[3])}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
+ return h}
 function renderPeriod(k){
  const st=S(k),R=rangeOf(st); if(!hasData(k))return pageHead(k)+needHTML(k);
  const addB=k==='leave'?`<button class="btn sm pri" onclick="openEdit('leave',null)">＋ ${tt('新增請假','Add leave')}</button>`:k==='holiday'?`<button class="btn sm pri" onclick="openEdit('holiday',null)">＋ ${tt('新增假日','Add holiday')}</button>`:'';
- let h=pageHead(k,addB+stdActs(k))+pnav(k,{views:true,pts:k==='annual'?['Y','ALL']:k==='holiday'?['M','Y','ALL']:undefined});
+ let h=pageHead(k,addB+stdActs(k))+pnav(k,{views:true,trend:k!=='holiday',pts:k==='annual'?['Y','ALL']:k==='holiday'?['M','Y','ALL']:undefined})+(k!=='holiday'?efBarHTML(k):'');
+ if(st.view==='trend')return h+trendHTML(k);
  if(st.view==='summary'){h+=kpisHTML(k,R)+bucketTable(k,R)+extraHTML(k,R)}
  else{if(k==='att'){const need=attNeed(R);if(need.length){loadAtt(need);return h+loadingHTML()}}
   const rows=filterRows(k,rowsIn(k,R)); const tb={att:{dept:1},attexc:{dept:1,type:[['noclock',tt('未刷卡','No punch')],['oneclock',tt('單邊刷卡','One punch')],['missing',tt('未請假','Unexcused')],['other',tt('其他','Other')]],typeLabel:t('type')},leave:{dept:1,type:uniq(DB.leave.map(r=>r.leave_type)).sort().map(x=>[x,vl(x)]),typeLabel:t('leave_type')},joinleave:{dept:1,status:1},annual:{dept:1},holiday:{}}[k]||{};
@@ -1798,7 +1840,7 @@ function extraHTML(k,R){
   return `<div class="grid2 mt"><div class="panel"><h2>${tt('依部門','By department')}</h2><div class="tbl-wrap"><table class="t"><thead><tr><th>${esc(t('dept'))}</th><th class="r">${tt('筆數','Records')}</th><th class="r">${tt('人數','People')}</th><th class="r">${tt('未請假時數','Unexcused hrs')}</th></tr></thead><tbody>${ks.map(x=>`<tr><td>${esc(x)}</td><td class="r">${fmt(byD[x].n)}</td><td class="r">${fmt(byD[x].e.size)}</td><td class="r">${fmt(byD[x].m,1)}</td></tr>`).join('')}</tbody></table></div></div>
   <div class="panel"><h2>${tt('異常最多（筆數）','Most exceptions')}</h2>${topList(rows,'emp_no',r=>1,'')}</div></div>`}
  if(k==='att'){const st=S(k);if(st.pt==='Y'||st.pt==='ALL')return `<p class="small muted" style="margin:8px 0 0">${tt('部門與個人明細請切到「月」或「明細」。','Switch to Month or Detail for department and person breakdowns.')}</p>`;
-  const need=attNeed(R);if(need.length){loadAtt(need);return loadingHTML()}const rows=attRowsIn(R);if(!rows.length)return '';
+  const need=attNeed(R);if(need.length){loadAtt(need);return loadingHTML()}const rows=efKeep('att',attRowsIn(R));if(!rows.length)return '';
   const byD={};rows.forEach(r=>{const d=OD(r.emp_no,r.dept||r.dept_code);const o=byD[d]||(byD[d]={rows:0,p:0,a:0,m:0,e:new Set()});o.rows++;if(r.time_in||r.time_out)o.p++;o.a+=r.hrs_actual;o.m+=r.lv_missing;o.e.add(r.emp_no)});const ks=Object.keys(byD).sort((a,b)=>byD[b].rows-byD[a].rows);
   return `<div class="grid2 mt"><div class="panel"><h2>${tt('依部門','By department')}</h2><div class="tbl-wrap"><table class="t"><thead><tr><th>${esc(t('dept'))}</th><th class="r">${tt('人數','People')}</th><th class="r">${tt('出勤人日','Present')}</th><th class="r">${tt('出勤率','Rate')}</th><th class="r">${tt('實際工時','Actual hrs')}</th><th class="r">${tt('未請假','Unexcused')}</th></tr></thead><tbody>${ks.map(x=>`<tr><td>${esc(x)}</td><td class="r">${fmt(byD[x].e.size)}</td><td class="r">${fmt(byD[x].p)}</td><td class="r">${fmt(byD[x].rows?byD[x].p/byD[x].rows*100:0,1)}%</td><td class="r">${fmt(byD[x].a,1)}</td><td class="r">${fmt(byD[x].m,1)}</td></tr>`).join('')}</tbody></table></div></div>
   <div class="panel"><h2>${tt('未請假缺勤最多（時數）','Most unexcused hours')}</h2>${topList(rows.filter(r=>r.lv_missing>0),'emp_no',r=>r.lv_missing,'h')}</div></div>`}
@@ -2651,17 +2693,18 @@ const halfKey=d=>monthKey(d)+':'+(d.getDate()<=15?1:2);
 function halvesIn(R){const out=[];for(let d=new Date(R.from.getFullYear(),R.from.getMonth(),R.from.getDate()<=15?1:16);d<=R.to&&d<=TODAY;){out.push(halfKey(d));d=d.getDate()===1?new Date(d.getFullYear(),d.getMonth(),16):new Date(d.getFullYear(),d.getMonth()+1,1)}return out}
 function renderMeal(){
  const k='meal';if(!hasData('att'))return pageHead(k)+needHTML('att');const st=S(k);const R=rangeOf(st);const c=C().meal;
- let h=pageHead(k,`<button class="btn sm" onclick="exportCalc('meal')">${esc(t('export'))}</button><button class="btn sm" onclick="openMealCfg()">⚙️ ${tt('費率','Rates')}</button>`)+conflictsHTML()+pnav(k,{pts:['D','W','H','M','Y']});
+ let h=pageHead(k,`<button class="btn sm" onclick="exportCalc('meal')">${esc(t('export'))}</button><button class="btn sm" onclick="openMealCfg()">⚙️ ${tt('費率','Rates')}</button>`)+conflictsHTML()+pnav(k,{pts:['D','W','H','M','Y'],views:true,trend:true,noDetail:true})+efBarHTML(k);
+ if(st.view==='trend'){hpMealIndexAll();return h+trendHTML(k)}
  const detailed=st.pt==='H'||st.pt==='M';
  if(detailed){const need=attNeed(R);if(need.length){loadAtt(need);return h+loadingHTML()}}
- const rows=detailed?mealCalc(R):mealApprox(R);const hk=halvesIn(R);const H=HPD();hpMealIndexAll().then(n=>{if(n&&CUR==='meal')rerender()});
+ const rows=efKeep(k,detailed?mealCalc(R):mealApprox(R));const hk=halvesIn(R);const H=HPD();const ESm=efSet(k);hpMealIndexAll().then(n=>{if(n&&CUR==='meal')rerender()});
  if(st.pt==='H'&&!H.meal[hk[0]]&&!HP.busy.has('meal|'+hk[0])){hpLoadMeal(hk[0]).then(ok=>{if(ok&&CUR==='meal')rerender()})}
- const hpRows={};let hpUsd=0,hpHave=0;hk.forEach(x=>{const m=hpMealAny(x);if(!m||!Object.keys(m).length)return;hpHave++;for(const [id,v] of Object.entries(m)){const o=hpRows[id]||(hpRows[id]={usd:0,riel:0,days:0});o.usd+=v.usd;o.riel+=v.riel;o.days+=v.days;hpUsd+=v.usd}});
+ const hpRows={};let hpUsd=0,hpHave=0;hk.forEach(x=>{const m=hpMealAny(x);if(!m||!Object.keys(m).length)return;hpHave++;for(const [id,v] of Object.entries(m)){if(ESm&&!ESm.has(id))continue;const o=hpRows[id]||(hpRows[id]={usd:0,riel:0,days:0});o.usd+=v.usd;o.riel+=v.riel;o.days+=v.days;hpUsd+=v.usd}});
  const tot={n:rows.length,days:sum(rows,'days'),riel:sum(rows,'riel'),usd:sum(rows,'usd')};
  h+=`<div class="kpis">${kpi(tt('有伙食費人數','People'),fmt(tot.n))}${kpi(tt('餐數（人日）','Meals (person-days)'),fmt(tot.days,detailed?0:1))}${kpi(tt('估算 瑞爾','Estimate KHR'),fmt(tot.riel))}${kpi(tt('估算 USD','Estimate USD'),fmt(tot.usd,2),'',tt('匯率 ','FX ')+fmt(c.fx))}${kpi('HRA-PAY USD',hpHave?fmt(hpUsd,2):'—','',hpHave?tt(`${hpHave}/${hk.length} 期已載入`,`${hpHave}/${hk.length} periods loaded`,`បានផ្ទុក ${hpHave}/${hk.length} វគ្គ`):tt('未載入','not loaded'))}${kpi(tt('差異','Difference'),hpHave?fmt(tot.usd-hpUsd,2):'—','',hpHave&&hpUsd?fmt((tot.usd-hpUsd)/hpUsd*100,1)+'%':'')}</div>`;
  h+=`<div class="note small" style="margin:10px 0">${tt('算法（同 HRA-PAY 餐費表）：每人每天 費率 × min(實際工時, 8) ÷ 8；下班晚於 '+hhmm(c.otAfter)+' 加一份加班餐；期間 01–15、16–月底兩期；USD = 瑞爾 ÷ ','Formula (as in the HRA-PAY meal sheet): rate × min(actual hrs, 8) ÷ 8 per person per day, plus an OT meal when out after '+hhmm(c.otAfter)+'; periods 01–15 and 16–month end; USD = KHR ÷ ','រូបមន្ត (ដូចតារាងអាហារ HRA-PAY): អត្រា × min(ម៉ោងពិត, 8) ÷ 8 ក្នុងមួយនាក់មួយថ្ងៃ បូកអាហារថែមម៉ោងមួយពេលចេញក្រោយ '+hhmm(c.otAfter)+'; វគ្គ 01–15 និង 16–ចុងខែ; USD = រៀល ÷ ')}${fmt(c.fx)}${tt('。','.','។')}${detailed?'':tt('年檢視用每月彙總估算。','Year view uses monthly summaries.')}</div>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">${hk.length<=24?`<button class="btn sm" onclick="hpMealLoadAll()">⬇ ${tt('載入 HRA-PAY 實發餐費（本期）','Load HRA-PAY actual meal fee (this period)')}</button>`:''}<button class="btn sm" onclick="learnMealRates()">🧠 ${tt('依 HRA-PAY 學習每人費率','Learn per-person rates from HRA-PAY')}</button></div>`;
- if(hk.length>1){const per=hk.map(x=>{const [ym,bb]=x.split(':');const R2=bb==='1'?{from:parseD(ym+'-01'),to:parseD(ym+'-15')}:{from:parseD(ym+'-16'),to:new Date(+ym.slice(0,4),+ym.slice(5),0)};const rr=mealApprox(R2);const m=hpMealAny(x);return {x,n:rr.length,usd:sum(rr,'usd'),hp:m?Object.values(m).reduce((s,v)=>s+v.usd,0):null}});
+ if(hk.length>1){const per=hk.map(x=>{const [ym,bb]=x.split(':');const R2=bb==='1'?{from:parseD(ym+'-01'),to:parseD(ym+'-15')}:{from:parseD(ym+'-16'),to:new Date(+ym.slice(0,4),+ym.slice(5),0)};const rr=efKeep('meal',mealApprox(R2));const m=hpMealAny(x);return {x,n:rr.length,usd:sum(rr,'usd'),hp:m?Object.entries(m).filter(([id])=>!ESm||ESm.has(id)).reduce((s,[id,v])=>s+v.usd,0):null}});
   h+=`<div class="panel mt"><h2>${tt('各期','By period')}</h2>${groupedBars([{name:tt('估算','Estimate'),vals:per.map(p=>p.usd),color:'var(--accent)'},{name:'HRA-PAY',vals:per.map(p=>p.hp||0),color:'#94A3B8'}],per.map(p=>p.x.replace(':1',tt(' 上',' 1st',' វគ្គ1')).replace(':2',tt(' 下',' 2nd',' វគ្គ2'))),{full:1,dec:2})}<div class="tbl-wrap"><table class="t"><thead><tr><th>${tt('期間','Period')}</th><th class="r">${tt('人數','People')}</th><th class="r">${tt('估算 USD','Estimate USD')}</th><th class="r">HRA-PAY USD</th><th class="r">${tt('差異','Diff')}</th><th class="r">${tt('HRA-PAY 匯率','HRA-PAY FX')}</th><th>${tt('說明／備註','Note')}</th></tr></thead><tbody>${per.map(p=>{const fx=hpMealFx(p.x);const pct=p.hp?Math.abs(p.usd-p.hp)/p.hp*100:null;const auto=p.hp==null?'':[fx&&fx!==c.fx?tt(`HRA-PAY 本期匯率 ${fmt(fx)}（VRT HR 用 ${fmt(c.fx)}）`,`HRA-PAY FX ${fmt(fx)} (VRT HR ${fmt(c.fx)})`,`អត្រាប្ដូរប្រាក់ HRA-PAY ${fmt(fx)} (VRT HR ${fmt(c.fx)})`):'',pct!=null&&pct>=0.01&&pct<1?tt('差異 <1%，可能是匯率或四捨五入','Under 1%: likely FX or rounding'):pct!=null&&pct>=5?tt('差異大：可能該期打卡資料不完整或停工','Large gap: punches incomplete or stoppage?'):''].filter(Boolean).join('；');return `<tr class="click" onclick="S('meal').pt='H';navSet('meal','${p.x.slice(0,7)}-${p.x.endsWith(':1')?'01':'16'}')"><td class="mono">${esc(p.x)}</td><td class="r">${fmt(p.n)}</td><td class="r">${fmt(p.usd,2)}</td><td class="r">${p.hp==null?'—':fmt(p.hp,2)}</td><td class="r">${p.hp==null?'—':fmt(p.usd-p.hp,2)}</td><td class="r">${fx?fmt(fx):'—'}</td><td class="small" onclick="event.stopPropagation()">${p.hp!=null||recNote('meal|'+p.x)?recNoteHTML('meal|'+p.x,auto):''}</td></tr>`}).join('')}</tbody></table></div></div>`}
  const q=(st.q||'').toLowerCase();let list=rows.map(o=>Object.assign({},o,{hp:hpRows[o.emp_no]?hpRows[o.emp_no].usd:null}));Object.keys(hpRows).forEach(id=>{if(!list.find(o=>o.emp_no===id))list.push({emp_no:id,name:(Object.values(H.meal).find(m=>m[id])||{})[id]?.name||'',dept:'',days:0,hrs:0,riel:0,usd:0,rate:0,hp:hpRows[id].usd})});
  if(q)list=list.filter(o=>(o.emp_no+' '+o.name+' '+o.dept).toLowerCase().includes(q));if(st.type==='diff')list=list.filter(o=>o.hp!=null&&Math.abs(o.usd-o.hp)>=0.01);
@@ -2739,12 +2782,13 @@ function payCalc(R){const P=C().pay;const ym=monthKey(R.from);const inp=payInput
  return out}
 function renderPayroll(){
  const k='payroll';if(!hasData('att'))return pageHead(k)+needHTML('att');const st=S(k);const R=rangeOf(st);
- let h=pageHead(k,`<button class="btn sm" onclick="exportCalc('payroll')">${esc(t('export'))}</button><button class="btn sm" onclick="openPayCfg()">⚙️ ${tt('參數','Parameters')}</button>`)+conflictsHTML()+pnav(k,{pts:['H','M','Y']});
+ let h=pageHead(k,`<button class="btn sm" onclick="exportCalc('payroll')">${esc(t('export'))}</button><button class="btn sm" onclick="openPayCfg()">⚙️ ${tt('參數','Parameters')}</button>`)+conflictsHTML()+pnav(k,{pts:['H','M','Y'],views:true,trend:true,noDetail:true})+efBarHTML(k);
+ if(st.view==='trend'){hpEnsureAll();return h+trendHTML(k)}
  if(st.pt==='Y'){const ms=[];for(let m=0;m<12;m++){const d=new Date(R.from.getFullYear(),m,1);if(d>TODAY)break;ms.push(monthKey(d))}const H=HPD();
   h+=`<div class="note small" style="margin:10px 0">${tt('年檢視列出各月 HRA-PAY 實發（已載入的月份）；估算請點月份。','The year view lists HRA-PAY actual pay for loaded months; click a month for the estimate.')}</div><div class="panel"><div class="tbl-wrap"><table class="t"><thead><tr><th>${tt('月份','Month')}</th><th class="r">${tt('人數','People')}</th><th class="r">${tt('預支','Advance')}</th><th class="r">${tt('實發','Net')}</th><th class="r">NSSF</th><th class="r">${tt('薪資稅','Tax')}</th></tr></thead><tbody>${ms.map(m=>{const p=H.pay[m];const v=p?Object.values(p):[];return `<tr class="click" onclick="S('payroll').pt='M';navSet('payroll','${m}-01')"><td class="mono">${m}</td><td class="r">${p?fmt(v.length):'—'}</td><td class="r">${p?fmt(sum(v,'S'),2):'—'}</td><td class="r">${p?fmt(sum(v,'AK'),2):'—'}</td><td class="r">${p?fmt(sum(v,'AH'),2):'—'}</td><td class="r">${p?fmt(sum(v,'AJ'),2):'—'}</td></tr>`}).join('')}</tbody></table></div></div>`;return h}
  const MR={from:new Date(R.from.getFullYear(),R.from.getMonth(),1),to:new Date(R.from.getFullYear(),R.from.getMonth()+1,0)};const need=attNeed(MR);if(need.length){loadAtt(need);return h+loadingHTML()}
  const ym=monthKey(R.from);const H=HPD();if(!H.pay[ym]&&!HP.busy.has('pay|'+ym))hpLoadMonth(ym).then(ok=>{if(ok&&CUR==='payroll')rerender()});
- const half=st.pt==='H'?(R.from.getDate()===1?1:2):0;const rows=payCalc(R);const hp=H.pay[ym]||null,hpa=H.adv[ym]||null;
+ const half=st.pt==='H'?(R.from.getDate()===1?1:2):0;const rows=efKeep(k,payCalc(R));const ESp=efSet(k);const fP=o=>{if(!o||!ESp)return o;const r={};for(const id of Object.keys(o))if(ESp.has(id))r[id]=o[id];return r};const hp=fP(H.pay[ym])||null,hpa=fP(H.adv[ym])||null;
  const val=(o,f)=>half===1?o.S:half===2?o.AK:f==='S'?o.S:o.AK;const hpv=id=>{if(!hp&&!hpa)return null;if(half===1)return hpa&&hpa[id]?hpa[id].S:(hp&&hp[id]?hp[id].S:null);if(half===2)return hp&&hp[id]?hp[id].AK:null;return hp&&hp[id]?hp[id].AK:null};
  const tot={n:rows.length,S:sum(rows,'S'),AK:sum(rows,'AK'),gross:sum(rows,'gross'),AH:sum(rows,'AH'),AJ:sum(rows,'AJ'),AE:sum(rows,'AE')};const hpTot=hp?Object.values(hp):[];
  const lbl=half===1?tt('預支（1–15 日）','Advance (1st–15th)'):half===2?tt('月底實發','Month-end net'):tt('月底實發','Month-end net');
