@@ -1800,7 +1800,7 @@ function trendCols(k){if(k==='meal')return [['n','人數','People','n'],['days',
  return (k==='att'?[['emps','人數','People','n']]:[]).concat(PM[k]||[])}
 function trendKeys(k,ty){const cm=monthKey(TODAY);let ms=[];
  if(k==='meal'){const X=mealIx();ms=uniq(Object.keys(X).map(h=>h.slice(0,7)).concat((DB.hrfiles||[]).filter(f=>f.rep==='att').map(f=>f.range[0].slice(0,7))))}
- else if(k==='payroll'){ms=Object.keys(HPD().pay||{})}
+ else if(k==='payroll'){const P=HPD().pay||{};ms=Object.keys(P).filter(m=>Object.values(P[m]||{}).some(x=>x.AK!=null))}
  else ms=[...periodKeys(k)].filter(x=>x.length===7);
  ms=ms.filter(m=>m<=cm).sort().reverse();if(ty==='Y')return uniq(ms.map(m=>m.slice(0,4))).sort().reverse().concat(k==='annual'?[...periodKeys(k)].filter(x=>x.length===4&&!ms.some(m=>m.startsWith(x))):[]).filter((x,i,a)=>a.indexOf(x)===i).sort().reverse();return ms}
 function trendAgg(k,key){const y=key.length===4;const R=y?{from:new Date(+key,0,1),to:new Date(+key,11,31)}:{from:parseD(key+'-01'),to:new Date(+key.slice(0,4),+key.slice(5,7),0)};
@@ -1817,6 +1817,8 @@ function trendHTML(k){const st=S(k);const ty=st.tr==='Y'?'Y':'M';const cols=tren
  const go=key=>k==='meal'||k==='payroll'?`S('${k}').pt='${key.length===4?'Y':'M'}';S('${k}').view='summary';navSet('${k}','${key.length===4?key+'-01-01':key+'-01'}')`:`drill('${k}','${key.length===4?'Y':'M'}','${key.length===4?key+'-01-01':key+'-01'}','summary')`;
  let h=`<div class="panel mt"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><h2 style="margin:0">📅 ${ty==='Y'?tt('年別報表','Yearly report','របាយការណ៍ប្រចាំឆ្នាំ'):tt('月別報表','Monthly report','របាយការណ៍ប្រចាំខែ')}</h2><div class="seg"><button class="${ty==='M'?'on':''}" onclick="S('${k}').tr='M';saveNav('${k}');rerender()">${tt('月報','Monthly','ប្រចាំខែ')}</button><button class="${ty==='Y'?'on':''}" onclick="S('${k}').tr='Y';saveNav('${k}');rerender()">${tt('年報','Yearly','ប្រចាំឆ្នាំ')}</button></div><span class="small muted">${tt('點一列看那個期間','Tap a row to open that period','ចុចជួរដើម្បីបើក')}</span></div>`;
  if(!keys.length)return h+`<p class="small muted">${esc(t('no_data'))}</p></div>`;
+ if(k==='payroll'&&!HP_OLD)h+=`<p class="small muted" style="margin:0 0 6px">${tt('平常只載去年起的 HRA-PAY；要看 2019–2022 請按','Only HRA-PAY from last year is loaded; for 2019–2022 tap','ផ្ទុកតែពីឆ្នាំមុន;')} <button class="btn sm" onclick="toast(tt('載入 HRA-PAY 2019 年起的舊月份…','Loading older HRA-PAY months…'));HP_ALL=null;hpEnsureAll(true,true).then(()=>{GC.clear();rerender()})">📂 ${tt('載入更早月份','Load older months','ផ្ទុកខែចាស់ៗ')}</button></p>`;
+ if(k==='meal'&&!HPD().mealAll)h+=`<p class="small muted" style="margin:0 0 6px">${tt('HRA-PAY 伙食費平常只載去年起；','HRA-PAY meal fee loads from last year only; ','')}<button class="btn sm" onclick="toast(tt('背景載入 HRA-PAY 2017 年起的伙食費…','Loading older meal fees…'));hpMealIndexAll(true).then(()=>{GC.clear();rerender()})">📂 ${tt('載入更早的伙食費','Load older meal fees','ផ្ទុកថ្លៃអាហារចាស់ៗ')}</button></p>`;
  const rows=keys.map(key=>({key,A:cached('tr|'+k+'|'+key+'|'+EF_F.map(f=>st['ef_'+f]||'').join('|'),()=>trendAgg(k,key))}));
  h+=`<div class="tbl-wrap"><table class="t list"><thead><tr><th>${tt('期間','Period','រយៈពេល')}</th>${cols.map(c=>`<th class="r">${esc(tt(c[1],c[2]))}</th>`).join('')}</tr></thead><tbody>${rows.map(({key,A})=>`<tr class="click ${key===curKey?'sel':''}" onclick="${go(key)}"><td class="per mono">${esc(key)}</td>${cols.map(c=>`<td class="r">${fm(A[c[0]],c[3])}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
  return h}
