@@ -1977,7 +1977,7 @@ function hraNurEnsure(force){if(NUR_P&&!force)return NUR_P;NUR_P=(async()=>{try{
    月份＝計薪月份（11 月薪資＝11 月繳費，12/10 發放）。退休金 2027-10 起各 4% 是依制度推估，正式以官方公告為準 */
 const NSSF_BANDS=[{from:'2000-01',min:400000,max:1200000,pen:0.02,health:0.026,risk:0.008,src:['舊制','old rule','ច្បាប់ចាស់']},{from:'2026-11',min:600000,max:1500000,pen:0.02,health:0.026,risk:0.008,src:['NSSF 第 3135/26 號通知','NSSF notice 3135/26','សេចក្តីជូនដំណឹង ប.ស.ស 3135/26']},{from:'2027-10',min:600000,max:1500000,pen:0.04,health:0.026,risk:0.008,src:['退休金第二階段（推估）','pension phase 2 (projected)','សោធនដំណាក់កាលទី 2 (ប៉ាន់)'],proj:true}];
 function nssfAt(ym){let b=NSSF_BANDS[0];for(const x of NSSF_BANDS)if(x.from<=ym)b=x;return b}
-const MINW={2023:200,2024:204,2025:208,2026:210};   // 成衣業法定最低工資（MLVT）；新一年公告後加上
+const MINW={2023:200,2024:204,2025:208,2026:210,2027:212}; /* 2027 $212：2026-09-30 公告 */   // 成衣業法定最低工資（MLVT）；新一年公告後加上
 function minWageAt(ym){const y=+ym.slice(0,4);const c=(C().pay.minWage||{})[y];return c!=null?+c:MINW[y]!=null?MINW[y]:null}
 /* 一個人某月的防呆檢查（照 HRA-PAY 實發欄位）：NSSF 上下限、交通 $2.5、底薪低於最低工資 */
 function payGuards(no,ym,r){const P=C().pay;const out=[];if(!r)return out;const n=v=>v==null||v===''||isNaN(+v)?null:+v;
