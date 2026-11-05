@@ -475,7 +475,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.2.26';
+const APPV='0.3.0';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -3069,6 +3069,217 @@ function setLang(i){LANG=i;LS.set('lang',i);try{GC.clear()}catch(e){}try{(IMPQ||
  const hasFiles=e=>e.dataTransfer&&[...(e.dataTransfer.types||[])].includes('Files');
  document.addEventListener('dragenter',e=>{if(!hasFiles(e))return;e.preventDefault();depth++;ov.hidden=false});document.addEventListener('dragover',e=>{if(!hasFiles(e))return;e.preventDefault()});
  document.addEventListener('dragleave',e=>{if(!hasFiles(e))return;depth=Math.max(0,depth-1);if(!depth)ov.hidden=true});document.addEventListener('drop',e=>{if(!hasFiles(e))return;e.preventDefault();depth=0;ov.hidden=true;const fs=e.dataTransfer.files;if(fs&&fs.length)handleFiles(fs)})})();
+/* ══════════ v0.3.0（2026-11-06）：HRA-PAY ＋ HRA Portal 併進 VRT HR（作法同 vrt-prod 併進 PSJERP）══════════
+   兩個平台的頁面都留在原位（同網域 saintdou-weng.github.io），用同網域 iframe 嵌進 VRT HR 的外殼：
+   • 選單照「總覽 → 人員 → 出勤 → 薪資福利」排，同一件事只出現一次——VRT HR 自己的頁和平台頁合成一個選單項，上面用分頁切換（例：薪資＝VRT HR 估算｜HRA-PAY 實發／預支）
+   • 平台頁換上 VRT HR 的顏色／字型（淡色、深色背景都跟著），平台自己的深色大標頭縮成一條小工具列；手機版把平台頁撐滿畫面
+   • 平台頁裡點到另一個模組（例：HRA-PAY 首頁的「Payroll」卡片）→ 直接跳到 VRT HR 對應的分頁，不會在框裡越開越深
+   • 資料照舊存在各平台自己的雲端；從平台頁回到 VRT HR 時自動重抓 HRA-PAY／HRA Portal 的雲端資料，兩邊同步
+   • 不改 HRA-PAY、HRA Portal 的任何檔案：原網址、Telegram 按鈕、密碼鎖、上傳、核准都照舊（平台密碼同網域，一台裝置輸入一次即可） */
+(function(){
+ const ORG=(location.origin&&location.origin!=='null'&&!/^file:/.test(location.href))?location.origin+'/':'../';
+ const SITES={pay:{base:ORG+'ac-hra-pay/',name:'HRA-PAY',tag:'HRA-PAY'},hra:{base:ORG+'ac-hra-portal/',name:'HRA Portal',tag:'Portal'}};
+ window.HR_SITES=SITES;
+ /* 平台頁：[平台, 檔名, 分頁名稱 中/EN/ខ្មែរ, 選單名稱（自己是一個選單項時）] */
+ const FR={
+  'x-pay-sum':['pay','summary_center.html',['HRA-PAY 總覽','HRA-PAY summary','សង្ខេប HRA-PAY']],
+  'x-hra-bi':['hra','ac_hra_complete_v2.html',['人資分析','HR analytics','វិភាគធនធានមនុស្ស']],
+  'x-hra-home':['hra','hra_portal_v2.html',['HRA Portal 匯入／報告','HRA Portal import / reports','HRA Portal នាំចូល / របាយការណ៍']],
+  'x-pay-home':['pay','index.html',['HRA-PAY 匯入／同步','HRA-PAY import / sync','HRA-PAY នាំចូល / ធ្វើសមកាលកម្ម']],
+  'x-pay-emp':['pay','employee_hr.html',['員工名冊（HRA-PAY）','Staff register (HRA-PAY)','បញ្ជីបុគ្គលិក (HRA-PAY)']],
+  'x-pay-transfer':['pay','transfer.html',['職位異動','Position transfer','ផ្លាស់ប្តូរមុខតំណែង']],
+  'x-hra-onb':['hra','ac_hra_onboarding_v3.html',['入離職結算','Join / resign settlement','ទូទាត់ចូល / ចេញការងារ']],
+  'x-hra-contract':['hra','ac_hra_contract_v2.html',['合約／試用','Contract / probation','កិច្ចសន្យា / សាកល្បង']],
+  'x-hra-mat':['hra','ac_hra_maternity_v1.html',['產假／護理費','Maternity / nursing','មាតុភាព / ថែទាំ'],['產假／護理費','Maternity / nursing','មាតុភាព / ថែទាំ']],
+  'x-hra-man':['hra','ac_hra_manpower_v1.html',['人力規劃／招募','Manpower / recruiting','កម្លាំងពលកម្ម / ជ្រើសរើស'],['人力規劃','Manpower','កម្លាំងពលកម្ម']],
+  'x-hra-cert':['hra','ac_hra_certificate_visa_v1.html',['證書／簽證／工作證','Certificate / visa / work permit','វិញ្ញាបនបត្រ / ទិដ្ឋាការ'],['證書／簽證','Certificate / visa','វិញ្ញាបនបត្រ / ទិដ្ឋាការ']],
+  'x-pay-warn':['pay','warning.html',['警告單','Warnings','លិខិតព្រមាន'],['警告單','Warnings','លិខិតព្រមាន']],
+  'x-hra-att':['hra','ac_hra_attendance_v1.html',['每日出勤／人車比','Daily attendance','វត្តមានប្រចាំថ្ងៃ']],
+  'x-hra-leave':['hra','ac_hra_employee_leave_v1.html',['請假單','Leave forms','ពាក្យសុំច្បាប់']],
+  'x-hra-cal':['hra','ac_hra_calendar_v2.html',['柬埔寨假日行事曆','Cambodia holiday calendar','ប្រតិទិនថ្ងៃឈប់សម្រាក']],
+  'x-pay-ot':['pay','ot_bonus.html',['加班／獎金','OT & bonus','ថែមម៉ោង / ប្រាក់រង្វាន់'],['加班／獎金','OT & bonus','ថែមម៉ោង / ប្រាក់រង្វាន់']],
+  'x-pay-stop':['pay','shutdown.html',['停工','Shutdown','ផ្អាកការងារ'],['停工','Shutdown','ផ្អាកការងារ']],
+  'x-pay-salary':['pay','ac_hra_salary_v1.html',['薪資架構／職等','Salary structure / grades','រចនាសម្ព័ន្ធប្រាក់ខែ']],
+  'x-pay-payroll':['pay','payroll.html',['實發薪資／預支（HRA-PAY）','Actual payroll / advance (HRA-PAY)','ប្រាក់ខែពិត / បុរេប្រទាន']],
+  'x-pay-meal':['pay','meal_fee.html',['餐費名冊（HRA-PAY）','Meal-fee lists (HRA-PAY)','បញ្ជីថ្លៃអាហារ (HRA-PAY)']],
+  'x-pay-sen':['pay','seniority.html',['半年年資補償','Seniority indemnity','ប្រាក់អតីតភាព']],
+  'x-pay-nssf':['pay','nssf.html',['NSSF 社保','NSSF','ប.ស.ស.']],
+  'x-hra-welfare':['hra','ac_hra_welfare_suggestion_v1.html',['福利／意見箱','Welfare / suggestions','សុខុមាលភាព / យោបល់']],
+ };
+ /* 平台裡別的網址 → 同一頁（預支已併進 Payroll；HRA Portal 的薪資架構已搬到 HRA-PAY） */
+ const ALIAS_FILE={'pay:advance_pay.html':'x-pay-payroll','hra:ac_hra_salary_v1.html':'x-pay-salary','pay:':'x-pay-home','hra:':'x-hra-home','hra:index.html':'x-hra-home'};
+ window.HR_FR=FR;
+ Object.entries(FR).forEach(([k,f])=>{T[k]=f[2];RENDER[k]=()=>renderFrame(k)});
+ Object.assign(T,{
+  g_report:['報表','Reports','របាយការណ៍'],
+  hub_dash:['總覽','Overview','ទិដ្ឋភាពទូទៅ'],
+  frame_note:['這一頁是 {p} 的原頁面，嵌在 VRT HR 裡：上傳、編輯、核准、Telegram 都照原本的方式，資料存在 {p} 的雲端；回到 VRT HR 其他頁時會自動更新。','This is the original {p} page shown inside VRT HR: uploads, edits, approvals and Telegram work as before and the data lives in the {p} cloud; VRT HR refreshes automatically when you come back.','ទំព័រដើមរបស់ {p} បង្ហាញក្នុង VRT HR'],
+  frame_open:['在新分頁開啟','Open in new tab','បើកផ្ទាំងថ្មី'],
+  frame_reload:['重新載入','Reload','ផ្ទុកឡើងវិញ'],
+  frame_loading:['載入 {p} 頁面中…','Loading {p} page…','កំពុងផ្ទុក {p}…'],
+ });
+ /* 選單：每項 [頁, 圖示, 群組, [分頁…]]——同一件事只出現一次 */
+ const NAV=[
+  ['dashboard','📊','g_over',['dashboard','x-pay-sum','x-hra-bi']],
+  ['smart-import','🧠','g_over',['smart-import','x-pay-home','x-hra-home']],
+  ['emp','👤','g_people',['emp','x-pay-emp','x-pay-transfer']],
+  ['joinleave','🔁','g_people',['joinleave','x-hra-onb','x-hra-contract']],
+  ['annual','🌴','g_people',['annual']],
+  ['x-hra-mat','🤱','g_people',['x-hra-mat']],
+  ['x-hra-man','👷','g_people',['x-hra-man']],
+  ['x-hra-cert','🛂','g_people',['x-hra-cert']],
+  ['x-pay-warn','📛','g_people',['x-pay-warn']],
+  ['att','🕒','g_time',['att','attexc','x-hra-att']],
+  ['leave','📝','g_time',['leave','x-hra-leave']],
+  ['holiday','📅','g_time',['holiday','x-hra-cal']],
+  ['x-pay-ot','⏱️','g_time',['x-pay-ot']],
+  ['x-pay-stop','🛑','g_time',['x-pay-stop']],
+  ['basepay','💵','g_pay',['basepay','x-pay-salary']],
+  ['payroll','💰','g_pay',['payroll','x-pay-payroll']],
+  ['meal','🍚','g_pay',['meal','x-pay-meal']],
+  ['benefits','🎁','g_pay',['benefits','x-pay-sen','x-pay-nssf','x-hra-welfare']],
+  ['sync','🔄','g_hub',['sync']],['reports','📑','g_hub',['reports']],['jobcode','🏷️','g_hub',['jobcode']],
+  ['settings','⚙️','g_sys',['settings']],
+ ];
+ const ICO={'x-pay-sum':'💼','x-hra-bi':'📈','x-hra-home':'🏥','x-pay-home':'💼','x-pay-emp':'🗂️','x-pay-transfer':'🔄','x-hra-onb':'🚪','x-hra-contract':'📋','x-hra-att':'🕐','x-hra-leave':'🧾','x-hra-cal':'🇰🇭','x-pay-salary':'📐','x-pay-payroll':'💵','x-pay-meal':'🍱','x-pay-sen':'🌿','x-pay-nssf':'🛡️','x-hra-welfare':'🤝','attexc':'⚠️'};
+ const HUB_OF={};NAV.forEach(n=>n[3].forEach(k=>{if(!HUB_OF[k])HUB_OF[k]=n[0]}));
+ /* MODS 留著全部頁（圖示查得到），選單改用 NAV */
+ const icoOld={};MODS.forEach(m=>icoOld[m[0]]=m[1]);
+ NAV.forEach(n=>{ if(!MODS.some(m=>m[0]===n[0]))MODS.push([n[0],n[1],n[2]]); n[3].forEach(k=>{ if(!MODS.some(m=>m[0]===k))MODS.push([k,ICO[k]||icoOld[k]||n[1],n[2]]) }) });
+ const NAVL={payroll:['薪資','Payroll','ប្រាក់ខែ'],att:['考勤／出勤','Attendance','វត្តមាន']};
+ const navLabel=k=>{const f=FR[k];if(f&&f[3])return f[3][LANG]||f[3][1];if(NAVL[k])return NAVL[k][LANG]||NAVL[k][1];return t(k)};
+ const tabIco=k=>ICO[k]||icoOld[k]||(MODS.find(m=>m[0]===k)||[])[1]||'';
+ const isFr=k=>!!FR[k];
+ renderNav=function(){ const cur=HUB_OF[CUR]||CUR; let g='',h='';
+  NAV.forEach(([k,ic,grp,tabs])=>{ if(grp!==g){h+=`<div class="nav-g">${esc(t(grp))}</div>`;g=grp}
+   const sites=[...new Set(tabs.filter(isFr).map(x=>FR[x][0]))];
+   const ct=navCount(k)||(tabs.length>1?`<span class="ct"><i class="ptag">${tabs.length}</i></span>`:sites.length?`<span class="ct"><i class="ptag">${esc(SITES[sites[0]].tag)}</i></span>`:'');
+   h+=`<a href="#${k}" class="${k===cur?'on':''}"><span class="ic">${ic}</span><span>${esc(navLabel(k))}</span>${ct}</a>` });
+  $('#nav').innerHTML=h };
+ function hubTabs(k){ const n=NAV.find(x=>x[0]===HUB_OF[k]); if(!n||n[3].length<2)return '';
+  return `<div class="hub-tabs" role="tablist">${n[3].map(m=>`<a href="#${m}" class="${m===k?'on':''}" role="tab">${tabIco(m)} ${esc(t(m))}${isFr(m)?` <i class="ptag" title="${esc(SITES[FR[m][0]].name)}">${esc(SITES[FR[m][0]].tag)}</i>`:''}</a>`).join('')}${isFr(k)?`<a class="hub-ext" href="${esc(frUrl(k))}" target="_blank" rel="noopener" title="${esc(t('frame_open'))}">↗</a>`:''}</div>` }
+ const frUrl=k=>SITES[FR[k][0]].base+FR[k][1];
+ function renderFrame(k){ const f=FR[k],S=SITES[f[0]],url=frUrl(k);
+  return `<div class="ph fr-ph"><div style="min-width:0"><h1>${tabIco(k)} ${esc(t(k))} <span class="hr-chip fr-chip">${esc(S.name)}</span></h1><div class="sub">${esc(t('frame_note').replace(/\{p\}/g,S.name))}</div></div>
+   <div class="acts"><button class="btn sm" onclick="frReload('${k}')">⟳ ${esc(t('frame_reload'))}</button><a class="btn sm" href="${esc(url)}" target="_blank" rel="noopener">${esc(t('frame_open'))} ↗</a></div></div>
+   <div class="pframe-wrap"><div class="fr-load">${esc(t('frame_loading').replace(/\{p\}/g,S.name))}</div><iframe class="pframe" data-k="${k}" src="${esc(url)}" title="${esc(t(k))}" loading="eager" allow="clipboard-write; fullscreen"></iframe></div>` }
+ window.frReload=function(k){ const fr=document.querySelector(`iframe.pframe[data-k="${k}"]`); if(fr){ try{fr.contentWindow.location.reload()}catch(e){fr.src=fr.src} } };
+ /* 換頁時：同一個平台頁不重新載入（雲端同步、換語言、換顏色都不會把框裡打到一半的東西洗掉） */
+ const _rr=rerender;
+ rerender=function(){ const fr=document.querySelector('#page iframe.pframe');
+  if(fr&&fr.dataset.k===CUR&&isFr(CUR)){ const ph=$('#page .fr-ph'),ht=$('#page .hub-tabs'); const tmp=document.createElement('div'); tmp.innerHTML=renderFrame(CUR);
+   if(ph)ph.replaceWith(tmp.querySelector('.fr-ph')); const nt=hubTabs(CUR); if(ht&&nt)ht.outerHTML=nt; renderNav(); applyStatic(); themeFrame(fr); return }
+  _rr.apply(this,arguments); const ht=hubTabs(CUR); if(ht){ const pg=$('#page'); pg.insertAdjacentHTML('afterbegin',ht); const on=pg.querySelector('.hub-tabs .on'); if(on&&on.scrollIntoView)try{on.scrollIntoView({block:'nearest',inline:'center'})}catch(e){} }
+  document.querySelectorAll('#page iframe.pframe').forEach(hookFrame); sizeFrames() };
+ let LAST_SITE='';
+ const _route=route;
+ route=function(){ const prev=CUR; _route.apply(this,arguments); document.body.classList.toggle('framed',isFr(CUR));
+  const ps=isFr(prev)?FR[prev][0]:''; const cs=isFr(CUR)?FR[CUR][0]:'';
+  if(ps&&ps!==cs)refreshFrom(ps); LAST_SITE=cs;
+  if(isFr(CUR))document.title=`${t(CUR)} · VRT HR` };
+ /* 從平台頁回來 → 重抓那個平台的雲端（只抓有變的部分），VRT HR 的數字跟著更新 */
+ let RF={};
+ function refreshFrom(site){ const now=Date.now(); if(RF[site]&&now-RF[site]<20000)return; RF[site]=now;
+  setTimeout(async()=>{ try{
+   if(site==='pay'){ if(typeof HP_ALL!=='undefined'){HP_ALL=null} if(typeof hpEnsureAll==='function')await hpEnsureAll(true,typeof HP_OLD!=='undefined'&&HP_OLD); if(typeof orgEnsure==='function')await orgEnsure(true) }
+   if(site==='hra'){ if(typeof hraNurEnsure==='function')await hraNurEnsure(true) }
+   GC.clear(); if(!isFr(CUR))rerender() }catch(e){ console.warn('refresh',site,e) } },300) }
+ window.addEventListener('focus',()=>{ if(isFr(CUR))return; if(LAST_SITE)refreshFrom(LAST_SITE) });
+ /* 框的高度：撐到畫面底 */
+ function sizeFrames(){ document.querySelectorAll('#page iframe.pframe').forEach(fr=>{ const r=fr.getBoundingClientRect(); const top=r.top+window.scrollY; const h=Math.max(420,window.innerHeight-Math.max(0,top-window.scrollY)-(innerWidth<=860?0:14)); fr.style.height=h+'px' }) }
+ window.addEventListener('resize',()=>sizeFrames());
+ /* ── 平台頁換上 VRT HR 的外觀（同 PSJERP v1.3.0 的作法） ── */
+ const VARS=['bg','surface','surface-2','sunk','ink','ink-2','muted','line','line-2','accent','accent-2','accent-soft','on-accent','good','good-soft','warn','warn-soft','crit','crit-soft'];
+ const hex2=c=>{ c=String(c||'').trim(); let m=c.match(/^#([0-9a-f]{3,8})$/i); if(m){ let h=m[1]; if(h.length<6)h=h.split('').map(x=>x+x).join(''); return [0,2,4].map(i=>parseInt(h.substr(i,2),16)/255) }
+  m=c.match(/rgba?\(([^)]+)\)/i); if(m){ const p=m[1].split(/[ ,\/]+/).filter(Boolean).map(parseFloat); return [p[0]/255,p[1]/255,p[2]/255] } return null };
+ const toHex=a=>'#'+a.map(x=>Math.round(Math.max(0,Math.min(1,x))*255).toString(16).padStart(2,'0')).join('');
+ const MX=[[-0.574,1.43,0.144],[0.426,0.43,0.144],[0.426,1.43,-0.856]];
+ const inv3=m=>{ const [a,b,c]=m[0],[d,e,f]=m[1],[g,h,i]=m[2]; const A=e*i-f*h,B=-(d*i-f*g),C=d*h-e*g; const det=a*A+b*B+c*C; return [[A/det,-(b*i-c*h)/det,(b*f-c*e)/det],[B/det,(a*i-c*g)/det,-(a*f-c*d)/det],[C/det,-(a*h-b*g)/det,(a*e-b*d)/det]] };
+ const MI=inv3(MX);
+ const pre=c=>{ const t0=hex2(c); if(!t0)return c; const u=MI.map(r=>r[0]*t0[0]+r[1]*t0[1]+r[2]*t0[2]); return toHex(u.map(x=>1-x)) };
+ const isDark=()=>!!document.documentElement.dataset.dark;
+ function tokens(){ const cs=getComputedStyle(document.documentElement); const o={}; VARS.forEach(v=>{ const x=cs.getPropertyValue('--'+v).trim(); o[v]=isDark()?pre(x):x });
+  o.font=cs.getPropertyValue('--f-ui').trim()||'system-ui,sans-serif'; o.r=cs.getPropertyValue('--r').trim()||'8px'; return o }
+ const ALIAS={bg:['bg','paper','page','background'],surface:['card','panel','s1','sur','white','surface','paper2'],'surface-2':['panel2','s2','soft','sur2','surface2','acc-l'],sunk:['s3'],
+  ink:['ink','t1','tx','text','fg','txt'],'ink-2':['sub','ink2','t2','tx2'],muted:['muted','ink3','mu','tx3'],line:['line','bd','bor','border'],'line-2':['line2','bd2','bor2'],
+  accent:['brand','acc','vrt','navy','primary','accent','green','g1'],'accent-2':['brand2','acc-d','vrt2','navy2','accent2','g2'],'accent-soft':['brand-soft','accent-soft','blue-soft']};
+ function css(o){ const vars=Object.entries(ALIAS).map(([k,arr])=>arr.map(a=>`--${a}:${o[k]}!important;`).join('')).join('')+VARS.map(v=>`--psj-${v}:${o[v]};`).join('')+`--psj-font:${o.font};--psj-r:${o.r};`;
+  const H='.psj-hdr';
+  return `html:root{${vars}}
+html,body{background:var(--psj-bg)!important;background-image:none!important}
+body{color:var(--psj-ink);font-family:var(--psj-font)!important;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font-family:inherit}
+${H}{background:var(--psj-surface)!important;background-image:none!important;color:var(--psj-ink)!important;border-bottom:1px solid var(--psj-line)!important;box-shadow:none!important;padding:6px 12px!important;min-height:0!important;height:auto!important;gap:8px!important;flex-wrap:wrap!important;align-items:center!important;position:relative!important;top:auto!important}
+${H} *{color:inherit!important;text-shadow:none!important}
+${H} .logo,${H} .htitle,${H} .h-title,${H} .brand,${H} h1,${H} .hdr-name h1,${H} .hd-logo,${H} .logo-ic{display:none!important}
+${H} .hsub,${H} .h-sub,${H} .sub,${H} .brand-sub,${H} p{font-size:11.5px!important;opacity:.75;margin:0!important;letter-spacing:0!important}
+${H} button,${H} .hbtn,${H} .header-btn,${H} .tool-btn,${H} a.btn,${H} .langs button,${H} .lang button,${H} select{background:var(--psj-surface-2)!important;border:1px solid var(--psj-line)!important;color:var(--psj-ink)!important;border-radius:var(--psj-r)!important;box-shadow:none!important;padding:5px 10px!important;font-size:12.5px!important;min-height:0!important}
+${H} .langs button.on,${H} .lang button.on,${H} button.on,${H} button.active,${H} .lang button.active{background:var(--psj-accent)!important;color:var(--psj-on-accent)!important;border-color:var(--psj-accent)!important}
+${H} input{background:var(--psj-surface-2)!important;border:1px solid var(--psj-line)!important;color:var(--psj-ink)!important}
+${H} .psj-floats{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-left:auto}
+.psj-float{position:static!important;inset:auto!important;transform:none!important;margin:0!important;box-shadow:none!important;z-index:auto!important}
+${H} .psj-float{background:var(--psj-surface-2)!important;border:1px solid var(--psj-line)!important;border-radius:var(--psj-r)!important;padding:2px 6px!important;font-size:11.5px!important}
+a.back,.back-btn,.btn-back,a[href="./index.html"].back,a[href="index.html"].back,a[href="hra_portal_v2.html"].back{display:none!important}
+@media (max-width:760px){${H}{padding:4px 8px!important;gap:4px!important}${H} .hstats,${H} .h-stats,${H} .hstat,${H} .hsub,${H} .h-sub,${H} .sub,${H} .brand-sub,${H} p{display:none!important}${H} button,${H} .hbtn{padding:4px 8px!important;font-size:12px!important}}
+${isDark()?'img,video,picture,canvas{filter:invert(1) hue-rotate(180deg)}':''}` }
+ const lum=c=>{ const a=hex2(c); return a?0.2126*a[0]+0.7152*a[1]+0.0722*a[2]:1 };
+ function markHeaders(doc){ const w=doc.defaultView; if(!w||!doc.body)return 0; let n=0;
+  const cand=[...doc.querySelectorAll('body > .header, body > .hdr, body > header, body > .topbar, body > .app-header, body > .top, body > .hd, body > .wrap > header, body > .container > header, body > .app > header, body > div > header.hdr')];
+  [...doc.body.children].slice(0,4).forEach(e=>{ if(!cand.includes(e))cand.push(e) });
+  cand.forEach(e=>{ if(e.classList.contains('psj-hdr')){n++;return} const cs=w.getComputedStyle(e); if(cs.display==='none'||cs.position==='fixed'&&e.offsetHeight<60)return; const r=e.getBoundingClientRect(); if(r.top>140||r.height>320||r.height<24)return;
+   const bg=cs.backgroundColor,img=cs.backgroundImage; const dark=(bg&&!/rgba\(0, 0, 0, 0\)|transparent/.test(bg)&&lum(bg)<0.45)||(img&&img!=='none'&&/gradient/.test(img)&&lum((img.match(/rgba?\([^)]+\)|#[0-9a-f]{3,8}/i)||['#fff'])[0])<0.45);
+   if(dark){ e.classList.add('psj-hdr'); n++ } });
+  const hd=doc.querySelector('.psj-hdr');
+  if(hd){ let box=hd.querySelector(':scope > .psj-floats'); [...doc.body.children].forEach(e=>{ if(e===hd||e.classList.contains('psj-float'))return; const cs=w.getComputedStyle(e); if(cs.position!=='fixed')return; const r=e.getBoundingClientRect(); if(r.top>12||r.height>48||r.width>320||r.width<10)return;
+    if(!box){ box=doc.createElement('div'); box.className='psj-floats'; hd.appendChild(box) } e.classList.add('psj-float'); box.appendChild(e) }) }
+  return n }
+ /* 平台頁裡點到別的模組 → 跳到 VRT HR 對應的分頁 */
+ function keyOfUrl(href){ let u; try{ u=new URL(href,location.href) }catch(e){ return null } if(u.origin!==new URL(ORG,location.href).origin&&!/^file:/.test(u.href))return null;
+  for(const [s,S] of Object.entries(SITES)){ const b=new URL(S.base,location.href); if(!u.pathname.startsWith(b.pathname))continue; const file=u.pathname.slice(b.pathname.length);
+   const k=Object.keys(FR).find(x=>FR[x][0]===s&&FR[x][1]===file)||ALIAS_FILE[s+':'+file]; return k||null }
+  return null }
+ function hookLinks(doc,fr){ if(doc.__psjLinks)return; doc.__psjLinks=1;
+  doc.addEventListener('click',e=>{ const a=e.target.closest&&e.target.closest('a[href]'); if(!a||e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey)return; const href=a.getAttribute('href'); if(!href||href.startsWith('#')||/^(javascript|mailto|tel|blob|data):/i.test(href))return;
+   const k=keyOfUrl(a.href); if(!k||k===fr.dataset.k)return; e.preventDefault(); location.hash=k },true) }
+ function themeFrame(fr){ let doc=null; try{ doc=fr.contentDocument }catch(e){ doc=null } if(!doc||!doc.head||!doc.body)return false;
+  try{ let st=doc.getElementById('psj-theme'); if(!st){ st=doc.createElement('style'); st.id='psj-theme' } st.textContent=css(tokens()); doc.head.appendChild(st);
+   if(!doc.getElementById('psj-font')){ const lk=document.querySelector('link[href*="fonts.googleapis.com/css2"]'); if(lk){ const l2=doc.createElement('link'); l2.id='psj-font'; l2.rel='stylesheet'; l2.href=lk.href; doc.head.appendChild(l2) } }
+   markHeaders(doc); hookLinks(doc,fr); fr.classList.add('psj-themed'); const ld=fr.parentElement&&fr.parentElement.querySelector('.fr-load'); if(ld)ld.remove();
+   [700,2500,6000].forEach(ms=>setTimeout(()=>{ try{ if(fr.contentDocument===doc){ markHeaders(doc); if(!doc.getElementById('psj-theme'))doc.head.appendChild(st) } }catch(e){} },ms));
+   return true }catch(e){ console.warn('frame theme',e); return false } }
+ window.themeFrame=themeFrame;
+ function hookFrame(fr){ if(fr.dataset.psjHook)return; fr.dataset.psjHook=1;
+  fr.addEventListener('load',()=>{ themeFrame(fr); /* 框裡自己換頁（例：平台的返回鈕）→ VRT HR 的分頁跟著換 */ try{ const k=keyOfUrl(fr.contentWindow.location.href); if(k&&k!==fr.dataset.k&&k!==CUR){ fr.dataset.k=k; history.replaceState(null,'','#'+k); CUR=k; rerender() } }catch(e){} });
+  try{ if(fr.contentDocument&&fr.contentDocument.readyState!=='loading'&&fr.contentDocument.URL!=='about:blank')themeFrame(fr) }catch(e){} }
+ const _st=window.setTint; if(typeof _st==='function'){ setTint=function(){ const r=_st.apply(this,arguments); setTimeout(()=>document.querySelectorAll('iframe.pframe').forEach(themeFrame),30); return r } }
+ /* 側欄最下面原本的「HRA Portal ↗」已經併進來，拿掉；改放兩個平台的原網址（要單獨開時用） */
+ try{ const pl=document.getElementById('prodLinks'); if(pl){ const a=[...pl.querySelectorAll('a')].find(x=>/ac-hra-portal/.test(x.href)); if(a)a.remove();
+   pl.insertAdjacentHTML('beforeend',`<a href="${SITES.pay.base}index.html" target="_blank" rel="noopener">💼 HRA-PAY ↗</a><a href="${SITES.hra.base}hra_portal_v2.html" target="_blank" rel="noopener">🏥 HRA Portal ↗</a>`) } }catch(e){}
+ const st=document.createElement('style'); st.textContent=`
+ .hub-tabs{display:flex;gap:4px;overflow-x:auto;margin:-4px 0 12px;padding-bottom:2px;border-bottom:1px solid var(--line);scrollbar-width:none;align-items:flex-end}
+ .hub-tabs::-webkit-scrollbar{display:none}
+ .hub-tabs a{flex:0 0 auto;padding:8px 12px;font-weight:600;font-size:13.5px;color:var(--ink-2);text-decoration:none;border-bottom:3px solid transparent;white-space:nowrap}
+ .hub-tabs a.on{color:var(--accent);border-bottom-color:var(--accent)}
+ .hub-tabs .ptag,.nav .ptag{font-style:normal;font-size:10px;color:var(--muted);border:1px solid var(--line-2,var(--line));border-radius:4px;padding:0 4px;font-weight:500}
+ .hub-tabs a.hub-ext{margin-left:auto;color:var(--muted);font-weight:500}
+ .fr-chip{font-size:11px;vertical-align:middle;margin-left:4px}
+ .pframe-wrap{position:relative;display:block}
+ .pframe{width:100%;height:calc(100vh - 190px);min-height:420px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);display:block}
+ .fr-load{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:13px;pointer-events:none}
+ body.framed .page{padding-bottom:10px}
+ :root[data-dark] iframe.pframe.psj-themed{filter:invert(1) hue-rotate(180deg);background:#fff}
+ :root[data-dark] .pframe-wrap:has(> iframe.psj-themed)::after{content:'';position:absolute;inset:1px;background:var(--bg);mix-blend-mode:lighten;pointer-events:none;border-radius:var(--r)}
+ @media (max-width:860px){
+  body.framed .page{padding:0}
+  body.framed .fr-ph{display:none}
+  body.framed .top .search,body.framed .top .cloud-badge{display:none}
+  body.framed .hub-tabs{margin:0;padding:0 8px;background:var(--surface)}
+  .pframe{border:0;border-radius:0;min-height:0}
+  :root[data-dark] .pframe-wrap:has(> iframe.psj-themed)::after{inset:0;border-radius:0}
+ }`;
+ document.head.appendChild(st);
+})();
+
 async function init(){
  $('#page').innerHTML=`<div class="note">${tt('載入資料中…','Loading data…')}</div>`;
  await IDB.open(); bgLoad(); await loadDB(); document.documentElement.dataset.theme='light'; document.body.classList.toggle('show-pii',SHOW_PII); $('#piiBtn').textContent=SHOW_PII?'👁️':'🙈';
