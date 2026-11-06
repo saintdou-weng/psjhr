@@ -2981,6 +2981,8 @@ function incStats(){return cached('incst',()=>{const H=HPD();const T=id=>(emp(id
   for(const [id,a] of Object.entries(P)){if(a.AK==null)continue;const k=ot?'ot':'lo';const t=T(id);if(t){const o=tt[t]||(tt[t]={ot:0,otN:0,lo:0,loN:0});o[k]++;if(+a.N>0)o[k+'N']++}
    const q=pp[id]||(pp[id]=[]);q.push([ym,ot,+a.N||0])}}
  for(const q of Object.values(pp))q.sort((x,y)=>y[0].localeCompare(x[0]));return {mk,tt,pp}})}
+/* 金額每年不同（2021 年是 $8、現在 $12）：用最接近月份 HRA-PAY 最常見的金額 */
+function incAmt(ym){return cached('inca|'+ym,()=>{const H=HPD();for(const k of hpFlagMonths(ym)){const v=Object.values(H.pay[k]).map(a=>+a.N||0).filter(x=>x>0);if(v.length<10)continue;const c={};v.forEach(x=>{const r=Math.round(x*4)/4;c[r]=(c[r]||0)+1});return +Object.entries(c).sort((a,b)=>b[1]-a[1])[0][0]}return 12})}
 function incClass(no,ym){const st=incStats();const hist=(st.pp[no]||[]).filter(x=>x[0]!==ym);
  const lo=hist.filter(x=>!x[1]).slice(0,3),ot=hist.filter(x=>x[1]);
  if(lo.some(x=>x[2]>0))return 'fix';if(lo.length&&ot.some(x=>x[2]>0))return 'ot';
@@ -3009,7 +3011,7 @@ function payCalc(R){const P=C().pay;const ym=monthKey(R.from);const NFX=nssfFxAt
   const fl=hpFlags(o.emp_no,ym);const K=(r.E+r.G+r.H+r.I)/P.div*J+r.F, Sest=fl.noAdv?0:Math.max(0,r.E/P.div*J1-(r.E+r.G)/P.hrs*(AHM[o.emp_no]||0)), Sact=advActual(o.emp_no,ym), S=Sact!=null?Sact:Sest, Uamt=-(r.E+r.G)/P.hrs*U, Vamt=-(r.E+r.G)/P.hrs*V;
   const join=parseD(e.join_date);const TR=ym>='2026-04'?P.trans:7,TRh=ym>='2026-04'?P.transHalf:3.5;/* 交通 $7，2026-04 起加住宿 $2.50（HRA-PAY 規則） */const X=fl.noX?0:join&&(parseD(me)-join)/864e5>31?TR:(J>14?TR:TRh);const Y=fl.noY?0:Math.max(0,P.attBonus/P.div*(J-(U+V)/8));
   const AA=r.E/P.div*o.AA, ABa=r.E/P.hrs*P.ot1*AB, AD=r.E/P.div*P.sun*o.AD, AE=AA+ABa+AD;
-  const IC=incClass(o.emp_no,ym);const incB=IC==='fix'?(fl.incBase||12):IC==='ot'&&AB>=INC_OT_HRS?12:0;
+  const IC=incClass(o.emp_no,ym);const IA=incAmt(ym);const incB=IC==='fix'?(fl.incBase||IA):IC==='ot'&&AB>=INC_OT_HRS?IA:0;
   const N=adj._ed&&adj.bonus!=null&&adj.bonus!==''?+adj.bonus:Math.max(0,incB-P.incDed*(U+V)),M=-(+adj.deduct||0),Ra=+adj.al_paid||0,AF=+adj.adjust||0;
   const SX=shutExempt(ym);/* 停工不扣：職務加給 ≥ $30（組長、主管、辦公室；2026-07 54 位不扣的幾乎都是這些人），或之前停工月份 HRA-PAY 沒扣、且有職務加給的人 */const shEx=(+r.H||0)>=30||(SX&&SX.has(o.emp_no)&&(+r.H||0)>0);const Tsh=(o.SDn>o.SDw)&&!shEx?-r.E/P.div*0.5*(o.SDn-o.SDw):0;
   const AG=Y+X+N+M+K+Uamt+Ra+Vamt+AF+Tsh-S; const gross=AG+AE+S;
@@ -3253,7 +3255,7 @@ function advHrsMap(ym){return cached('advh|'+ym,()=>{const P=C().pay;const m={};
 /* 實際已發的預支：月薪表有就用月薪表扣回的 S；只有預支表就用預支表的實發（AK）；兩個都沒有回 null */
 function advActual(no,ym){const H=HPD();const p=(H.pay[ym]||{})[no];if(p&&p.AK!=null)return +p.S||0;const A=H.adv[ym];if(A&&Object.keys(A).length){const a=A[no];return a?(a.AK!=null?+a.AK:+a.S||0):0}return null}
 /* 沒有 HRA-PAY 的月份：用 VRT HR 出勤＋請假＋員工資料試算，存在這台電腦；HRA-PAY 進來後自動改用實際 */
-const PEST_K='psj_pest_v1';const PEST_V='0.3.4-c3';/* 試算規則有改就換這個，所有試算月份會重算 */let PEST=null;
+const PEST_K='psj_pest_v1';const PEST_V='0.3.4-c4';/* 試算規則有改就換這個，所有試算月份會重算 */let PEST=null;
 function pestAll(){if(PEST)return PEST;try{PEST=JSON.parse(localStorage.getItem(PEST_K)||'{}')}catch(e){PEST={}}return PEST}
 function pestSave(){try{localStorage.setItem(PEST_K,JSON.stringify(PEST||{}))}catch(e){}}
 let HP_MAN_MONTHS=null;
