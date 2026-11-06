@@ -3100,16 +3100,17 @@ const xrId=r=>String(r.empId||r.employeeId||r.factoryId||r.fid||r.cardId||r.idNo
 const xrDate=(c,r,bk)=>{const v=c==='trans'||c==='union'||c==='sen'||c==='nssf'?(r.period||bk):c==='join'?r.joinDate:c==='resign'?r.resignDate:c==='settle'?r.settleDate:c==='prob'?(r.evalDate||r.probEnd||r.period):c==='recruit'?r.registerDate:c==='visa'?(r.visaExpiry||r.workPermitExpiry||r.joinDate):c==='cert'?(r.expiryDate||r.startDate):c==='lform'?r.startDate:c==='mat'?(r.date||r.visitDate||r.leaveStart||r.payMonth||r.applyDate||r.period):c==='transfer'?r.effDate:c==='stop'?r.start:c==='otb'?(r.year&&r.month?r.year+'-'+pad(r.month):bk):'';return String(v||bk||'').slice(0,10)};
 let XR_P=null,XR_BUSY=false;
 function XRD(){const H=HPD();return H.xr||(H.xr={})}
-function xrEnsure(force){if(XR_P&&!force)return XR_P;XR_P=(async()=>{XR_BUSY=true;let changed=0;const X=XRD();
- for(const [tool,u,kinds] of XR_SRC){try{const url=u==='hp'?HP_URL:SAL_URL;const m=await fetch(url+'?action=smartManifest&tool='+tool).then(r=>r.json());const d=m.data||m;const hs=d.hashes||{};const T0=X[tool]||(X[tool]={h:{},b:{}});
+function xrEnsure(force){if(XR_P&&!force)return XR_P;XR_P=(async()=>{XR_BUSY=true;let changed=0;const X=XRD();const tasks=[];
+ /* 先一次抓 12 個資料集的目錄（並行），再用 10 條線一起抓有變的桶子 */
+ await Promise.all(XR_SRC.map(async([tool,u,kinds])=>{try{const url=u==='hp'?HP_URL:SAL_URL;const m=await fetch(url+'?action=smartManifest&tool='+tool).then(r=>r.json());const d=m.data||m;const hs=d.hashes||{};const T0=X[tool]||(X[tool]={h:{},b:{}});
    for(const k of Object.keys(T0.h))if(!(k in hs)){delete T0.h[k];delete T0.b[k];changed++}
-   const todo=Object.keys(hs).filter(k=>T0.h[k]!==hs[k]&&!/online/.test(k));let i=0;
-   const w=async()=>{while(i<todo.length){const k=todo[i++];try{const j=await fetch(url+'?action=smartBucket&tool='+tool+'&bucket='+encodeURIComponent(k)).then(r=>r.json());const bk=(k.match(/^m:(\d{4}-\d{2})/)||[])[1]||'';const out=[];
-     for(const x of (((j.data||j).records)||[])){const r=x.row||x;if(!r||r._deleted||r.deleted===true||r.deleted==='true')continue;const kd=String(r._kind||r.kind||r.type||'');const c=kinds[kd]||(kinds['*']&&!/^(import|imports|settings|meta|onlineMeta|monthSnapshot|calendarSnapshot)$/.test(kd)?kinds['*']:null);if(!c)continue;
-      const o={c,_bk:bk};for(const [a,b] of Object.entries(r)){if(/^_(excel|source|sync)|sourceFiles|versions|evidence|importHistory|^detail$|changeLog/.test(a))continue;if(b==null||b==='')continue;o[a]=typeof b==='object'?(Array.isArray(b)&&b.length<=6?b.map(z=>typeof z==='object'?'':String(z)).filter(Boolean).join('、').slice(0,160):''):String(b).slice(0,240)}
-      if(r.type&&c==='mat')o.mtype=String(r.type);out.push(o)}
-     T0.b[k]=out;T0.h[k]=hs[k];changed++}catch(e){}}};
-   await Promise.all([w(),w(),w(),w(),w()]);T0.at=nowStamp()}catch(e){console.warn('xr',tool,e)}}
+   Object.keys(hs).filter(k=>T0.h[k]!==hs[k]&&!/online/.test(k)).forEach(k=>tasks.push({tool,url,kinds,k,h:hs[k],T0}))}catch(e){console.warn('xr manifest',tool,e)}}));
+ let i=0,done=0;const w=async()=>{while(i<tasks.length){const t=tasks[i++];try{const j=await fetch(t.url+'?action=smartBucket&tool='+t.tool+'&bucket='+encodeURIComponent(t.k)).then(r=>r.json());const bk=(t.k.match(/^m:(\d{4}-\d{2})/)||[])[1]||'';const out=[];
+   for(const x of (((j.data||j).records)||[])){const r=x.row||x;if(!r||r._deleted||r.deleted===true||r.deleted==='true')continue;const kd=String(r._kind||r.kind||r.type||'');const c=t.kinds[kd]||(t.kinds['*']&&!/^(import|imports|settings|meta|onlineMeta|monthSnapshot|calendarSnapshot)$/.test(kd)?t.kinds['*']:null);if(!c)continue;
+    const o={c,_bk:bk};for(const [a,b] of Object.entries(r)){if(/^_(excel|source|sync)|sourceFiles|versions|evidence|importHistory|^detail$|changeLog/.test(a))continue;if(b==null||b==='')continue;o[a]=typeof b==='object'?(Array.isArray(b)&&b.length<=6?b.map(z=>typeof z==='object'?'':String(z)).filter(Boolean).join('、').slice(0,160):''):String(b).slice(0,240)}
+    if(r.type&&c==='mat')o.mtype=String(r.type);out.push(o)}
+   t.T0.b[t.k]=out;t.T0.h[t.k]=t.h;changed++;done++;if(done%60===0){HP_DIRTY=true;persist();GC.clear()}}catch(e){}}};
+ await Promise.all(Array.from({length:10},w));XR_SRC.forEach(([tool])=>{if(X[tool])X[tool].at=nowStamp()});
  XR_BUSY=false;if(changed){HP_DIRTY=true;persist();GC.clear();if(PROF_NO&&!$('#drawer').hidden&&PROF_TAB==='hr')openEmp(PROF_NO,true);else if(XR_PAGE[CUR])rerender()}return changed})();return XR_P}
 window.xrEnsure=xrEnsure;
 function xrAll(c){return cached('xra|'+c,()=>{const X=XRD();const out=[];const seen=new Set();for(const [tool,,kinds] of XR_SRC){if(!Object.values(kinds).includes(c))continue;const T0=X[tool];if(!T0)continue;for(const arr of Object.values(T0.b))for(const o of arr){if(o.c!==c)continue;const key=o._k||o.id||JSON.stringify([xrId(o),xrDate(c,o,o._bk),o.amount||'',o.mtype||'']);if(seen.has(key))continue;seen.add(key);out.push(o)}}return out.sort((a,b)=>xrDate(c,b,b._bk).localeCompare(xrDate(c,a,a._bk)))})}
