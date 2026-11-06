@@ -2987,7 +2987,7 @@ function payCalc(R){const P=C().pay;const ym=monthKey(R.from);const NFX=nssfFxAt
   const join=parseD(e.join_date);const X=fl.noX?0:join&&(parseD(me)-join)/864e5>31?P.trans:(J>14?P.trans:P.transHalf);const Y=fl.noY?0:Math.max(0,P.attBonus/P.div*(J-(U+V)/8));
   const AA=r.E/P.div*o.AA, ABa=r.E/P.hrs*P.ot1*AB, AD=r.E/P.div*P.sun*o.AD, AE=AA+ABa+AD;
   const N=adj._ed&&adj.bonus!=null&&adj.bonus!==''?+adj.bonus:Math.max(0,(fl.incBase||0)-P.incDed*(U+V)),M=-(+adj.deduct||0),Ra=+adj.al_paid||0,AF=+adj.adjust||0;
-  const SX=shutExempt(ym);/* 停工不扣：之前停工月份 HRA-PAY 沒扣的人；沒有可學的月份時，職務加給 ≥ $30（組長、主管、辦公室）不扣（2026-07 54 位不扣的幾乎都是這些人） */const shEx=SX?SX.has(o.emp_no):(+r.H||0)>=30;const Tsh=(o.SDn>o.SDw)&&!shEx?-r.E/P.div*0.5*(o.SDn-o.SDw):0;
+  const SX=shutExempt(ym);/* 停工不扣：職務加給 ≥ $30（組長、主管、辦公室；2026-07 54 位不扣的幾乎都是這些人），或之前停工月份 HRA-PAY 沒扣、且有職務加給的人 */const shEx=(+r.H||0)>=30||(SX&&SX.has(o.emp_no)&&(+r.H||0)>0);const Tsh=(o.SDn>o.SDw)&&!shEx?-r.E/P.div*0.5*(o.SDn-o.SDw):0;
   const AG=Y+X+N+M+K+Uamt+Ra+Vamt+AF+Tsh-S; const gross=AG+AE+S;
   const NB=nssfAt(ym);const nssfB=Math.min(NB.max,Math.max(NB.min,gross*NFX)); const AH=fl.nssfEx?0:-nssfB*NB.pen/NFX;
   const AJ1=(AG+AE)-X+S; const AJ=fl.taxEx?0:-(taxKHR(AJ1*TFX-(fl.deps||0)*P.taxDep)/TFX); const AI=-unionDue(o.emp_no,ym);const AK=Math.round((AG+AE+AJ+AH+AI+(fl.other||0))*10)/10;
