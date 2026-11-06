@@ -475,7 +475,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.3.2';
+const APPV='0.3.3';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2146,7 +2146,7 @@ function showModal(html){$('#modal').innerHTML=html;$('#modal').hidden=false;$('
 let PROF_NO=null;
 /* ---------- employee profile drawer: tabs like BEST "Staff data", history lists paged ---------- */
 let PROF_TAB='prof',PROF_PG={};
-const PROF_TABS=[['prof','👤','基本資料','Personal','ព័ត៌មានផ្ទាល់ខ្លួន'],['job','🏷️','職務','Job','ការងារ'],['pay','💵','薪資','Pay','ប្រាក់ខែ'],['att','🕒','出勤','Attendance','វត្តមាន'],['leave','📝','請假／特休','Leave','ការឈប់សម្រាក'],['mat','🤱','產假／哺乳','Maternity','មាតុភាព'],['more','📚','學經歷／家庭','Background','ប្រវត្តិ'],['note','🗒️','備註','Notes','កំណត់ចំណាំ']];
+const PROF_TABS=[['prof','👤','基本資料','Personal','ព័ត៌មានផ្ទាល់ខ្លួន'],['job','🏷️','職務','Job','ការងារ'],['pay','💵','薪資','Pay','ប្រាក់ខែ'],['att','🕒','出勤','Attendance','វត្តមាន'],['leave','📝','請假／特休','Leave','ការឈប់សម្រាក'],['mat','🤱','產假／哺乳','Maternity','មាតុភាព'],['more','📚','學經歷／家庭','Background','ប្រវត្តិ'],['hr','📂','HR 紀錄','HR records','កំណត់ត្រា HR'],['note','🗒️','備註','Notes','កំណត់ចំណាំ']];
 /* v0.2.21 每個頁籤上方：編輯（該頁的欄位）、匯出 Excel、列印、匯入 */
 const PF={prof:['marital','passport','blood','dependents','family_ins','tel_home','mobile2','address','addr_home','birth_place','nssf'],job:['staff_type','shift','rest_type','wage_type','cost_type','cal_ot','ot_record','allow_claim','control','ins_date','ins_end','sen_acc','sen_deduct','sen_act','group','position'],bank:['bank_name','account','ins_pay','nssf_pay'],edu:['education','major']};
 function profToolsHTML(no,tab){const q=`'${esc(no)}'`,P=`{emp_no:${q}}`;const ym=monthKey(TODAY);const B=(ic,l,on)=>`<button class="btn sm" onclick="${on}">${ic} ${l}</button>`;let ed='';
@@ -2307,6 +2307,7 @@ function openEmp(no,keep){
   h+=H3('📘','訓練紀錄','Training','ការបណ្ដុះបណ្ដាល')+(tr.length?pagedHTML('tr',tr,10,part=>`<div class="tbl-wrap"><table class="t"><tbody>${part.map(x=>`<tr><td class="mono small">${dv(x.from)}</td><td class="mono small">${dv(x.to)}</td><td>${esc(x.name||'')}</td><td>${esc(x.note||'')}</td></tr>`).join('')}</tbody></table></div>`):`<p class="small muted">${tt('還沒匯入（BEST Staff data 的這一頁要逐人讀取，尚未做）。','Not imported yet (this BEST Staff data page has to be read person by person).','មិនទាន់នាំចូល (ទំព័រនេះក្នុង BEST ត្រូវអានម្នាក់ៗ)។')}</p>`);
   h+=H3('💼','工作經歷','Work experience','បទពិសោធន៍ការងារ')+(xp.length?pagedHTML('xp',xp,10,part=>`<div class="tbl-wrap"><table class="t"><tbody>${part.map(x=>`<tr><td class="mono small">${dv(x.from)}</td><td class="mono small">${dv(x.to)}</td><td>${esc(x.company||'')}</td><td>${esc(x.position||'')}</td></tr>`).join('')}</tbody></table></div>`):`<p class="small muted">${tt('還沒匯入（BEST Staff data 的這一頁要逐人讀取，尚未做）。','Not imported yet (this BEST Staff data page has to be read person by person).','មិនទាន់នាំចូល (ទំព័រនេះក្នុង BEST ត្រូវអានម្នាក់ៗ)។')}</p>`);
  }
+ if(T0==='hr'){h+=xrProfHTML(no)}
  if(T0==='note'){
   h+=H3('🗒️','備註（雲端同步）','Notes (synced)','កំណត់ចំណាំ (សមកាលកម្ម)')+`<textarea class="inp" id="empNote" rows="5" style="width:100%">${esc(note)}</textarea><div style="display:flex;gap:8px;margin-top:8px"><button class="btn pri sm" onclick="cloudNote('${esc(no)}',$('#empNote').value);toast('${esc(tt('已儲存','Saved'))}')">${tt('儲存備註','Save note')}</button><a class="btn sm" href="#emp" onclick="S('emp').q='${esc(no)}';S('emp').status='';closeDrawer()">${tt('在員工頁開啟','Open in Employees')}</a></div>`;
  }
@@ -3074,6 +3075,97 @@ function setLang(i){LANG=i;LS.set('lang',i);try{GC.clear()}catch(e){}try{(IMPQ||
  const hasFiles=e=>e.dataTransfer&&[...(e.dataTransfer.types||[])].includes('Files');
  document.addEventListener('dragenter',e=>{if(!hasFiles(e))return;e.preventDefault();depth++;ov.hidden=false});document.addEventListener('dragover',e=>{if(!hasFiles(e))return;e.preventDefault()});
  document.addEventListener('dragleave',e=>{if(!hasFiles(e))return;depth=Math.max(0,depth-1);if(!depth)ov.hidden=true});document.addEventListener('drop',e=>{if(!hasFiles(e))return;e.preventDefault();depth=0;ov.hidden=true;const fs=e.dataTransfer.files;if(fs&&fs.length)handleFiles(fs)})})();
+/* ══════════ v0.3.3（2026-11-06）HRA Portal ＋ HRA-PAY 其他資料併進 VRT HR（資料層） ══════════
+   Paul：「所有 HR 相關的都進 PSJHR，除非重複的才不要」——之前只讀 HRA-PAY 薪資／餐費／員工資料、HRA Portal 薪資架構／護理費，
+   這版再讀：交通／住宿名單、工會會費、到職登記、離職原因、離職結算、試用評核、招募、外籍簽證／工作證、公司證照、請假單、產假（全部類型）、
+   職位異動、半年年資實發、NSSF 名冊、加班／獎金、停工。只讀（不改兩個平台的資料），每個桶子有變才重抓。
+   顯示：員工個人頁「📂 HR 紀錄」逐人列出；福利結算多「交通住宿／工會會費／NSSF 名冊／年資實發／加班獎金／停工／證照」分頁。 */
+const XR_SRC=[
+ ['welfare','sal',{members:'trans',unionDues:'union'}],
+ ['onboarding','sal',{join:'join',resign:'resign',settle:'settle'}],
+ ['contract','sal',{'*':'prob'}],
+ ['manpower','sal',{'*':'recruit'}],
+ ['certificate_visa','sal',{person:'visa',certificate:'cert'}],
+ ['attendance_leave','sal',{leave:'lform'}],
+ ['maternity','sal',{'*':'mat'}],
+ ['hrpay_transfer','hp',{'*':'transfer'}],
+ ['hrpay_seniority','hp',{employee:'sen'}],
+ ['hrpay_nssf','hp',{employee:'nssf'}],
+ ['hrpay_shutdown','hp',{'*':'stop'}],
+ ['hrpay_ot_bonus','hp',{'*':'otb'}],
+];
+const XR_CAT={trans:['🚌','交通／住宿','Transport / housing','ការដឹកជញ្ជូន / ស្នាក់នៅ','HRA Portal'],union:['🤝','工會會費','Union dues','ភាគទានសហជីព','HRA Portal'],join:['🚪','到職登記','Joining record','កំណត់ត្រាចូលការងារ','HRA Portal'],resign:['👋','離職','Resignation','លាលែង','HRA Portal'],settle:['💵','離職結算','Leaving settlement','ទូទាត់ពេលចេញ','HRA Portal'],prob:['📋','試用評核','Probation review','វាយតម្លៃសាកល្បង','HRA Portal'],recruit:['🧑‍💼','招募','Recruiting','ជ្រើសរើស','HRA Portal'],visa:['🛂','簽證／工作證','Visa / work permit','ទិដ្ឋាការ / ប័ណ្ណការងារ','HRA Portal'],cert:['📜','公司證照','Company certificates','វិញ្ញាបនបត្រក្រុមហ៊ុន','HRA Portal'],lform:['🧾','請假單','Leave form','ពាក្យសុំច្បាប់','HRA Portal'],mat:['🤱','產假／健檢／醫療','Maternity / health / clinic','មាតុភាព / សុខភាព','HRA Portal'],transfer:['🔄','職位異動','Position transfer','ផ្លាស់ប្តូរមុខតំណែង','HRA-PAY'],sen:['🌿','半年年資實發','Seniority indemnity (paid)','ប្រាក់អតីតភាព','HRA-PAY'],nssf:['🛡️','NSSF 名冊','NSSF roster','បញ្ជី ប.ស.ស.','HRA-PAY'],stop:['🛑','停工','Shutdown','ផ្អាកការងារ','HRA-PAY'],otb:['⏱️','加班／獎金（部門）','OT / bonus (by department)','ថែមម៉ោង / ប្រាក់រង្វាន់','HRA-PAY']};
+const xrL=c=>tt(XR_CAT[c][1],XR_CAT[c][2],XR_CAT[c][3]);
+const xrId=r=>String(r.empId||r.employeeId||r.factoryId||r.fid||r.cardId||r.idNo||'').trim();
+const xrDate=(c,r,bk)=>{const v=c==='trans'||c==='union'||c==='sen'||c==='nssf'?(r.period||bk):c==='join'?r.joinDate:c==='resign'?r.resignDate:c==='settle'?r.settleDate:c==='prob'?(r.evalDate||r.probEnd||r.period):c==='recruit'?r.registerDate:c==='visa'?(r.visaExpiry||r.workPermitExpiry||r.joinDate):c==='cert'?(r.expiryDate||r.startDate):c==='lform'?r.startDate:c==='mat'?(r.date||r.visitDate||r.leaveStart||r.payMonth||r.applyDate||r.period):c==='transfer'?r.effDate:c==='stop'?r.start:c==='otb'?(r.year&&r.month?r.year+'-'+pad(r.month):bk):'';return String(v||bk||'').slice(0,10)};
+let XR_P=null,XR_BUSY=false;
+function XRD(){const H=HPD();return H.xr||(H.xr={})}
+function xrEnsure(force){if(XR_P&&!force)return XR_P;XR_P=(async()=>{XR_BUSY=true;let changed=0;const X=XRD();
+ for(const [tool,u,kinds] of XR_SRC){try{const url=u==='hp'?HP_URL:SAL_URL;const m=await fetch(url+'?action=smartManifest&tool='+tool).then(r=>r.json());const d=m.data||m;const hs=d.hashes||{};const T0=X[tool]||(X[tool]={h:{},b:{}});
+   for(const k of Object.keys(T0.h))if(!(k in hs)){delete T0.h[k];delete T0.b[k];changed++}
+   const todo=Object.keys(hs).filter(k=>T0.h[k]!==hs[k]&&!/online/.test(k));let i=0;
+   const w=async()=>{while(i<todo.length){const k=todo[i++];try{const j=await fetch(url+'?action=smartBucket&tool='+tool+'&bucket='+encodeURIComponent(k)).then(r=>r.json());const bk=(k.match(/^m:(\d{4}-\d{2})/)||[])[1]||'';const out=[];
+     for(const x of (((j.data||j).records)||[])){const r=x.row||x;if(!r||r._deleted||r.deleted===true||r.deleted==='true')continue;const kd=String(r._kind||r.kind||r.type||'');const c=kinds[kd]||(kinds['*']&&!/^(import|imports|settings|meta|onlineMeta|monthSnapshot|calendarSnapshot)$/.test(kd)?kinds['*']:null);if(!c)continue;
+      const o={c,_bk:bk};for(const [a,b] of Object.entries(r)){if(/^_(excel|source|sync)|sourceFiles|versions|evidence|importHistory|^detail$|changeLog/.test(a))continue;if(b==null||b==='')continue;o[a]=typeof b==='object'?(Array.isArray(b)&&b.length<=6?b.map(z=>typeof z==='object'?'':String(z)).filter(Boolean).join('、').slice(0,160):''):String(b).slice(0,240)}
+      if(r.type&&c==='mat')o.mtype=String(r.type);out.push(o)}
+     T0.b[k]=out;T0.h[k]=hs[k];changed++}catch(e){}}};
+   await Promise.all([w(),w(),w(),w(),w()]);T0.at=nowStamp()}catch(e){console.warn('xr',tool,e)}}
+ XR_BUSY=false;if(changed){HP_DIRTY=true;persist();GC.clear();if(PROF_NO&&!$('#drawer').hidden&&PROF_TAB==='hr')openEmp(PROF_NO,true);else if(XR_PAGE[CUR])rerender()}return changed})();return XR_P}
+window.xrEnsure=xrEnsure;
+function xrAll(c){return cached('xra|'+c,()=>{const X=XRD();const out=[];const seen=new Set();for(const [tool,,kinds] of XR_SRC){if(!Object.values(kinds).includes(c))continue;const T0=X[tool];if(!T0)continue;for(const arr of Object.values(T0.b))for(const o of arr){if(o.c!==c)continue;const key=o._k||o.id||JSON.stringify([xrId(o),xrDate(c,o,o._bk),o.amount||'',o.mtype||'']);if(seen.has(key))continue;seen.add(key);out.push(o)}}return out.sort((a,b)=>xrDate(c,b,b._bk).localeCompare(xrDate(c,a,a._bk)))})}
+function xrByEmp(){return cached('xrbe',()=>{const m={};for(const c of Object.keys(XR_CAT)){if(c==='cert'||c==='stop'||c==='otb')continue;for(const o of xrAll(c)){let id=xrId(o);if(!id)continue;const n=id.replace(/^0+/,'')||id;(m[id]=m[id]||[]).push(o);if(n!==id)(m[n]=m[n]||[]).push(o)}}return m})}
+/* 每一類要顯示的欄位 */
+const XR_COLS={trans:[['period','期間','Period'],['transport','交通','Transport'],['accommodation','住宿','Housing'],['accommodationType','住宿類型','Type'],['driver','司機／車線','Driver / route'],['status','狀態','Status'],['remark','備註','Remark']],
+ union:[['period','期間','Period'],['amount','會費','Dues'],['unionJoinDate','入會日','Joined union'],['status','狀態','Status'],['remark','備註','Remark']],
+ join:[['joinDate','到職日','Joined'],['position','職位','Position'],['section','組別','Section'],['address','地址','Address'],['tel','電話','Phone'],['introducer','介紹人','Introducer'],['referrer','推薦','Referral'],['remark','備註','Remark']],
+ resign:[['resignDate','離職日','Left'],['resignType','類型','Type'],['reasonCat','原因分類','Reason group'],['reason','原因','Reason'],['workingDays','工作天','Working days'],['position','職位','Position'],['remark','備註','Remark']],
+ settle:[['settleDate','結算日','Settled'],['amount','金額','Amount'],['settleSalary','薪資','Salary'],['meals','伙食','Meals'],['annualLeave','年假','Annual leave'],['transport','交通','Transport'],['verified','核算正確','Verified'],['remarks','備註','Remark']],
+ prob:[['joinDate','到職日','Joined'],['probEnd','試用到期','Probation ends'],['evalDate','評核日','Reviewed'],['score','分數','Score'],['result','結果','Result'],['remarks','備註','Remark']],
+ recruit:[['registerDate','登記日','Registered'],['position','應徵職位','Position'],['interviewResult','面試結果','Interview'],['joined','到職','Joined'],['referral','介紹','Referral'],['noShowReason','未到原因','No-show reason'],['remark','備註','Remark']],
+ visa:[['passport','護照','Passport'],['passportExpiry','護照到期','Passport expiry'],['visaNumber','簽證號','Visa no.'],['visaExpiry','簽證到期','Visa expiry'],['workPermitNumber','工作證號','Work permit no.'],['workPermitExpiry','工作證到期','Work permit expiry'],['visaExpense','簽證費','Visa cost'],['workPermitExpense','工作證費','Permit cost']],
+ lform:[['startDate','起','From'],['endDate','迄','To'],['leaveType','假別','Type'],['subH','時數','Hours'],['alBal','特休餘','AL balance'],['remark','備註','Remark']],
+ mat:[['mtype','類型','Type'],['date','日期','Date'],['leaveStart','產假起','Leave from'],['returnDate','回廠','Return'],['edd','預產期','Due date'],['diagnosis','診斷','Diagnosis'],['payMonth','發放月','Pay month'],['amount','金額','Amount'],['status','狀態','Status']],
+ transfer:[['effDate','生效日','Effective'],['origDept','原部門','From dept'],['origPos','原職位','From position'],['newDept','新部門','To dept'],['newPos','新職位','To position'],['before','調前','Before'],['after','調後','After'],['reason','原因','Reason'],['status','狀態','Status']],
+ sen:[['period','期間','Period'],['months','月數','Months'],['days','天數','Days'],['averageSalary','平均工資','Average wage'],['sourceAmount','金額','Amount'],['tax','稅','Tax'],['contractType','合約','Contract']],
+ nssf:[['period','期間','Period'],['nssfId','NSSF 號','NSSF no.'],['salaryKHR','工資 ៛','Wage ៛'],['salaryUSD','工資 $','Wage $'],['status','狀態','Status']],
+ cert:[['category','類別','Category'],['name','名稱','Name'],['department','部門','Department'],['startDate','起','From'],['expiryDate','到期','Expiry'],['cost','費用','Cost'],['status','狀態','Status']],
+ stop:[['start','開始','Start'],['end','結束','End'],['days','天數','Days'],['shutLine','停工線','Lines stopped'],['shutPPL','停工人數','People stopped'],['personDays','人天','Person-days'],['src','來源','Source']],
+ otb:[['_ym','月份','Month'],['type','類型','Type'],['dept','部門','Department'],['ppl','人數','People'],['hour','時數','Hours'],['expense','金額','Amount']]};
+const xrV=(o,f)=>{if(f==='_ym')return o.year&&o.month?o.year+'-'+pad(o.month):o._bk;if(f==='period')return o.period||o._bk;if(f==='date')return o.date||o.visitDate||o.applyDate||'';if(f==='verified')return o.verified==='true'?'✔':o.verified==='false'?'✖':'';if(f==='type'&&o.c==='otb')return o.type==='ot'?tt('加班','OT'):o.type==='bonus'?tt('獎金','Bonus'):o.type;return o[f]==null?'':o[f]};
+function xrTable(c,rows,opt){opt=opt||{};const cols=XR_COLS[c].filter(([f])=>rows.some(o=>xrV(o,f)!==''));if(!rows.length)return `<p class="small muted">${tt('沒有資料','No records','គ្មានទិន្នន័យ')}</p>`;
+ return `<div class="tbl-wrap"><table class="t${opt.click?' list':''}"><thead><tr>${opt.emp?`<th>${tt('工號','No.')}</th><th>${tt('姓名','Name')}</th>`:''}${cols.map(([f,z,en])=>`<th>${tt(z,en)}</th>`).join('')}</tr></thead><tbody>${rows.slice(0,opt.max||500).map(o=>{const id=xrId(o);return `<tr${opt.click&&id?` class="click" onclick="PROF_TAB='hr';openEmp('${esc(id)}')"`:''}>${opt.emp?`<td class="mono">${esc(id||'—')}</td><td>${esc(o.name||o.nameEn||(emp(id)||{}).name||'')}</td>`:''}${cols.map(([f])=>`<td>${esc(String(xrV(o,f)))}</td>`).join('')}</tr>`}).join('')}</tbody></table></div>${rows.length>(opt.max||500)?`<p class="small muted">${tt(`只列前 ${opt.max||500} 筆，共 ${rows.length} 筆`,`First ${opt.max||500} of ${rows.length}`)}</p>`:''}`}
+function xrProfHTML(no){const m=xrByEmp();const L=(m[String(no)]||m[String(no).replace(/^0+/,'')]||[]);if(!Object.keys(XRD()).length||XR_BUSY)xrEnsure();
+ let h=`<p class="small muted" style="margin:8px 0">${tt('這一頁收齊 HRA Portal 和 HRA-PAY 裡這個人的其他紀錄（交通住宿、工會、到職登記、離職、結算、試用評核、招募、簽證、請假單、產假健檢、職位異動、半年年資、NSSF）。只讀；要改請到對應平台頁（左邊選單）。','All other records for this person from HRA Portal and HRA-PAY (transport/housing, union, joining record, leaving, settlement, probation, recruiting, visa, leave forms, maternity/health, transfers, seniority, NSSF). Read-only; edit them on the matching platform page (left menu).','')}${XR_BUSY?' ⏳ '+tt('更新中…','Updating…'):''}</p>`;
+ if(!L.length)return h+`<p class="small muted">${XR_BUSY?tt('載入中…','Loading…'):tt('兩個平台都沒有這個人的其他紀錄。','Neither platform has other records for this person.','')}</p>`;
+ const by={};L.forEach(o=>(by[o.c]=by[o.c]||[]).push(o));
+ for(const c of Object.keys(XR_CAT)){const rows=by[c];if(!rows)continue;rows.sort((a,b)=>xrDate(c,b,b._bk).localeCompare(xrDate(c,a,a._bk)));const u=[];const sk=new Set();rows.forEach(o=>{const k2=JSON.stringify(XR_COLS[c].map(([f])=>xrV(o,f)));if(!sk.has(k2)){sk.add(k2);u.push(o)}});
+  h+=`<h3 style="margin:14px 0 6px">${XR_CAT[c][0]} ${xrL(c)} <span class="small muted">${XR_CAT[c][4]} · ${u.length}</span></h3>`+xrTable(c,u,{max:60})}
+ return h}
+/* 福利結算頁的新分頁 */
+function xrCatHTML(c,R,pk){if(!Object.keys(XRD()).length||XR_BUSY)xrEnsure();const a=ymd(R.from),b=ymd(R.to);
+ let rows=xrAll(c);const inR=o=>{const d=xrDate(c,o,o._bk);if(!d)return false;const dd=d.length===7?d+'-15':d;return dd>=a&&dd<=b};const ranged=!['visa','cert'].includes(c);if(ranged)rows=rows.filter(inR);
+ let h=`<div><h2>${XR_CAT[c][0]} ${xrL(c)} <span class="small muted">${XR_CAT[c][4]}${ranged?' · '+periodLabel(S(pk).pt,R):''} · ${rows.length}</span>${XR_BUSY?` <span class="small muted">⏳ ${tt('更新中…','Updating…')}</span>`:''}</h2>`;
+ const num=(f)=>rows.reduce((s,o)=>s+(parseFloat(String(o[f]||'').replace(/[^0-9.\-]/g,''))||0),0);
+ if(c==='trans'){const tr=rows.filter(o=>o.transport&&!/^(no|0|false|-|—)$/i.test(o.transport)).length,ac=rows.filter(o=>o.accommodation&&!/^(no|0|false|-|—)$/i.test(o.accommodation)).length;h+=`<div class="kpis">${kpi(tt('交通名單','Transport members'),fmt(tr))}${kpi(tt('住宿','Housing'),fmt(ac))}${kpi(tt('名單筆數','Records'),fmt(rows.length))}</div>`}
+ if(c==='union')h+=`<div class="kpis">${kpi(tt('會費合計','Dues total'),'$'+fmt(num('amount'),2))}${kpi(tt('人次','People'),fmt(rows.length))}</div>`;
+ if(c==='nssf')h+=`<div class="kpis">${kpi(tt('名冊人次','Roster entries'),fmt(rows.length))}${kpi(tt('工資合計 ៛','Wages ៛'),fmt(num('salaryKHR')))}</div>`;
+ if(c==='sen')h+=`<div class="kpis">${kpi(tt('人數','People'),fmt(rows.length))}${kpi(tt('年資補償合計','Indemnity total'),'$'+fmt(num('sourceAmount'),2))}</div>`;
+ if(c==='otb'){const ot=rows.filter(o=>o.type==='ot'),bo=rows.filter(o=>o.type==='bonus');const s2=(A,f)=>A.reduce((s,o)=>s+(+o[f]||0),0);h+=`<div class="kpis">${kpi(tt('加班時數','OT hours'),fmt(s2(ot,'hour')))}${kpi(tt('加班金額','OT amount'),'$'+fmt(s2(ot,'expense'),2))}${kpi(tt('獎金金額','Bonus amount'),'$'+fmt(s2(bo,'expense'),2))}</div>`}
+ if(c==='stop')h+=`<div class="kpis">${kpi(tt('停工次數','Shutdowns'),fmt(rows.length))}${kpi(tt('人天','Person-days'),fmt(num('personDays')))}</div>`;
+ if(c==='settle')h+=`<div class="kpis">${kpi(tt('結算人數','People'),fmt(rows.length))}${kpi(tt('結算金額','Amount'),'$'+fmt(num('amount'),2))}</div>`;
+ if(c==='resign'){const g={};rows.forEach(o=>{const k2=o.reasonCat||o.resignType||tt('未分類','Unclassified');g[k2]=(g[k2]||0)+1});const ks=Object.keys(g).sort((x,y)=>g[y]-g[x]).slice(0,10);if(ks.length)h+=barChart(ks.map(x=>g[x]),ks,{})}
+ if(c==='visa'||c==='cert'){const soon=rows.filter(o=>{const d=c==='visa'?(o.visaExpiry||o.workPermitExpiry):o.expiryDate;return d&&d<=ymd(addD(TODAY,45))});if(soon.length)h+=`<p style="color:var(--warn);margin:6px 0">⚠️ ${tt(`${soon.length} 筆 45 天內到期或已過期`,`${soon.length} expire within 45 days or already expired`)}</p>`}
+ h+=xrTable(c,rows,{emp:!['cert','stop','otb'].includes(c),click:!['cert','stop','otb'].includes(c),max:400})+`<p class="small muted" style="margin:6px 0 0">${tt('資料來自 ','From ')}${XR_CAT[c][4]}${tt('（只讀，每次打開自動抓有變的部分）；要新增或修改請到左邊選單的平台頁。',' (read-only, refreshed automatically); add or edit on the platform page in the left menu.')}</p></div>`;
+ return h}
+/* 各頁底下加一塊「HRA Portal／HRA-PAY 資料」，用按鈕切類別（同一件事只放一個地方） */
+const XR_PAGE={benefits:['trans','union','nssf','sen','otb','stop'],joinleave:['resign','settle','join','prob','recruit','transfer'],leave:['lform','mat'],emp:['visa','cert']};
+function xrSection(k,R){const cats=XR_PAGE[k];if(!cats)return '';const st=S(k);const c=cats.includes(st.xrc)?st.xrc:cats[0];
+ return `<div class="panel mt"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px"><b>📂 ${tt('HRA Portal／HRA-PAY 資料','HRA Portal / HRA-PAY data','ទិន្នន័យ HRA Portal / HRA-PAY')}</b><div class="seg">${cats.map(x=>`<button class="${x===c?'on':''}" onclick="S('${k}').xrc='${x}';rerender()">${XR_CAT[x][0]} ${xrL(x)}</button>`).join('')}</div></div>${xrCatHTML(c,R,k)}</div>`}
+window.xrSection=xrSection;
+setTimeout(()=>{try{xrEnsure()}catch(e){}},15000);
+
+['benefits','joinleave','leave','emp'].forEach(k=>{const f=RENDER[k];if(!f)return;RENDER[k]=function(){const h=f.apply(this,arguments);try{const st=S(k);if(st.view==='trend'||typeof h!=='string')return h;return h+xrSection(k,rangeOf(st))}catch(e){console.warn('xr section',e);return h}}});
+
 /* ══════════ v0.3.2（2026-11-06）🧮 AI 試算對帳 ══════════
    Paul：「以後可以先進行試算各類費用，再比對後面傳來時的差距或不同處；差異到小數點 1–2 位數可忽略；目的是 AI 用最新資料自動運算取代人工計算；
           所有費用相關的都要看，差不多何時要算什麼，私下透過 bot 單獨傳給我看。」
