@@ -2968,11 +2968,14 @@ function payInputs(R){const {a,b}=rangeStr(R);const P=C().pay;const NP=noPunchSe
  return by}
 /* v0.3.4 個人旗標只從「之前」的月份學（不偷看當月實際），這樣對帳準確率就是真正事前能算到的 */
 let HPF_SAME=false;
+/* v0.3.4 工會會費（HRA-PAY AI 欄，每月 $1）：用 HRA Portal 工會會費名單，當月沒有就用最近一期 */
+function unionMap(){return cached('unionm',()=>{const by={};try{for(const r of xrAll('union')){const p=String(r.period||'').slice(0,7);if(!p)continue;if(r.status&&!/paid|已/i.test(r.status))continue;const id=String(r.employeeId||r.fid||'').replace(/^0+/,'');if(!id)continue;(by[p]||(by[p]={}))[id]=+r.amount||1}}catch(e){}return by})}
+function unionDue(no,ym){const M=unionMap();const ks=Object.keys(M).filter(k=>k<=ym).sort();const k=ks[ks.length-1];if(!k)return 0;return (M[k][no]||0)}
 function hpFlags(no,ym){const H=HPD();const ks=Object.keys(H.pay).filter(k=>(HPF_SAME?k<=ym:k<ym)&&Object.values(H.pay[k]).some(x=>x.AK!=null)).sort();const k=ks[ks.length-1];if(!k)return {};const h=H.pay[k][no];if(!h)return {};const adv=H.adv[k]||{};const P=C().pay;
  const TF=taxFxAt(k);const khr=((+h.AG||0)+(+h.AE||0)-(+h.X||0)+(+h.S||0))*TF;const aj=-(+h.AJ||0)*TF;let deps=0,taxEx=false;
  if(aj>0){const inv=[[0.05,75000,2e6],[0.1,175000,8.5e6],[0.15,600000,12.5e6],[0.2,1225000,1e13]].map(([r,d,mx])=>{const b=(aj+d)/r;return b<=mx?b:null}).find(b=>b!=null);deps=Math.max(0,Math.round((khr-inv)/P.taxDep))}
  else if(khr>P.taxMin){const need=Math.ceil((khr-P.taxMin)/P.taxDep);if(need<=P.taxDepMax)deps=need;else taxEx=true}
- const od=h.AK!=null?Math.round((h.AK-Math.round(((+h.AG||0)+(+h.AE||0)+(+h.AJ||0)+(+h.AH||0))*10)/10)*10)/10:0;
+ const od=h.AK!=null?Math.round((h.AK-Math.round(((+h.AG||0)+(+h.AE||0)+(+h.AJ||0)+(+h.AH||0)+(+h.AI||0))*10)/10)*10)/10:0;
  const incBase=+h.N>0?Math.round(((+h.N)+P.incDed*((+h.U||0)+(+h.V||0)))*4)/4:0;
  const jm=((emp(no)||{}).join_date||'').slice(0,7);const advNow=H.adv[ym]||{};const noAdv=Object.keys(advNow).length?!advNow[no]:(Object.keys(adv).length>0&&!adv[no]&&!(jm===k&&ym>k));
  const noX=h.AK!=null&&+h.J>=20&&!(+h.X),noY=h.AK!=null&&+h.J>=20&&!(+h.Y)&&!(+h.U)&&!(+h.V)&&!(+h.T);
@@ -2984,11 +2987,11 @@ function payCalc(R){const P=C().pay;const ym=monthKey(R.from);const NFX=nssfFxAt
   const join=parseD(e.join_date);const X=fl.noX?0:join&&(parseD(me)-join)/864e5>31?P.trans:(J>14?P.trans:P.transHalf);const Y=fl.noY?0:Math.max(0,P.attBonus/P.div*(J-(U+V)/8));
   const AA=r.E/P.div*o.AA, ABa=r.E/P.hrs*P.ot1*AB, AD=r.E/P.div*P.sun*o.AD, AE=AA+ABa+AD;
   const N=adj._ed&&adj.bonus!=null&&adj.bonus!==''?+adj.bonus:Math.max(0,(fl.incBase||0)-P.incDed*(U+V)),M=-(+adj.deduct||0),Ra=+adj.al_paid||0,AF=+adj.adjust||0;
-  const SX=shutExempt(ym);const Tsh=(o.SDn>o.SDw)&&!(SX&&SX.has(o.emp_no))?-r.E/P.div*0.5*(o.SDn-o.SDw):0;
+  const SX=shutExempt(ym);/* 停工不扣：之前停工月份 HRA-PAY 沒扣的人；沒有可學的月份時，職務加給 ≥ $30（組長、主管、辦公室）不扣（2026-07 54 位不扣的幾乎都是這些人） */const shEx=SX?SX.has(o.emp_no):(+r.H||0)>=30;const Tsh=(o.SDn>o.SDw)&&!shEx?-r.E/P.div*0.5*(o.SDn-o.SDw):0;
   const AG=Y+X+N+M+K+Uamt+Ra+Vamt+AF+Tsh-S; const gross=AG+AE+S;
   const NB=nssfAt(ym);const nssfB=Math.min(NB.max,Math.max(NB.min,gross*NFX)); const AH=fl.nssfEx?0:-nssfB*NB.pen/NFX;
-  const AJ1=(AG+AE)-X+S; const AJ=fl.taxEx?0:-(taxKHR(AJ1*TFX-(fl.deps||0)*P.taxDep)/TFX); const AK=Math.round((AG+AE+AJ+AH+(fl.other||0))*10)/10;
-  out.push({est:!!r.est,np:o.np,stale:o.staleLeave,days:o.days,emp_no:o.emp_no,name:o.name||e.name,dept:o.dept||e.dept,src:r.src,E:r.E,F:r.F,G:r.G,H:r.H,I:r.I,J,J1,U,V,AB,AD:o.AD,AA:o.AA,K,S,Sest,Sact,TK:Math.round((S+AK)*100)/100,Tsh,SDn:o.SDn,SDw:o.SDw,X,Y,AE,AG,gross,AH,AJ,AK,N,fl,adj:!!adj._ed,nfx:NFX,tfx:TFX})}
+  const AJ1=(AG+AE)-X+S; const AJ=fl.taxEx?0:-(taxKHR(AJ1*TFX-(fl.deps||0)*P.taxDep)/TFX); const AI=-unionDue(o.emp_no,ym);const AK=Math.round((AG+AE+AJ+AH+AI+(fl.other||0))*10)/10;
+  out.push({est:!!r.est,np:o.np,stale:o.staleLeave,days:o.days,emp_no:o.emp_no,name:o.name||e.name,dept:o.dept||e.dept,src:r.src,E:r.E,F:r.F,G:r.G,H:r.H,I:r.I,J,J1,U,V,AB,AD:o.AD,AA:o.AA,K,S,Sest,Sact,TK:Math.round((S+AK)*100)/100,Tsh,AI,SDn:o.SDn,SDw:o.SDw,X,Y,AE,AG,gross,AH,AJ,AK,N,fl,adj:!!adj._ed,nfx:NFX,tfx:TFX})}
  return out}
 function renderPayroll(){
  const k='payroll';if(!hasData('att'))return pageHead(k)+needHTML('att');const st=S(k);const R=rangeOf(st);
