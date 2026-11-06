@@ -2960,9 +2960,10 @@ function payInputs(R){const {a,b}=rangeStr(R);const P=C().pay;const NP=noPunchSe
   let ld2=ld;if(e.status==='在職'&&ld2&&ld2<a){o.staleLeave=ld2;ld2=''}
   /* v0.3.4 當月離職（Paul：看什麼時候離、有沒有年假，可能用年假抵或做滿整月）：
      離職日先看 HRA Portal 離職名單（HR 算薪用的日期；1917／5495 BEST 寫 9/23、9/24，Portal 寫 9/30），沒有才用 BEST。
-     離職日是月底（最後一個工作天以後）→ 照整月 26 天；事假／無薪假照扣（Paul：請事假要扣薪，除非用年假）；月中離職 → 算到離職日。
-     2026-07～09 有 5 位離職的 HRA-PAY 都沒扣事假（例：5991 八月只上 4 天班），對帳會標出來給 HR 查 */
-  {const pd=resignMap()[r.emp_no];const le=pd||ld2;if(le&&le>=a&&le<=b){if(le>=lastWd(b)){o.leaver=le;ld2=''}else{o.lvEnd=le;ld2=le}}}
+     Paul：離職薪資另外申請、另外算（例：10/3 離職 → 9 月薪資照發滿，離職結算再算 10 月那幾天並扣當月事假等）。
+     所以：月底離職 → 薪資表照整月、不扣事假（HRA-PAY 2026-07～09 五位都是這樣），事假／無薪假列「離職結算應扣」；
+     月中離職 → 當月不在薪資表，整筆算「離職結算試算」（算到離職日、扣事假） */
+  {const pd=resignMap()[r.emp_no];const le=pd||ld2;if(le&&le>=a&&le<=b){if(le>=lastWd(b)){o.leaver=le;ld2=''}else{o.lvEnd=le;o.settleOnly=true;ld2=le}}}
   const d=parseD(r.date);const sun=d.getDay()===0,hol=H.has(r.date)&&!sun;const eh=effHrs(r),worked=eh>0||(o.np&&!sun&&!hol);const lv=LV.get(r.emp_no+'|'+r.date);if(r.date<o.first)o.first=r.date;if(r.date>o.last)o.last=r.date;
   if(worked)o.days++;if(sun&&worked)o.AD++;if(hol&&worked)o.AA++;
   const employed=(!jd||r.date>=jd)&&(!ld2||r.date<=ld2);
@@ -2974,7 +2975,7 @@ function payInputs(R){const {a,b}=rangeStr(R);const P=C().pay;const NP=noPunchSe
  for(const o of Object.values(by)){const e=emp(o.emp_no)||{};const jd=(e.join_date||'').slice(0,10);const ldx=(e.leave_date||e.quit_date||'').slice(0,10);const gone=o.lvEnd||(ldx&&ldx<a&&e.status!=='在職'?ldx:'');let miss=0,miss1=0;
   for(const ds of mdays){if((jd&&ds<jd)||(gone&&ds>gone)||LV.get(o.emp_no+'|'+ds)==='nopay'){miss++;if(+ds.slice(8)<=15)miss1++}}
   o.J=Math.max(0,P.div-miss);o.J1=Math.max(0,Math.floor(P.div/2)-miss1)}
- for(const o of Object.values(by)){o.J=Math.min(P.div,o.J);o.J1=Math.min(Math.floor(P.div/2),o.J1);o.U=UH[o.emp_no+'|'+ym]||0;o.U1=UH[o.emp_no+'|'+ym+'|1']||0;if(o.leaver)o.J=P.div}
+ for(const o of Object.values(by)){o.J=Math.min(P.div,o.J);o.J1=Math.min(Math.floor(P.div/2),o.J1);o.U=UH[o.emp_no+'|'+ym]||0;o.U1=UH[o.emp_no+'|'+ym+'|1']||0;if(o.leaver){o.J=P.div;o.settleU=o.U+(o.V||0);o.U=0;o.V=0}}
  return by}
 /* v0.3.4 $12 獎勵（HRA-PAY N 欄）規則（Paul）：有些職位每月固定給（例：裁剪），有些要當月加班滿 14 小時才有（例：車工），沒滿就沒有；請假照比例扣（每小時事假扣 $0.5）。
    職位分類先用 HRA-PAY 歷史學（沒加班的月份照樣有 → 固定；只有加班月份才有 → 看加班），沒有資料時用下面的預設（2021-09／10 加班月 vs 2021-12、2026 沒加班月實際比對出來的） */
@@ -3025,7 +3026,7 @@ function payCalc(R){const P=C().pay;const ym=monthKey(R.from);const NFX=nssfFxAt
   const AG=Y+X+N+M+K+Uamt+Ra+Vamt+AF+Tsh-S; const gross=AG+AE+S;
   const NB=nssfAt(ym);const nssfB=Math.min(NB.max,Math.max(NB.min,gross*NFX)); const AH=fl.nssfEx?0:-nssfB*NB.pen/NFX;
   const AJ1=(AG+AE)-X+S; const AJ=fl.taxEx?0:-(taxKHR(AJ1*TFX-(fl.deps||0)*P.taxDep)/TFX); const AI=-unionDue(o.emp_no,ym);const AK=Math.round((AG+AE+AJ+AH+AI+(fl.other||0))*10)/10;
-  out.push({est:!!r.est,np:o.np,stale:o.staleLeave,days:o.days,emp_no:o.emp_no,name:o.name||e.name,dept:o.dept||e.dept,src:r.src,E:r.E,F:r.F,G:r.G,H:r.H,I:r.I,J,J1,U,V,AB,AD:o.AD,AA:o.AA,K,S,Sest,Sact,TK:Math.round((S+AK)*100)/100,Tsh,AI,IC,leaver:o.leaver||o.lvEnd||'',SDn:o.SDn,SDw:o.SDw,X,Y,AE,AG,gross,AH,AJ,AK,N,fl,adj:!!adj._ed,nfx:NFX,tfx:TFX})}
+  out.push({est:!!r.est,np:o.np,stale:o.staleLeave,days:o.days,emp_no:o.emp_no,name:o.name||e.name,dept:o.dept||e.dept,src:r.src,E:r.E,F:r.F,G:r.G,H:r.H,I:r.I,J,J1,U,V,AB,AD:o.AD,AA:o.AA,K,S,Sest,Sact,TK:Math.round((S+AK)*100)/100,Tsh,AI,IC,leaver:o.leaver||o.lvEnd||'',settleOnly:!!o.settleOnly,settleU:o.settleU||0,settleAmt:Math.round((r.E+r.G)/P.hrs*(o.settleU||0)*100)/100,SDn:o.SDn,SDw:o.SDw,X,Y,AE,AG,gross,AH,AJ,AK,N,fl,adj:!!adj._ed,nfx:NFX,tfx:TFX})}
  return out}
 function renderPayroll(){
  const k='payroll';if(!hasData('att'))return pageHead(k)+needHTML('att');const st=S(k);const R=rangeOf(st);
@@ -3263,7 +3264,7 @@ function advHrsMap(ym){return cached('advh|'+ym,()=>{const P=C().pay;const m={};
 /* 實際已發的預支：月薪表有就用月薪表扣回的 S；只有預支表就用預支表的實發（AK）；兩個都沒有回 null */
 function advActual(no,ym){const H=HPD();const p=(H.pay[ym]||{})[no];if(p&&p.AK!=null)return +p.S||0;const A=H.adv[ym];if(A&&Object.keys(A).length){const a=A[no];return a?(a.AK!=null?+a.AK:+a.S||0):0}return null}
 /* 沒有 HRA-PAY 的月份：用 VRT HR 出勤＋請假＋員工資料試算，存在這台電腦；HRA-PAY 進來後自動改用實際 */
-const PEST_K='psj_pest_v1';const PEST_V='0.3.4-c6';/* 試算規則有改就換這個，所有試算月份會重算 */let PEST=null;
+const PEST_K='psj_pest_v1';const PEST_V='0.3.4-c7';/* 試算規則有改就換這個，所有試算月份會重算 */let PEST=null;
 function pestAll(){if(PEST)return PEST;try{PEST=JSON.parse(localStorage.getItem(PEST_K)||'{}')}catch(e){PEST={}}return PEST}
 function pestSave(){try{localStorage.setItem(PEST_K,JSON.stringify(PEST||{}))}catch(e){}}
 let HP_MAN_MONTHS=null;
@@ -3310,7 +3311,8 @@ function rcCalendar(base){const y=base.getFullYear(),m=base.getMonth();const ym=
 function rcPay(ym){{const R0={from:parseD(ym+'-01'),to:new Date(+ym.slice(0,4),+ym.slice(5,7),0)};if(attNeed(R0).length)return {ym,est:0,hp:0,both:0,allok:0,ok:{},rows:[],onlyEst:[],onlyHp:[],tot:{est:{},hp:{}},loading:true}}return cached('rc|'+ym+'|'+EF_F.map(f=>S('recon')['ef_'+f]||'').join('|'),()=>{const R={from:parseD(ym+'-01'),to:new Date(+ym.slice(0,4),+ym.slice(5,7),0)};const est=payCalc(R);const H=HPD();const hp=H.pay[ym]||null,ha=H.adv[ym]||{};
  const res={ym,est:est.length,hp:hp?Object.keys(hp).length:0,both:0,allok:0,ok:{},rows:[],onlyEst:[],onlyHp:[],tot:{est:{},hp:{}}};
  RC_F.forEach(([f])=>{res.ok[f]=0;res.tot.est[f]=0;res.tot.hp[f]=0});
- for(const o of est){const a=hp&&hp[o.emp_no];if(!hp||a)RC_F.forEach(([f])=>res.tot.est[f]+=(f==='S'?+o.Sest||0:+o[f]||0));if(!a){if(hp)res.onlyEst.push(o);continue}res.both++;const d={};let good=true;
+ res.settle=est.filter(o=>o.settleOnly||o.settleU>0);
+ for(const o of est){if(o.settleOnly)continue;const a=hp&&hp[o.emp_no];if(!hp||a)RC_F.forEach(([f])=>res.tot.est[f]+=(f==='S'?+o.Sest||0:+o[f]||0));if(!a){if(hp)res.onlyEst.push(o);continue}res.both++;const d={};let good=true;
   for(const [f] of RC_F){let av=f==='TK'?(+a.AK||0)+(+a.S||0):+a[f];if(isNaN(av))av=0;res.tot.hp[f]+=av;const ev=f==='S'?+o.Sest||0:+o[f]||0;const tol=f==='AK'||f==='TK'?0.11:RECON_TOL;const df=ev-av;if(Math.abs(df)<=tol)res.ok[f]++;else if(f!=='S'||o.Sact==null){good=false;d[f]=Math.round(df*100)/100}else{res.advOff=(res.advOff||0)+1;d[f]=Math.round(df*100)/100}}
   if(d.S!=null&&o.Sact!=null){if(d.TK==null)res.advLater=(res.advLater||0)+1;else res.advBoth=(res.advBoth||0)+1}
   if(good)res.allok++;else res.rows.push({o,a,d})}
@@ -3328,6 +3330,7 @@ function rcMsg(ym){const r=rcPay(ym);const f2=v=>'$'+fmt(v,2);const L=[];L.push(
  L.push(`實拿合計（預支＋月底）：試算 ${f2(r.tot.est.TK)} ／ HRA-PAY ${f2(r.tot.hp.TK)}（差 ${f2(r.tot.est.TK-r.tot.hp.TK)}）`);
  L.push(`　預支：試算 ${f2(r.tot.est.S)} ／ 實發 ${f2(r.tot.hp.S)}｜月底：試算 ${f2(r.tot.est.AK)} ／ HRA-PAY ${f2(r.tot.hp.AK)}`);
  L.push(`　（月底試算已改用實際發出的預支扣回，所以預支多算少算不會讓月底對不上）`);
+ if(r.settle&&r.settle.length)L.push(`🚪 離職結算（另外申請另外算）：${r.settle.map(o=>o.settleOnly?`${o.emp_no} ${String(o.leaver).slice(5)} 離職，結算試算 ${f2(o.AK)}`:`${o.emp_no} 結算應扣事假 ${fmt(o.settleU,1)}h ≈ ${f2(o.settleAmt)}`).join('；')}`);
  if(r.advOff)L.push(`　預支和 HRA 不同 ${r.advOff} 人：${r.advLater||0} 人是預支沒扣、月底補扣（整月一樣）${r.advBoth?`，${r.advBoth} 人整月也不同`:''}`);
  if(r.rows.length){L.push(`⚠️ 不吻合 ${r.rows.length} 人（差最多的前 8 位）：`);r.rows.slice(0,8).forEach(x=>L.push(`• ${x.o.emp_no} ${String(x.o.name||'').replace(/\s*\(.*$/,'').slice(0,18)}${x.o.leaver?'（'+String(x.o.leaver).slice(5)+' 離職）':''}：`+Object.entries(x.d).map(([f,v])=>`${(RC_F.find(q=>q[0]===f)||[,f])[1]}${v>0?'+':''}${fmt(v,2)}`).join('、')))}
  if(r.onlyHp.length)L.push(`HRA-PAY 有、試算沒有：${r.onlyHp.length} 人（${r.onlyHp.slice(0,6).map(x=>x.id).join('、')}${r.onlyHp.length>6?'…':''}）`);
@@ -3375,6 +3378,8 @@ function renderRecon(){const k='recon';const st=S(k);const H=HPD();if(!hasData('
   if(r.rows.length)h+=`<h3 style="margin:14px 0 6px">⚠️ ${tt('不吻合','Mismatches')} ${r.rows.length} ${tt('人（差額＝試算−HRA-PAY）','people (diff = estimate − HRA-PAY)')}</h3><div class="tbl-wrap"><table class="t list"><thead><tr><th>${tt('工號','No.')}</th><th>${tt('姓名','Name')}</th>${RC_F.map(([f,z,en])=>`<th class="r">${tt(z,en)}</th>`).join('')}</tr></thead><tbody>${r.rows.slice(0,200).map(x=>`<tr class="click" onclick="PROF_TAB='pay';openEmp('${esc(x.o.emp_no)}')"><td class="mono">${esc(x.o.emp_no)}</td><td>${esc(x.o.name||'')}${x.o.leaver?` <span class="small" style="color:var(--warn)" title="${esc(tt('當月離職：照規則事假／無薪假要扣，HRA-PAY 沒扣的話請 HR 查是否在離職結算處理','Left this month: unpaid leave should be deducted; if HRA-PAY did not, ask HR whether the settlement handled it'))}">🚪${tt('離職','left')} ${esc(String(x.o.leaver).slice(5))}</span>`:''}</td>${RC_F.map(([f])=>`<td class="r">${x.d[f]!=null?`<b style="color:var(--crit)">${x.d[f]>0?'+':''}${fmt(x.d[f],2)}</b>`:'<span class="muted">✓</span>'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
   if(r.onlyHp.length||r.onlyEst.length)h+=`<p class="small muted" style="margin:8px 0 0">${r.onlyHp.length?tt(`HRA-PAY 有、試算沒有 ${r.onlyHp.length} 人：`,`In HRA-PAY but not estimated: ${r.onlyHp.length} — `)+r.onlyHp.slice(0,20).map(x=>esc(x.id)).join('、')+'。':''}${r.onlyEst.length?tt(` 試算有、HRA-PAY 沒有 ${r.onlyEst.length} 人（多半是當月離職或新進）。`,` Estimated but not in HRA-PAY: ${r.onlyEst.length} (mostly leavers / new hires).`):''}</p>`;
   h+=`</div>`}
+ /* v0.3.4 離職結算：另外申請另外算 */
+ if(r.settle&&r.settle.length)h+=`<div class="panel mt"><h2>🚪 ${tt('離職結算（另外申請、另外算）','Leaving settlements (applied for and paid separately)')} · ${ym}</h2><div class="tbl-wrap"><table class="t list"><thead><tr><th>${tt('工號','No.')}</th><th>${tt('姓名','Name')}</th><th>${tt('離職日','Leaves')}</th><th>${tt('薪資表','Payroll')}</th><th class="r">${tt('結算要扣的事假／無薪假','Unpaid leave to deduct')}</th><th class="r">${tt('結算試算','Settlement estimate')}</th></tr></thead><tbody>${r.settle.map(o=>`<tr class="click" onclick="PROF_TAB='pay';openEmp('${esc(o.emp_no)}')"><td class="mono">${esc(o.emp_no)}</td><td>${esc(o.name||'')}</td><td class="mono">${esc(String(o.leaver))}</td><td>${o.settleOnly?tt('當月不在薪資表','not in this payroll'):tt('照整月 26 天發','full 26 days')}</td><td class="r">${o.settleOnly?fmt(o.U+(o.V||0),1)+'h':o.settleU?fmt(o.settleU,1)+'h ≈ $'+fmt(o.settleAmt,2):'—'}</td><td class="r">${o.settleOnly?'$'+fmt(o.AK,2):'—'}</td></tr>`).join('')}</tbody></table></div><p class="small muted" style="margin:6px 0 0">${tt('依 Paul：離職薪資另外申請另外算。月底離職的人薪資表照發整月，當月事假／無薪假在離職結算扣；月中離職的人當月薪資整筆在離職結算（算到離職日、扣事假；年假折現、年資補償另計）。','Per Paul: leaving pay is applied for and computed separately. Month-end leavers get the full month on the payroll and that month’s unpaid leave is deducted in the settlement; mid-month leavers are paid in the settlement up to the leaving day (annual-leave cash-out and seniority indemnity separate).')}</p></div>`;
  /* v0.3.4 沒有 HRA-PAY 的月份：試算總表 */
  {const PE=pestAll();const em=Object.keys(PE).filter(m=>pestNeed(m)).sort().reverse();pestKick();
   h+=`<div class="panel mt"><h2>🧮 ${tt('沒有 HRA-PAY 的月份 · 試算','Months without HRA-PAY · estimates')}</h2>${pestBar()}${em.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>${tt('月份','Month')}</th><th class="r">${tt('人數','People')}</th><th class="r">${tt('應發','Gross')}</th><th class="r">${tt('預支','Advance')}</th><th class="r">${tt('月底實發','Month-end')}</th><th class="r">${tt('實拿合計','Take-home')}</th><th class="r">${tt('加班／假日','OT / hol.')}</th><th class="r">NSSF</th><th class="r">${tt('稅','Tax')}</th><th class="r">${tt('伙食費','Meal')}</th></tr></thead><tbody>${em.slice(0,60).map(m=>{const e=PE[m];return `<tr class="click" onclick="S('payroll').pt='M';S('payroll').view='summary';navSet('payroll','${m}-01')"><td class="mono">${m}${HPD().pay[m]?' <span class="small muted">'+tt('（HRA-PAY 不完整）','(HRA-PAY incomplete)')+'</span>':''}</td><td class="r">${fmt(e.n)}</td><td class="r">$${fmt(e.gross,2)}</td><td class="r">$${fmt(e.S,2)}</td><td class="r">$${fmt(e.AK,2)}</td><td class="r"><b>$${fmt(e.take,2)}</b></td><td class="r">$${fmt(e.AE,2)}</td><td class="r">$${fmt(Math.abs(e.AH),2)}</td><td class="r">$${fmt(Math.abs(e.AJ),2)}</td><td class="r">$${fmt(e.meal||0,2)}</td></tr>`}).join('')}</tbody></table></div><p class="small muted" style="margin:6px 0 0">${tt('費率用最接近那個月的 HRA-PAY 費率（沒有就用 BEST 基本薪資），出勤和請假用 VRT HR 匯入的 BEST 資料。實際表進來後這一列會自動消失、改用實際。','Rates come from the nearest HRA-PAY month (else BEST base pay); attendance and leave from the BEST data in VRT HR. A row disappears automatically once the actual list arrives.')}</p>`:''}</div>`}
