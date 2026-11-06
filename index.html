@@ -3123,6 +3123,20 @@ function rcMsg(ym){const r=rcPay(ym);const f2=v=>'$'+fmt(v,2);const L=[];L.push(
  if(r.onlyHp.length)L.push(`HRA-PAY 有、試算沒有：${r.onlyHp.length} 人（${r.onlyHp.slice(0,6).map(x=>x.id).join('、')}${r.onlyHp.length>6?'…':''}）`);
  if(r.onlyEst.length)L.push(`試算有、HRA-PAY 沒有：${r.onlyEst.length} 人`);
  return L.join('\n')}
+/* 預支（1–15 日）：HRA-PAY 預支表進來、月薪表還沒進來時，只比預支 */
+function rcAdvMsg(ym){const R={from:parseD(ym+'-01'),to:new Date(+ym.slice(0,4),+ym.slice(5,7),0)};const est=payCalc(R);const ha=HPD().adv[ym]||null;const f2=v=>'$'+fmt(v,2);const L=[`🧮 VRT HR 試算對帳 · ${ym} 預支（1–15 日）`];const te=est.reduce((a,o)=>a+(+o.S||0),0);
+ if(!ha){L.push('（HRA-PAY 預支表還沒進來，先給試算）');L.push(`可領預支 ${est.filter(o=>(+o.S||0)>0).length} 人｜合計 ${f2(te)}｜發放日 ${ymd(rcPayday(+ym.slice(0,4),+ym.slice(5,7)-1,25))}`);return L.join('\n')}
+ let both=0,ok=0,th=0;const bad=[];est.forEach(o=>{const a=ha[o.emp_no];if(!a)return;both++;const av=+a.S||0;th+=av;const df=(+o.S||0)-av;if(Math.abs(df)<=RECON_TOL)ok++;else bad.push([o,df])});
+ L.push(`✅ 吻合 ${ok}/${both} 人（${both?Math.round(ok/both*100):0}%）｜試算 ${f2(te)} ／ HRA-PAY ${f2(Object.values(ha).reduce((a,x)=>a+(+x.S||0),0))}`);
+ bad.sort((x,y)=>Math.abs(y[1])-Math.abs(x[1])).slice(0,8).forEach(([o,df])=>L.push(`• ${o.emp_no} ${String(o.name||'').replace(/\s*\(.*$/,'').slice(0,18)}：預支${df>0?'+':''}${fmt(df,2)}`));return L.join('\n')}
+/* 排程用：依今天日期決定要試算／比對哪一個，加上接下來 10 天要做的事；內容沒變就不重發 */
+async function rcAutoRun(force){const d=TODAY.getDate();const prev=monthKey(new Date(TODAY.getFullYear(),TODAY.getMonth()-1,1)),cur=monthKey(TODAY);let text='';
+ if(d<=13){await rcEnsure(prev);text=rcMsg(prev)}else{await rcEnsure(cur);text=HPD().pay[cur]?rcMsg(cur):rcAdvMsg(cur)}
+ const up=rcCalendar(TODAY).concat(rcCalendar(new Date(TODAY.getFullYear(),TODAY.getMonth()+1,1))).filter(e=>e.date>TODAY&&e.date<=addD(TODAY,10));
+ if(up.length)text+='\n\n📅 接下來 10 天：\n'+up.map(e=>`• ${md(e.date)}（${WDN()[e.date.getDay()]}）${e.what}`).join('\n');
+ let last='';try{last=localStorage.getItem('rc_last_sent')||''}catch(e){}const sig=String(text.length)+'|'+text.replace(/\s+/g,'').slice(0,4000);
+ if(!force&&last===sig)return 'same';const r=await cpost({action:'hr_tg',text:text+'\n\n（只私訊 Paul，不進群組）',to:'paul',buttons:[[['🧮 打開試算對帳',webBase()+'#recon']]]});try{localStorage.setItem('rc_last_sent',sig)}catch(e){}return r&&r.ok?'sent':'fail'}
+window.rcAutoRun=rcAutoRun;window.rcAdvMsg=rcAdvMsg;
 async function rcEnsure(ym){const R={from:parseD(ym+'-01'),to:new Date(+ym.slice(0,4),+ym.slice(5,7),0)};for(let i=0;i<3;i++){const n=attNeed(R);if(!n.length)break;for(const k of n)await attRowsOf(k)}if(!HPD().pay[ym])try{await hpLoadMonth(ym)}catch(e){}GC.clear()}
 window.rcEnsure=rcEnsure;
 async function rcSendPaul(ym){try{if(!cloudReady())throw new Error(tt('雲端未連線','Cloud not connected'));await rcEnsure(ym);const text=rcMsg(ym)+`\n\n${tt('（只私訊 Paul，不進群組）','(sent to Paul only)')}`;const r=await cpost({action:'hr_tg',text,to:'paul',buttons:[[['🧮 '+tt('打開試算對帳','Open reconciliation'),webBase()+'#recon']]]});if(r&&r.ok===false)throw new Error(r.msg||r.error||('HTTP '+(r.http||'')));toast(tt('已私訊給 Paul','Sent to Paul privately'));audit('telegram','-','SEND_PAUL',null,{ym})}catch(e){toast(tt('私訊失敗：','Send failed: ')+(e.message||e))}}
