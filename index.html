@@ -2977,7 +2977,7 @@ function payInputs(R){const {a,b}=rangeStr(R);const P=C().pay;const NP=noPunchSe
    離職日在月底最後一個工作天（容許差 1 個工作天）→ 薪資表照整月、當月事假列離職結算應扣；更早 → 當月整筆走離職結算 */
  {const H2=payHolSet();const wdAfter=d0=>{let n=0;for(let d=addD(parseD(d0),1);ymd(d)<=b;d=addD(d,1))if(d.getDay()!==0&&!H2.has(ymd(d)))n++;return n};
   for(const o of Object.values(by)){if(!o.leRec)continue;const RP=resignMap()[o.emp_no]||'';const best=o.lastW&&o.lastW<=o.leRec?o.lastW:(o.lastW&&o.leRec>b?o.lastW:o.leRec);const eff=RP||best;o.leEff=eff;o.lePortal=RP;o.leLast=o.lastW||'';o.leBest=((emp(o.emp_no)||{}).leave_date||'').slice(0,10);
-   if(RP&&o.lastW){const gap=Math.round((parseD(RP)-parseD(o.lastW))/864e5);if(Math.abs(gap)>3)o.leGap=gap}if(eff>b)continue;if(o.leRec>b&&wdAfter(eff)<=1)continue;/* 下個月才離職、這個月上滿 → 照一般算 */if(wdAfter(eff)<=1)o.leaver=eff;else{o.lvEnd=eff;o.settleOnly=true}}}
+   if(RP&&o.lastW&&(RP<=b||wdAfter(o.lastW)>1)){/* 下個月才離職的人，只有這個月就沒再打卡才比 */const gap=Math.round((parseD(RP)-parseD(o.lastW))/864e5);if(Math.abs(gap)>3)o.leGap=gap}if(eff>b)continue;if(o.leRec>b&&wdAfter(eff)<=1)continue;/* 下個月才離職、這個月上滿 → 照一般算 */if(wdAfter(eff)<=1)o.leaver=eff;else{o.lvEnd=eff;o.settleOnly=true}}}
 /* v0.3.4 計薪天數照 HRA-PAY：整月就是 26（不管當月有 25 或 27 個工作天），只扣沒在職或無薪假（產假）的週一～六；上半月同理 13 */
  const mdays=[];for(let d=parseD(a);ymd(d)<=b;d=addD(d,1))if(d.getDay()!==0)mdays.push(ymd(d));
  for(const o of Object.values(by)){const e=emp(o.emp_no)||{};const jd=(e.join_date||'').slice(0,10);const ldx=(e.leave_date||e.quit_date||'').slice(0,10);const gone=o.lvEnd||(ldx&&ldx<a&&e.status!=='在職'?ldx:'');let miss=0,miss1=0;
