@@ -2735,7 +2735,7 @@ function hpLatestPay(ym,no){const H=HPD();const ks=Object.keys(H.pay).filter(k=>
 /* v0.2.10 歷史薪資：HRA-PAY 每個月（實發 p／預支 a）都是一筆費率紀錄；估算取「當月或之前最近一筆」，年資、調薪自然跟著月份走 */
 let HP_ALL=null;
 async function hpEnsureAll(force,all){if(all)HP_OLD=true;if(HP_ALL&&!force)return HP_ALL;HP_ALL=(async()=>{try{const man=await hpManifest('hrpay_payroll');const H=HPD();H.sig=H.sig||{};if(H.v!==5){H.sig={};H.v=5}const by={};
-  for(const [k,h] of Object.entries(man.hashes||{})){const m=(k.match(/^m:(\d{4}-\d{2}):[ap]\d/)||[])[1];if(m)(by[m]=by[m]||[]).push(k+'='+h)}let n=0;
+  for(const [k,h] of Object.entries(man.hashes||{})){const m=(k.match(/^m:(\d{4}-\d{2}):[ap]\d/)||[])[1];if(m)(by[m]=by[m]||[]).push(k+'='+h)}let n=0;HP_MAN_MONTHS=new Set(Object.keys(by).filter(m=>by[m].some(x=>/:p\d/.test(x))));
   for(const m of Object.keys(by).sort()){if(!HP_OLD&&m<String(TODAY.getFullYear()-1)+'-01'&&!H.pay[m])continue;const sig=by[m].sort().join('|');if(H.sig[m]===sig&&(H.pay[m]||H.adv[m]))continue;if(await hpLoadMonth(m,true)){H.sig[m]=sig;HP_DIRTY=true;n++}}
   if(n){persist();GC.clear();if(['basepay','payroll','benefits','emp'].includes(CUR))rerender();if(PROF_NO&&!$('#drawer').hidden)openEmp(PROF_NO)}return n}catch(e){console.warn('HRA-PAY all',e);return 0}})();return HP_ALL}
 function hpRateHist(no){no=String(no);return cached('hph|'+no,()=>{const H=HPD();const e=emp(no)||{};const jm=(e.join_date||'').slice(0,7);const out=[];
@@ -3232,7 +3232,8 @@ function advActual(no,ym){const H=HPD();const p=(H.pay[ym]||{})[no];if(p&&p.AK!=
 const PEST_K='psj_pest_v1';let PEST=null;
 function pestAll(){if(PEST)return PEST;try{PEST=JSON.parse(localStorage.getItem(PEST_K)||'{}')}catch(e){PEST={}}return PEST}
 function pestSave(){try{localStorage.setItem(PEST_K,JSON.stringify(PEST||{}))}catch(e){}}
-function pestNeed(ym){const H=HPD();const c=hpCompl(ym);return !H.pay[ym]||!Object.values(H.pay[ym]).some(x=>x.AK!=null)||(c&&!c.ok)}
+let HP_MAN_MONTHS=null;
+function pestNeed(ym){const H=HPD();if(!H.pay[ym]&&HP_MAN_MONTHS&&HP_MAN_MONTHS.has(ym))return false;/* HRA-PAY 有、只是沒載入的舊月份不試算 */const c=hpCompl(ym);return !H.pay[ym]||!Object.values(H.pay[ym]).some(x=>x.AK!=null)||(c&&!c.ok)}
 async function pestMonth(ym,force){const P=pestAll();if(!force&&P[ym]&&P[ym].v===APPV)return P[ym];const [y,m]=ym.split('-').map(Number);const R={from:new Date(y,m-1,1),to:new Date(y,m,0)};
  if(!attBatches(R).length)return null;try{await xrEnsure()}catch(e){}for(const k of attNeed(R))await attRowsOf(k);GC.clear();const rows=payCalc(R);if(!rows.length)return null;
  const o={v:APPV,at:nowStamp(),n:rows.length,gross:0,Y:0,X:0,N:0,AE:0,AH:0,AJ:0,S:0,AK:0,take:0,meal:0,nEst:rows.filter(r=>r.est).length};
@@ -3244,8 +3245,10 @@ async function pestFill(list,onStep){if(PEST_RUN)return PEST_RUN;PEST_RUN=(async
 function pestMonths(){const out=[];const first=(DB.hrfiles||[]).filter(f=>f.rep==='att').map(f=>f.range[0].slice(0,7)).sort()[0];if(!first)return out;const last=monthKey(addD(parseD(monthKey(TODAY)+'-01'),-1));
  for(let d=parseD(first+'-01');monthKey(d)<=last;d=new Date(d.getFullYear(),d.getMonth()+1,1)){const ym=monthKey(d);if(pestNeed(ym))out.push(ym)}return out.reverse()}
 let PEST_ST={done:0,total:0,cur:''};
-function pestKick(force){if(PEST_RUN)return;const P=pestAll();const list=pestMonths().filter(m=>force||!P[m]||P[m].v!==APPV);if(!list.length)return;PEST_ST={done:0,total:list.length,cur:''};
- setTimeout(()=>pestFill(list,(ym,n)=>{PEST_ST.done++;PEST_ST.cur=ym;if(PEST_ST.done%6===0||PEST_ST.done===PEST_ST.total){GC.clear();if(CUR==='payroll'||CUR==='recon')rerender()}}),400)}
+let PEST_KICKED=0;
+function pestKick(force){if(PEST_RUN||(!force&&Date.now()-PEST_KICKED<60000))return;PEST_KICKED=Date.now();
+ setTimeout(async()=>{try{await hpEnsureAll()}catch(e){}if(PEST_RUN)return;const P=pestAll();const list=pestMonths().filter(m=>force||!P[m]||P[m].v!==APPV);if(!list.length)return;PEST_ST={done:0,total:list.length,cur:''};
+  pestFill(list,(ym,n)=>{PEST_ST.done++;PEST_ST.cur=ym;if(PEST_ST.done%6===0||PEST_ST.done===PEST_ST.total){GC.clear();if(CUR==='payroll'||CUR==='recon')rerender()}})},400)}
 function pestBar(){const P=pestAll();const n=Object.keys(P).filter(m=>pestNeed(m)).length;const run=!!PEST_RUN;
  return `<div class="note small" style="margin:8px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap">🧮 ${run?tt(`正在試算沒有 HRA-PAY 的月份… ${PEST_ST.done}/${PEST_ST.total}（${PEST_ST.cur}）`,`Estimating months without HRA-PAY… ${PEST_ST.done}/${PEST_ST.total}`):tt(`沒有 HRA-PAY 實發的月份用 VRT HR 出勤、請假、員工資料試算（${n} 個月，標「🧮 試算」）；HRA-PAY 進來後自動改用實際。`,`Months without HRA-PAY actuals are estimated from VRT HR attendance, leave and staff data (${n} months, marked “🧮 est.”); they switch to actuals automatically.`)}${run?'':` <button class="btn sm" onclick="pestKick(true);rerender()">↻ ${tt('重新試算','Re-estimate')}</button>`}</div>`}
 window.pestKick=pestKick;
