@@ -1850,7 +1850,7 @@ function trendCols(k){if(k==='meal')return [['n','人數','People','n'],['days',
 function trendKeys(k,ty){const cm=monthKey(TODAY);let ms=[];
  if(ty==='D'||ty==='W'){const a=rangeOf(S(k)).from;const out=[];if(ty==='D'){const y=a.getFullYear(),m=a.getMonth();const last=new Date(y,m+1,0);for(let d=new Date(y,m,1);d<=last&&d<=TODAY;d=addD(d,1))out.push(ymd(d))}else{const y=isoWeek(a).y;for(let i=1;i<=weeksIn(y);i++){const s2=weekStart(y,i);if(s2>TODAY)break;out.push(y+'-W'+pad(i))}}return out.reverse()}
  if(k==='meal'){const X=mealIx();ms=uniq(Object.keys(X).map(h=>h.slice(0,7)).concat((DB.hrfiles||[]).filter(f=>f.rep==='att').map(f=>f.range[0].slice(0,7))))}
- else if(k==='payroll'){const P=HPD().pay||{};ms=uniq(Object.keys(P).filter(m=>Object.values(P[m]||{}).some(x=>x.AK!=null)).concat(Object.keys(pestAll())))}
+ else if(k==='payroll'){const P=HPD().pay||{};ms=uniq(Object.keys(P).filter(m=>Object.values(P[m]||{}).some(x=>x.AK!=null)).concat(Object.keys(pestAll()).filter(pestNeed)))}
  else ms=[...periodKeys(k)].filter(x=>x.length===7);
  ms=ms.filter(m=>m<=cm).sort().reverse();if(ty==='Y')return uniq(ms.map(m=>m.slice(0,4))).sort().reverse().concat(k==='annual'?[...periodKeys(k)].filter(x=>x.length===4&&!ms.some(m=>m.startsWith(x))):[]).filter((x,i,a)=>a.indexOf(x)===i).sort().reverse();return ms}
 function trendAgg(k,key){if(key.length===10||key.includes('-W')){let R;if(key.includes('-W')){const s2=weekStart(+key.slice(0,4),+key.slice(6));R={from:s2,to:addD(s2,6)}}else{const d=parseD(key);R={from:d,to:d}}return agg(k,R)}
