@@ -2971,6 +2971,21 @@ function payInputs(R){const {a,b}=rangeStr(R);const P=C().pay;const NP=noPunchSe
   o.J=Math.max(0,P.div-miss);o.J1=Math.max(0,Math.floor(P.div/2)-miss1)}
  for(const o of Object.values(by)){o.J=Math.min(P.div,o.J);o.J1=Math.min(Math.floor(P.div/2),o.J1);o.U=o.leaver?0:UH[o.emp_no+'|'+ym]||0;o.U1=UH[o.emp_no+'|'+ym+'|1']||0;if(o.leaver){o.V=0;o.J=P.div}}
  return by}
+/* v0.3.4 $12 獎勵（HRA-PAY N 欄）規則（Paul）：有些職位每月固定給（例：裁剪），有些要當月加班滿 14 小時才有（例：車工），沒滿就沒有；請假照比例扣（每小時事假扣 $0.5）。
+   職位分類先用 HRA-PAY 歷史學（沒加班的月份照樣有 → 固定；只有加班月份才有 → 看加班），沒有資料時用下面的預設（2021-09／10 加班月 vs 2021-12、2026 沒加班月實際比對出來的） */
+const INC_FIX_T=['裁手','裁剪組長','環境／餐廳人員','倉庫搬運工','輔料助理','護士','廚師','拉布工','維修工','行政人員','總務課長','生管助理','保安員'];
+const INC_OT_T=['車工','生產作業員','QC 檢驗員','檢驗員','QC','車縫組長','機修','車縫助理','車縫主管','QC組長','清潔工','成品組長','包裝員','線上服務員'];
+const INC_OT_HRS=14;
+function incStats(){return cached('incst',()=>{const H=HPD();const T=id=>(emp(id)||{}).title||'';const mk={};const tt={},pp={};
+ for(const [ym,P] of Object.entries(H.pay||{})){const v=Object.values(P).filter(a=>a.AK!=null);if(v.length<30)continue;const ot=v.filter(a=>+a.AE>0).length/v.length>=0.4;mk[ym]=ot;
+  for(const [id,a] of Object.entries(P)){if(a.AK==null)continue;const k=ot?'ot':'lo';const t=T(id);if(t){const o=tt[t]||(tt[t]={ot:0,otN:0,lo:0,loN:0});o[k]++;if(+a.N>0)o[k+'N']++}
+   const q=pp[id]||(pp[id]=[]);q.push([ym,ot,+a.N||0])}}
+ for(const q of Object.values(pp))q.sort((x,y)=>y[0].localeCompare(x[0]));return {mk,tt,pp}})}
+function incClass(no,ym){const st=incStats();const hist=(st.pp[no]||[]).filter(x=>x[0]!==ym);
+ const lo=hist.filter(x=>!x[1]).slice(0,3),ot=hist.filter(x=>x[1]);
+ if(lo.some(x=>x[2]>0))return 'fix';if(lo.length&&ot.some(x=>x[2]>0))return 'ot';
+ const t=(emp(no)||{}).title||'';const o=st.tt[t];if(o&&o.lo>=5){if(o.loN/o.lo>=0.6)return 'fix';if(o.ot>=5&&o.otN/o.ot>=0.6)return 'ot'}
+ if(INC_FIX_T.includes(t))return 'fix';if(INC_OT_T.includes(t)||/車工|縫|檢驗|QC/.test(t))return 'ot';return lo.length?'none':'none'}
 /* v0.3.4 個人旗標只從「之前」的月份學（不偷看當月實際），這樣對帳準確率就是真正事前能算到的 */
 let HPF_SAME=false;
 /* v0.3.4 工會會費（HRA-PAY AI 欄，每月 $1）：用 HRA Portal 工會會費名單，當月沒有就用最近一期 */
@@ -2994,12 +3009,13 @@ function payCalc(R){const P=C().pay;const ym=monthKey(R.from);const NFX=nssfFxAt
   const fl=hpFlags(o.emp_no,ym);const K=(r.E+r.G+r.H+r.I)/P.div*J+r.F, Sest=fl.noAdv?0:Math.max(0,r.E/P.div*J1-(r.E+r.G)/P.hrs*(AHM[o.emp_no]||0)), Sact=advActual(o.emp_no,ym), S=Sact!=null?Sact:Sest, Uamt=-(r.E+r.G)/P.hrs*U, Vamt=-(r.E+r.G)/P.hrs*V;
   const join=parseD(e.join_date);const TR=ym>='2026-04'?P.trans:7,TRh=ym>='2026-04'?P.transHalf:3.5;/* 交通 $7，2026-04 起加住宿 $2.50（HRA-PAY 規則） */const X=fl.noX?0:join&&(parseD(me)-join)/864e5>31?TR:(J>14?TR:TRh);const Y=fl.noY?0:Math.max(0,P.attBonus/P.div*(J-(U+V)/8));
   const AA=r.E/P.div*o.AA, ABa=r.E/P.hrs*P.ot1*AB, AD=r.E/P.div*P.sun*o.AD, AE=AA+ABa+AD;
-  const N=adj._ed&&adj.bonus!=null&&adj.bonus!==''?+adj.bonus:Math.max(0,(fl.incBase||0)-P.incDed*(U+V)),M=-(+adj.deduct||0),Ra=+adj.al_paid||0,AF=+adj.adjust||0;
+  const IC=incClass(o.emp_no,ym);const incB=IC==='fix'?(fl.incBase||12):IC==='ot'&&AB>=INC_OT_HRS?12:0;
+  const N=adj._ed&&adj.bonus!=null&&adj.bonus!==''?+adj.bonus:Math.max(0,incB-P.incDed*(U+V)),M=-(+adj.deduct||0),Ra=+adj.al_paid||0,AF=+adj.adjust||0;
   const SX=shutExempt(ym);/* 停工不扣：職務加給 ≥ $30（組長、主管、辦公室；2026-07 54 位不扣的幾乎都是這些人），或之前停工月份 HRA-PAY 沒扣、且有職務加給的人 */const shEx=(+r.H||0)>=30||(SX&&SX.has(o.emp_no)&&(+r.H||0)>0);const Tsh=(o.SDn>o.SDw)&&!shEx?-r.E/P.div*0.5*(o.SDn-o.SDw):0;
   const AG=Y+X+N+M+K+Uamt+Ra+Vamt+AF+Tsh-S; const gross=AG+AE+S;
   const NB=nssfAt(ym);const nssfB=Math.min(NB.max,Math.max(NB.min,gross*NFX)); const AH=fl.nssfEx?0:-nssfB*NB.pen/NFX;
   const AJ1=(AG+AE)-X+S; const AJ=fl.taxEx?0:-(taxKHR(AJ1*TFX-(fl.deps||0)*P.taxDep)/TFX); const AI=-unionDue(o.emp_no,ym);const AK=Math.round((AG+AE+AJ+AH+AI+(fl.other||0))*10)/10;
-  out.push({est:!!r.est,np:o.np,stale:o.staleLeave,days:o.days,emp_no:o.emp_no,name:o.name||e.name,dept:o.dept||e.dept,src:r.src,E:r.E,F:r.F,G:r.G,H:r.H,I:r.I,J,J1,U,V,AB,AD:o.AD,AA:o.AA,K,S,Sest,Sact,TK:Math.round((S+AK)*100)/100,Tsh,AI,SDn:o.SDn,SDw:o.SDw,X,Y,AE,AG,gross,AH,AJ,AK,N,fl,adj:!!adj._ed,nfx:NFX,tfx:TFX})}
+  out.push({est:!!r.est,np:o.np,stale:o.staleLeave,days:o.days,emp_no:o.emp_no,name:o.name||e.name,dept:o.dept||e.dept,src:r.src,E:r.E,F:r.F,G:r.G,H:r.H,I:r.I,J,J1,U,V,AB,AD:o.AD,AA:o.AA,K,S,Sest,Sact,TK:Math.round((S+AK)*100)/100,Tsh,AI,IC,SDn:o.SDn,SDw:o.SDw,X,Y,AE,AG,gross,AH,AJ,AK,N,fl,adj:!!adj._ed,nfx:NFX,tfx:TFX})}
  return out}
 function renderPayroll(){
  const k='payroll';if(!hasData('att'))return pageHead(k)+needHTML('att');const st=S(k);const R=rangeOf(st);
