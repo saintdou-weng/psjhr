@@ -3101,7 +3101,7 @@ function rcCalendar(base){const y=base.getFullYear(),m=base.getMonth();const ym=
  add(new Date(y,m,28),'event',tt('離職結算、產假、停工：HRA Portal 送核准時逐筆試算比對','Resign settlement, maternity, shutdown: estimate and compare each one when HRA Portal sends it for approval'),ym,'event');
  return ev.sort((a,b)=>a.date-b.date)}
 /* 月薪逐人逐項比對 */
-function rcPay(ym){return cached('rc|'+ym+'|'+EF_F.map(f=>S('recon')['ef_'+f]||'').join('|'),()=>{const R={from:parseD(ym+'-01'),to:new Date(+ym.slice(0,4),+ym.slice(5,7),0)};const est=payCalc(R);const H=HPD();const hp=H.pay[ym]||null,ha=H.adv[ym]||{};
+function rcPay(ym){{const R0={from:parseD(ym+'-01'),to:new Date(+ym.slice(0,4),+ym.slice(5,7),0)};if(attNeed(R0).length)return {ym,est:0,hp:0,both:0,allok:0,ok:{},rows:[],onlyEst:[],onlyHp:[],tot:{est:{},hp:{}},loading:true}}return cached('rc|'+ym+'|'+EF_F.map(f=>S('recon')['ef_'+f]||'').join('|'),()=>{const R={from:parseD(ym+'-01'),to:new Date(+ym.slice(0,4),+ym.slice(5,7),0)};const est=payCalc(R);const H=HPD();const hp=H.pay[ym]||null,ha=H.adv[ym]||{};
  const res={ym,est:est.length,hp:hp?Object.keys(hp).length:0,both:0,allok:0,ok:{},rows:[],onlyEst:[],onlyHp:[],tot:{est:{},hp:{}}};
  RC_F.forEach(([f])=>{res.ok[f]=0;res.tot.est[f]=0;res.tot.hp[f]=0});
  for(const o of est){RC_F.forEach(([f])=>res.tot.est[f]+=(+o[f]||0));const a=hp&&hp[o.emp_no];if(!a){if(hp)res.onlyEst.push(o);continue}res.both++;const d={};let good=true;
@@ -3123,7 +3123,9 @@ function rcMsg(ym){const r=rcPay(ym);const f2=v=>'$'+fmt(v,2);const L=[];L.push(
  if(r.onlyHp.length)L.push(`HRA-PAY 有、試算沒有：${r.onlyHp.length} 人（${r.onlyHp.slice(0,6).map(x=>x.id).join('、')}${r.onlyHp.length>6?'…':''}）`);
  if(r.onlyEst.length)L.push(`試算有、HRA-PAY 沒有：${r.onlyEst.length} 人`);
  return L.join('\n')}
-async function rcSendPaul(ym){try{if(!cloudReady())throw new Error(tt('雲端未連線','Cloud not connected'));const text=rcMsg(ym)+`\n\n${tt('（只私訊 Paul，不進群組）','(sent to Paul only)')}`;const r=await cpost({action:'hr_tg',text,to:'paul',buttons:[[['🧮 '+tt('打開試算對帳','Open reconciliation'),webBase()+'#recon']]]});if(r&&r.ok===false)throw new Error(r.msg||r.error||('HTTP '+(r.http||'')));toast(tt('已私訊給 Paul','Sent to Paul privately'));audit('telegram','-','SEND_PAUL',null,{ym})}catch(e){toast(tt('私訊失敗：','Send failed: ')+(e.message||e))}}
+async function rcEnsure(ym){const R={from:parseD(ym+'-01'),to:new Date(+ym.slice(0,4),+ym.slice(5,7),0)};for(let i=0;i<3;i++){const n=attNeed(R);if(!n.length)break;for(const k of n)await attRowsOf(k)}if(!HPD().pay[ym])try{await hpLoadMonth(ym)}catch(e){}GC.clear()}
+window.rcEnsure=rcEnsure;
+async function rcSendPaul(ym){try{if(!cloudReady())throw new Error(tt('雲端未連線','Cloud not connected'));await rcEnsure(ym);const text=rcMsg(ym)+`\n\n${tt('（只私訊 Paul，不進群組）','(sent to Paul only)')}`;const r=await cpost({action:'hr_tg',text,to:'paul',buttons:[[['🧮 '+tt('打開試算對帳','Open reconciliation'),webBase()+'#recon']]]});if(r&&r.ok===false)throw new Error(r.msg||r.error||('HTTP '+(r.http||'')));toast(tt('已私訊給 Paul','Sent to Paul privately'));audit('telegram','-','SEND_PAUL',null,{ym})}catch(e){toast(tt('私訊失敗：','Send failed: ')+(e.message||e))}}
 window.rcSendPaul=rcSendPaul;window.rcMsg=rcMsg;window.rcPay=rcPay;window.rcCalendar=rcCalendar;
 function webBase(){return location.origin+location.pathname}
 function renderRecon(){const k='recon';const st=S(k);const H=HPD();if(!hasData('att'))return pageHead(k)+needHTML('att');
