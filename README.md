@@ -1,3 +1,8 @@
+## 雲端刪除核可（2026-11-07）
+- 六個平台（HRA-PAY、HRA Portal、GASCheck、GA-EXP、VRT ERP、VRT HR）共用 `tools/del-guard.js`：任何會刪除或覆蓋雲端資料的請求先攔下、雲端保留，私訊 Paul；Paul 在 VRT HR `#delok` 核可／不核可（存在雲端設定 config.delok），核可後那個平台下一次同步才真的刪。新增、修改照常。
+- 進平台、切分頁會自動同步到完成（失敗每 20 秒重試，最多 6 次）；本來就只下載有變的區塊。
+- 改 del-guard 後用 scratchpad 的 insguard.py 貼回各平台（標記 DEL-GUARD BEGIN/END）。
+
 # VRT HR（技術代號 PSJHR）
 
 網址（建議）：https://saintdou-weng.github.io/psjhr/　　GitHub repo（建議）：`saintdou-weng/psjhr`

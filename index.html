@@ -467,6 +467,188 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
 <div id="toast" class="toast" hidden></div>
 <div id="tip" class="tip" hidden></div>
 <input type="file" id="fileIn" accept=".xlsx,.xls,.XLS,.csv,.jpg,.jpeg,.JPG,.png,.webp" multiple hidden>
+<script>
+/* DEL-GUARD BEGIN — 雲端刪除要 Paul 核可＋進頁／切分頁自動同步 v1.0（2026-11-06）
+ * 共用於 HRA-PAY、HRA Portal、GASCheck、GA-EXP、VRT ERP（PSJERP）；原始檔在 psjhr/tools/del-guard.js，各平台貼在第一個載入的 js 最前面。
+ *
+ * 1) 任何會刪除或覆蓋雲端資料的請求（delete／drop／清除、區塊筆數變少、smartCommit 少了區塊、deletes[]、
+ *    刪除標記 _deleted、force 強制覆蓋…）先攔下來：雲端資料保留不動，私訊 Paul（VRTHRBOT），
+ *    Paul 在 VRT HR 按「✅ 核可」後，這台裝置下一次同步才真的刪。按「❌ 不核可」就一直不刪。
+ * 2) 一進平台、切換分頁，就自動同步（下載＋上傳）到完成為止；本來就只下載有變的區塊，已下載過的不重下。
+ * 只攔「刪」，新增和修改照常上傳。
+ */
+(function (g) {
+  'use strict';
+  if (g.__delGuard) return; g.__delGuard = 1;
+  var doc = g.document;
+  var PSJHR_GAS = 'https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';
+  var PSJHR_KEY = '12345';
+  var APPROVE_PAGE = 'https://saintdou-weng.github.io/psjhr/#delok/';
+  var path = String(g.location && g.location.pathname || '');
+  var PLAT = /ac-hra-pay/i.test(path) ? 'HRA-PAY' : /ac-hra-portal/i.test(path) ? 'HRA Portal' : /ac-gascheck/i.test(path) ? 'GASCheck' : /ac-ga-exp/i.test(path) ? 'GA-EXP' : /psjerp/i.test(path) ? 'VRT ERP' : /psjhr/i.test(path) ? 'VRT HR' : (g.location && g.location.host) || 'web';
+  var PAGE = (path.split('/').pop() || 'index.html') + (g.location && g.location.hash ? g.location.hash.split('?')[0].slice(0, 30) : '');
+  var LS = { get: function (k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (_) { return d; } }, set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} } };
+  var realFetch = g.fetch ? g.fetch.bind(g) : null;
+  if (!realFetch) return;
+
+  /* ---------- 小工具 ---------- */
+  function hash(s) { var h1 = 0xdeadbeef, h2 = 0x41c6ce57; for (var i = 0; i < s.length; i++) { var c = s.charCodeAt(i); h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677); } h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909); h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909); return (h2 >>> 0).toString(36) + (h1 >>> 0).toString(36); }
+  function stable(v) { if (v == null || typeof v !== 'object') return JSON.stringify(v); if (Array.isArray(v)) return '[' + v.map(stable).join(',') + ']'; return '{' + Object.keys(v).sort().filter(function (k) { return !/^(k|key|ts|t|_t|nonce|uploadId|token|cb|callback|_)$/i.test(k); }).map(function (k) { return JSON.stringify(k) + ':' + stable(v[k]); }).join(',') + '}'; }
+  function parseBody(b) {
+    if (b == null) return {};
+    try {
+      if (typeof b === 'string') { var s = b.trim(); if (s[0] === '{') return JSON.parse(s); if (/(^|&)payload=/.test(s)) { var p = new URLSearchParams(s); return JSON.parse(p.get('payload') || '{}'); } if (/=/.test(s)) { var o = {}; new URLSearchParams(s).forEach(function (v, k) { o[k] = v; }); if (o.payload) { try { return JSON.parse(o.payload); } catch (_) {} } return o; } return {}; }
+      if (typeof URLSearchParams !== 'undefined' && b instanceof URLSearchParams) { var o2 = {}; b.forEach(function (v, k) { o2[k] = v; }); if (o2.payload) { try { return JSON.parse(o2.payload); } catch (_) {} } return o2; }
+      if (typeof FormData !== 'undefined' && b instanceof FormData) { var o3 = {}; b.forEach(function (v, k) { if (typeof v === 'string') o3[k] = v; }); if (o3.payload) { try { return JSON.parse(o3.payload); } catch (_) {} } return o3; }
+    } catch (_) {}
+    return {};
+  }
+  function queryOf(url) { var o = {}; try { new URL(url, g.location.href).searchParams.forEach(function (v, k) { o[k] = v; }); } catch (_) {} return o; }
+  function isGas(url) { return /script\.google(usercontent)?\.com\/macros\//.test(url); }
+  function isMine(url) { return url.indexOf(PSJHR_GAS) === 0; }
+
+  /* ---------- 雲端區塊基準：從 smartManifest 回應記下每個區塊的筆數 ---------- */
+  var MAN = LS.get('dg_man_v1', {});
+  function saveMan() { LS.set('dg_man_v1', MAN); }
+  function learnManifest(tool, j) {
+    if (!tool || !j || typeof j !== 'object') return;
+    var d = j.data && typeof j.data === 'object' ? j.data : j; var m = d.manifest && typeof d.manifest === 'object' ? d.manifest : d;
+    var hashes = m.hashes || m.bucketHashes || null, counts = m.counts || m.bucketCounts || null;
+    if (!hashes && Array.isArray(m.buckets)) { hashes = {}; counts = {}; m.buckets.forEach(function (b) { if (b && (b.bucket || b.key)) { var k = b.bucket || b.key; hashes[k] = b.hash || ''; counts[k] = Number(b.count); } }); }
+    if (!hashes || typeof hashes !== 'object') return;
+    var c = {}; Object.keys(hashes).forEach(function (k) { var n = counts && counts[k]; c[k] = (n === 0 || n) && !isNaN(Number(n)) ? Number(n) : null; });
+    MAN[PLAT + '|' + tool] = { at: Date.now(), counts: c }; saveMan();
+  }
+
+  /* ---------- 判斷：這個請求會不會刪雲端資料 ---------- */
+  var EXPLICIT = /^(delete|deletebatch|tempdelete|warndelete|voidpo|recordarchive|erp_drop|img_del|hr_drop|hr_photo_del|remove|purge|clear|reset|drop|wipe)/i;
+  var EXPLICIT_END = /(delete|_drop|_del|remove|purge|clear|reset|archive|wipe)$/i;
+  function recordsOf(o) { var out = []; ['records', 'rows', 'items', 'data'].forEach(function (k) { if (Array.isArray(o[k])) out = out.concat(o[k]); }); return out; }
+  function idOf(r) { if (!r || typeof r !== 'object') return ''; return String(r.id || r._id || r.key || r._k || r.uid || r.recordId || r.no || ''); }
+  function classify(url, method, p) {
+    var a = String(p.action || p.type || p.op || '').trim(); var tool = String(p.tool || p.module || p.sheet || p.key || '');
+    var why = [], parts = [];
+    if (!a) return null;
+    if (/^(smartManifest|smartBucketsRead|hr_manifest|hr_get|erp_manifest|erp_get|ping|status|list|get|read|load)/i.test(a) && !/delete|drop|clear/i.test(a)) return null;
+    if (EXPLICIT.test(a) || EXPLICIT_END.test(a)) { why.push(a); parts.push(a, stable(p)); }
+    if (p.force === true || p.force === 1 || p.force === '1' || p.force === 'true' || p.overwriteConfirmed) { why.push('強制覆蓋 force'); parts.push('force', a, tool); }
+    if (Array.isArray(p.deletes) && p.deletes.length) { var dk = p.deletes.map(function (x) { return typeof x === 'object' ? (x.bucket || x.key || stable(x)) : String(x); }).sort(); why.push('刪除區塊 ' + dk.slice(0, 6).join(',') + (dk.length > 6 ? '…' : '')); parts.push('deletes', tool, dk.join(',')); }
+    if (Array.isArray(p.removeBuckets) && p.removeBuckets.length) { var rb = p.removeBuckets.map(String).sort(); why.push('移除區塊 ' + rb.slice(0, 6).join(',')); parts.push('removeBuckets', tool, rb.join(',')); }
+    if (p.seed === true || p.seed === 1) { why.push('整份重建 seed'); parts.push('seed', tool); }
+    var man = MAN[PLAT + '|' + tool];
+    if (/^smartCommit$/i.test(a) && p.hashes && man) { var gone = Object.keys(man.counts).filter(function (k) { return !(k in p.hashes); }).sort(); if (gone.length) { why.push('雲端少了區塊 ' + gone.slice(0, 6).join(',') + (gone.length > 6 ? '…' : '')); parts.push('commitDrop', tool, gone.join(',')); } }
+    var buckets = Array.isArray(p.buckets) ? p.buckets : (/^smartBucket$/i.test(a) && p.bucket && !p.read ? [p] : []);
+    buckets.forEach(function (b) {
+      if (!b || typeof b !== 'object') return; var k = String(b.bucket || b.key || ''); var recs = recordsOf(b); var cnt = b.count != null ? Number(b.count) : recs.length;
+      var tomb = recs.filter(function (r) { return r && (r._deleted === true || r.deleted === true || r._del === true || r.__deleted === true); }).map(idOf).filter(Boolean).sort();
+      if (tomb.length) { why.push('刪除 ' + tomb.length + ' 筆（' + k + '）'); parts.push('tomb', tool, k, tomb.join(',')); }
+      var was = man && man.counts[k];
+      if (was != null && !isNaN(cnt) && cnt < was) { why.push(k + ' 筆數 ' + was + '→' + cnt); parts.push('shrink', tool, k, was + '>' + cnt); }
+    });
+    if (Array.isArray(p.changes)) { var del = p.changes.filter(function (c) { return c && (c.deleted === true || c._deleted === true || c.op === 'delete'); }).map(function (c) { return idOf(c) || idOf(c.record || c.data); }).sort(); if (del.length) { why.push('刪除 ' + del.length + ' 筆'); parts.push('changesDel', tool, del.join(',')); } }
+    if (!why.length) return null;
+    var sig = hash(PLAT + '|' + parts.join('|'));
+    return { sig: sig, action: a, tool: tool, why: why.join('；').slice(0, 300) };
+  }
+
+  /* ---------- 核可狀態：讀 VRT HR 雲端設定裡 Paul 的決定 ---------- */
+  var OK = LS.get('dg_ok_v1', { at: 0, map: {} });
+  var refreshing = null;
+  function refreshOK(force) {
+    if (!force && Date.now() - (OK.at || 0) < 90000) return Promise.resolve(OK.map);
+    if (refreshing) return refreshing;
+    refreshing = realFetch(PSJHR_GAS + '?k=' + PSJHR_KEY + '&action=hr_get&key=config&offset=0&limit=5', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
+      var rows = (j && j.rows) || []; var map = {};
+      rows.forEach(function (a) { var data = Array.isArray(a) ? a[3] : a && a.data; try { var c = JSON.parse(data || '{}'); if (c && c.delok) map = c.delok; } catch (_) {} });
+      OK = { at: Date.now(), map: map }; LS.set('dg_ok_v1', OK); return map;
+    }).catch(function () { return OK.map; }).then(function (m) { refreshing = null; return m; });
+    return refreshing;
+  }
+  var REQ = LS.get('dg_req_v1', {});   // sig → {at, why, sent}
+  function saveReq() { var cut = Date.now() - 30 * 864e5; Object.keys(REQ).forEach(function (k) { if ((REQ[k].at || 0) < cut) delete REQ[k]; }); LS.set('dg_req_v1', REQ); }
+  function b64(s) { try { return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); } catch (_) { return ''; } }
+  function ask(c) {
+    var r = REQ[c.sig];
+    if (r && r.sent && Date.now() - r.sent < 12 * 3600e3) return;   // 同一件事 12 小時內只私訊一次
+    REQ[c.sig] = { at: (r && r.at) || Date.now(), why: c.why, tool: c.tool, action: c.action, sent: Date.now() }; saveReq();
+    var info = { sig: c.sig, p: PLAT, pg: PAGE, a: c.action, t: c.tool, w: c.why.slice(0, 220), at: new Date().toISOString().slice(0, 16).replace('T', ' ') };
+    var link = APPROVE_PAGE + b64(JSON.stringify(info));
+    var text = '🛡 雲端刪除要你核可\n平台：' + PLAT + '（' + PAGE + '）\n動作：' + c.action + (c.tool ? '｜' + c.tool : '') + '\n內容：' + c.why + '\n\n核可前雲端資料保留不動；核可後下一次同步才會刪。';
+    realFetch(PSJHR_GAS, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ api: 'psjhr', k: PSJHR_KEY, action: 'hr_tg', to: 'paul', text: text, buttons: [[['🛡 打開核可（✅／❌）', link]]] }) }).catch(function () { REQ[c.sig].sent = 0; saveReq(); });
+  }
+  function fakeResponse(c, st) {
+    var msg = st === 'no' ? 'Paul 不核可刪除，雲端資料保留' : '刪除雲端資料要 Paul 核可（已私訊），核可前雲端保留';
+    var body = JSON.stringify({ ok: false, success: false, pendingApproval: true, approval: st || 'pending', error: msg, message: msg, msg: msg, sig: c.sig });
+    try { return new Response(body, { status: 200, headers: { 'Content-Type': 'application/json' } }); } catch (_) { return { ok: true, status: 200, json: function () { return Promise.resolve(JSON.parse(body)); }, text: function () { return Promise.resolve(body); } }; }
+  }
+
+  /* ---------- 畫面提示 ---------- */
+  function banner() {
+    if (!doc.body) return; var pend = Object.keys(REQ).filter(function (k) { var d = OK.map[k]; return !d || d.st !== 'ok'; });
+    var el = doc.getElementById('dg-banner');
+    if (!pend.length) { if (el) el.remove(); return; }
+    if (!el) { el = doc.createElement('div'); el.id = 'dg-banner'; el.style.cssText = 'position:fixed;left:8px;bottom:62px;z-index:2147482999;max-width:min(520px,calc(100vw - 16px));background:#fff7ed;color:#7c2d12;border:1px solid #fdba74;border-radius:12px;padding:8px 10px;font:13px/1.4 system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.15)'; doc.body.appendChild(el); el.onclick = function () { el.style.display = 'none'; setTimeout(function () { el.style.display = ''; }, 600000); }; }
+    var no = pend.filter(function (k) { return OK.map[k] && OK.map[k].st === 'no'; }).length;
+    el.textContent = '🛡 ' + (pend.length - no) + ' 筆雲端刪除等 Paul 核可，核可前雲端資料保留' + (no ? '；' + no + ' 筆 Paul 不核可（雲端保留，請重新下載）' : '') + '（點一下先收起）';
+  }
+
+  /* ---------- 攔截 fetch ---------- */
+  g.fetch = function (input, init) {
+    var url = typeof input === 'string' ? input : (input && input.url) || '';
+    if (!isGas(url) || isMine(url) && !/hr_drop|hr_photo_del/.test(String(init && init.body || ''))) return realFetch(input, init).then(function (res) { sniff(url, init, res); return res; });
+    var method = String((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+    var p = Object.assign({}, queryOf(url), method === 'GET' ? {} : parseBody(init && init.body));
+    var c = null; try { c = classify(url, method, p); } catch (_) { c = null; }
+    if (!c) return realFetch(input, init).then(function (res) { sniff(url, init, res, p); return res; });
+    return refreshOK(false).then(function (map) {
+      var d = map[c.sig];
+      if (d && d.st === 'ok') { return realFetch(input, init).then(function (res) { if (REQ[c.sig]) { REQ[c.sig].done = Date.now(); delete REQ[c.sig]; saveReq(); } banner(); return res; }); }
+      if (!(d && d.st === 'no')) ask(c);
+      else if (!REQ[c.sig]) { REQ[c.sig] = { at: Date.now(), why: c.why, sent: Date.now() }; saveReq(); }
+      setTimeout(banner, 50); console.warn('[del-guard] blocked until Paul approves', c);
+      return fakeResponse(c, d && d.st);
+    });
+  };
+  function sniff(url, init, res, p) {
+    try {
+      p = p || Object.assign({}, queryOf(url), parseBody(init && init.body)); var a = String(p.action || '');
+      if (!/^smartManifest$/i.test(a) || !res || !res.clone) return;
+      res.clone().json().then(function (j) { learnManifest(String(p.tool || ''), j); }).catch(function () {});
+    } catch (_) {}
+  }
+
+  /* ---------- 進頁／切分頁自動同步到完成 ---------- */
+  var KEYS = {};
+  function wrapAuto(name) {
+    var cur = g[name]; var hooked = null;
+    function hook(v) { if (!v || v.__dg) return v; var inst = v.install; if (typeof inst === 'function') v.install = function (o) { try { var k = o && (o.key || o.tool || o.stateKey); if (k) KEYS[name + '|' + k] = { api: name, key: k }; } catch (_) {} return inst.apply(this, arguments); }; v.__dg = 1; return v; }
+    try { Object.defineProperty(g, name, { configurable: true, get: function () { return hooked; }, set: function (v) { hooked = hook(v); } }); if (cur) hooked = hook(cur); } catch (_) {}
+  }
+  ['HRPayAutoSync', 'HRAAutoSync', 'GAAutoSync'].forEach(wrapAuto);
+  var lastKick = 0;
+  function kick(reason) {
+    if (Date.now() - lastKick < 45000) return; lastKick = Date.now();
+    var tries = 0;
+    (function once() {
+      var ps = [];
+      Object.keys(KEYS).forEach(function (id) { var k = KEYS[id], api = g[k.api]; if (api && typeof api.run === 'function') { try { ps.push(Promise.resolve(api.run(k.key, reason))); } catch (_) {} } });
+      try { if (g.GC && g.GC.sync && typeof g.GC.sync.reconcile === 'function') Object.keys(MAN).forEach(function (mk) { var t = mk.split('|'); if (t[0] === PLAT && t[1]) ps.push(Promise.resolve(g.GC.sync.reconcile(t[1], reason))); }); } catch (_) {}
+      if (!ps.length) return;
+      Promise.all(ps.map(function (x) { return x.then(function (r) { return r !== false && !(r && r.ok === false && !r.pendingApproval && !r.unmounted); }, function () { return false; }); })).then(function (oks) {
+        if (oks.every(Boolean) || ++tries >= 6) return; setTimeout(once, 20000);   // 沒完成就每 20 秒再跑，最多 6 次
+      });
+    })();
+  }
+  function onTabClick(e) {
+    var t = e.target && e.target.closest && e.target.closest('[role=tab],[data-tab],.tab,.tabs button,.tab-btn,nav button,.nav button,.seg button,[onclick*="Tab("],[onclick*="tab("]');
+    if (t) setTimeout(function () { lastKick = Math.min(lastKick, Date.now() - 30000); kick('tab-open'); }, 300);
+  }
+  function boot() { refreshOK(true).then(banner); doc.addEventListener('click', onTabClick, true); g.addEventListener('hashchange', function () { kick('tab-open'); }); setTimeout(function () { kick('page-open'); }, 4000); setInterval(function () { refreshOK(false).then(banner); }, 120000); }
+  if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', boot); else boot();
+  g.DelGuard = { classify: classify, refresh: function () { return refreshOK(true); }, pending: function () { return REQ; }, platform: PLAT };
+})(window);
+/* DEL-GUARD END */
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 /* ============ VRT HR / PSJHR v0.1.1 (2026-10-15) ============
@@ -1463,7 +1645,7 @@ async function cloudSync(manual,filt){
  try{
   cloudSetState('busy',tt('讀取雲端清單…','Reading cloud list…'));
   const man=await cget({action:'hr_manifest'}); CLOUD.url=man.url||''; const files=man.files||[]; CLOUD.files=files.length; CLOUD.man=files; const ok=x=>!filt||filt(x.rep,batchYear(x));
-  for(const k of (DB.dropq||[]).splice(0)){try{await cpost({action:'hr_drop',key:k})}catch(e){}}
+  for(const k of (DB.dropq||[]).splice(0)){try{await cpost({action:'hr_drop',key:k})}catch(e){(DB.dropq=DB.dropq||[]).push(k)}/* 刪雲端要 Paul 核可：沒核可就留著下次再試 */}
   const justPushed=new Set();
   DB.sys=DB.sys||{};for(const nm of ['edits','config']){if(DB.sys[nm]&&DB.sys[nm].dirty){cloudSetState('busy',tt('上傳網頁編輯…','Uploading edits…'));await pushSys(nm);justPushed.add(nm);persist()}}
   for(const f of (DB.hrfiles||[]).filter(f=>(f.dirty||!f.version)&&ok(f))){await pushBatch(f);justPushed.add(f.key);pushed++;persist();CLOUD.man=CLOUD.man.filter(m=>m.key!==f.key).concat([{key:f.key,rep:f.rep,label:f.label,range:f.range,year:f.year,asof:f.asof,version:f.version}]);CLOUD.files=CLOUD.man.length}
@@ -2397,7 +2579,7 @@ async function photoRemove(no){if(!confirm(tt('移除這位員工的照片（本
 async function photoSync(){
  DB.photos=DB.photos||{};
  try{
-  const del=(DB.photodel||[]).slice(0);if(del.length){await cpost({action:'hr_photo_del',ids:del});DB.photodel=(DB.photodel||[]).filter(x=>!del.includes(x));persist()}
+  const del=(DB.photodel||[]).slice(0);if(del.length){try{await cpost({action:'hr_photo_del',ids:del});DB.photodel=(DB.photodel||[]).filter(x=>!del.includes(x));persist()}catch(e){console.warn('photo delete waits for approval',e)}}
   const up=Object.keys(DB.photos).filter(id=>DB.photos[id].dirty);
   for(let i=0;i<up.length;i+=15){const ids=up.slice(i,i+15);cloudSetState('busy',tt('上傳照片 ','Uploading photos ')+Math.min(up.length,i+15)+'/'+up.length);
    const items=[];for(const id of ids){const d=await photoGet(id);if(d)items.push({id,h:DB.photos[id].h,data:d})}
@@ -2545,7 +2727,7 @@ function renderSettings(){
  h+=`<div class="grid2"><div class="panel"><h2>${tt('語言與個資顯示','Language & personal data')}</h2><div style="margin:8px 0 12px"><div class="small muted" style="margin-bottom:6px">🎨 ${tt('背景顏色（這台裝置會記住）','Background colour (remembered on this device)','ពណ៌ផ្ទៃខាងក្រោយ (ចងចាំលើឧបករណ៍នេះ)')}</div>${tintSwHTML()}</div><label class="small" style="display:flex;gap:6px;align-items:center;margin:0 0 10px"><input type="checkbox" ${contOn()?'checked':''} onchange="contToggle(this.checked)"> ⇅ ${tt('員工資料連續瀏覽（捲到底自動接下一位）','Employee profile: continuous scrolling (next person loads at the bottom)','ព័ត៌មានបុគ្គលិក: រំកិលបន្ត')}</label><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;align-items:center"><div class="lang">${['中','EN','ខ្មែរ'].map((l,i)=>`<button class="${LANG===i?'on':''}" onclick="setLang(${i})">${l}</button>`).join('')}</div>
   <label class="chk"><input type="checkbox" ${SHOW_PII?'checked':''} onchange="togglePii(this.checked)"> ${tt('直接顯示身分證、電話、生日（預設模糊，滑鼠移過才顯示）','Show ID, phone, birthday directly (blurred by default; hover to reveal)')}</label></div></div>
  <div class="panel"><h2>${tt('這台裝置','This device')}</h2><div class="kv"><div><dt>${tt('批次','Batches')}</dt><dd>${fmt((DB.hrfiles||[]).length)}</dd></div><div><dt>${tt('員工','Employees')}</dt><dd>${fmt(DB.emp.length)}</dd></div><div><dt>${tt('請假 / 異常','Leave / exceptions')}</dt><dd>${fmt(DB.leave.length)} / ${fmt(DB.attexc.length)}</dd></div><div><dt>${tt('工時月份','Attendance months')}</dt><dd>${fmt(uniq((DB.hrfiles||[]).filter(f=>f.rep==='att').map(f=>f.range[0].slice(0,7))).length)}</dd></div></div>
-  <div style="margin-top:10px"><button class="btn sm dng" onclick="clearReal()">${tt('清除這台裝置的資料（雲端不受影響）','Clear data on this device (cloud untouched)')}</button></div></div></div>`;
+  <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" onclick="location.hash='#delok'">🛡 ${tt('雲端刪除核可','Cloud deletion approvals')}${(()=>{const n=Object.keys(delokMap()).length;return n?' · '+n:''})()}</button><button class="btn sm dng" onclick="clearReal()">${tt('清除這台裝置的資料（雲端不受影響）','Clear data on this device (cloud untouched)')}</button></div></div></div>`;
  h+=cloudPanel();
  h+=`<div class="panel mt"><h2>🧾 ${tt('網頁編輯與參數','Web edits & parameters')}</h2><p class="hint">${tt('網頁上新增／編輯／刪除的資料與薪資、伙食費參數都會上傳雲端（試算表 PSJHR_HR_EDITS、PSJHR_HR_CONFIG），其他裝置自動下載；不會寫回 BEST 人事系統。','Records added, edited or deleted on the web and the payroll / meal parameters are uploaded to the cloud (PSJHR_HR_EDITS, PSJHR_HR_CONFIG) and downloaded on other devices; nothing is written back to the BEST HR system.')}</p><div class="kv"><div><dt>${tt('編輯筆數','Edited records')}</dt><dd>${fmt(Object.values(DB.edits||{}).reduce((s,m)=>s+Object.keys(m).length,0))}</dd></div><div><dt>${tt('待選差異','Pending differences')}</dt><dd>${fmt((DB.conflicts||[]).length)}</dd></div><div><dt>HRA-PAY ${tt('已載入','loaded')}</dt><dd>${esc(Object.keys((DB.hp||{}).pay||{}).sort().join(', ')||'—')}</dd></div></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn sm" onclick="openPayCfg()">⚙️ ${tt('薪資福利參數','Pay parameters')}</button><button class="btn sm" onclick="openMealCfg()">🍚 ${tt('伙食費費率','Meal rates')}</button><button class="btn sm" onclick="backupJSON()">⬇ ${tt('下載備份（JSON）','Download backup (JSON)')}</button><label class="btn sm">⬆ ${tt('還原備份','Restore backup')}<input type="file" accept=".json" hidden onchange="this.files[0]&&restoreJSON(this.files[0])"></label>${(DB.conflicts||[]).length?`<button class="btn sm" onclick="openConflicts()">⚖️ ${tt('處理差異','Resolve differences')}</button>`:''}</div></div>`;
  h+=`<div class="panel mt"><h2>${tt('關於','About')}</h2><div class="kv"><div><dt>${tt('系統','System')}</dt><dd>VRT HR · PSJHR v${APPV}</dd></div><div><dt>${tt('來源系統','Source system')}</dt><dd>${tt('BEST 人事管理系統','BEST HR system','ប្រព័ន្ធ HR BEST')}（D:\\per\\per.exe）· ${tt('唯讀','read-only')}</dd></div><div><dt>${tt('相關平台','Related')}</dt><dd><a href="https://saintdou-weng.github.io/vrt-asset/" target="_blank" rel="noopener">VRT ERP</a> · <a href="https://saintdou-weng.github.io/ac-hra-portal/" target="_blank" rel="noopener">AC HRA Portal</a></dd></div><div><dt>${tt('操作手冊','Manual')}</dt><dd><a href="https://claude.ai/code/artifact/ce562c4b-4a32-4a67-9e46-20917a9321c0" target="_blank" rel="noopener">${tt('人事管理系統操作手冊','HR system manual')} ↗</a></dd></div></div></div>`;
@@ -3634,6 +3816,24 @@ ${isDark()?'img,video,picture,canvas{filter:invert(1) hue-rotate(180deg)}':''}` 
  document.head.appendChild(st);
 })();
 
+/* ---------- v0.3.4 雲端刪除核可（HRA-PAY、HRA Portal、GASCheck、GA-EXP、VRT ERP、VRT HR 共用） ----------
+   各平台要刪雲端資料時，del-guard 會先攔下、私訊 Paul 一個連結（#delok/…）；Paul 在這裡按核可／不核可，
+   決定存在 VRT HR 雲端設定（config.delok），各平台每 2 分鐘讀一次，核可的下一次同步才真的刪。 */
+function delokMap(){DB.config=DB.config||{};return DB.config.delok||(DB.config.delok={})}
+function delokParse(){const m=(location.hash||'').match(/^#delok\/([A-Za-z0-9_\-]+)/);if(!m)return null;try{let s=m[1].replace(/-/g,'+').replace(/_/g,'/');s+='='.repeat((4-s.length%4)%4);return JSON.parse(decodeURIComponent(escape(atob(s))))}catch(e){return null}}
+async function delokSet(sig,st,info){const M=delokMap();const cur=M[sig]||{};info=info||cur;M[sig]={st,at:nowStamp(),p:info.p||cur.p||'',pg:info.pg||cur.pg||'',a:info.a||cur.a||'',t:info.t||cur.t||'',w:info.w||cur.w||'',req:info.at||info.req||cur.req||'',by:'paul.weng'};if(st==='del')delete M[sig];cfgSave();audit('delok',sig,st.toUpperCase(),null,{p:info.p,w:info.w});
+ toast(st==='ok'?tt('已核可：那個平台下一次同步就會刪','Approved: that platform deletes on its next sync'):st==='no'?tt('不核可：雲端資料保留','Rejected: cloud data kept'):tt('已移除','Removed'));
+ setTimeout(async()=>{for(let i=0;i<5&&CLOUD.busy;i++)await new Promise(r=>setTimeout(r,1500));try{await cloudSync(false)}catch(e){}if(CUR==='delok')rerender()},300);
+ if(location.hash.startsWith('#delok/'))location.hash='#delok';else rerender()}
+function renderDelok(){const k='delok';const info=delokParse();const M=delokMap();let h=pageHead(k);
+ const stTxt=st=>st==='ok'?`<b style="color:var(--good)">✅ ${tt('已核可','Approved')}</b>`:st==='no'?`<b style="color:var(--crit)">❌ ${tt('不核可','Rejected')}</b>`:`<span class="muted">${tt('待核可','Pending')}</span>`;
+ if(info&&info.sig){const d=M[info.sig];h+=`<div class="panel" style="border:2px solid var(--warn)"><h2>🛡 ${tt('這筆雲端刪除要你決定','Decide on this cloud deletion')}</h2><div class="kv"><div><dt>${tt('平台','Platform')}</dt><dd><b>${esc(info.p||'')}</b></dd></div><div><dt>${tt('頁面','Page')}</dt><dd>${esc(info.pg||'')}</dd></div><div><dt>${tt('動作','Action')}</dt><dd class="mono">${esc(info.a||'')}${info.t?' · '+esc(info.t):''}</dd></div><div><dt>${tt('內容','Details')}</dt><dd>${esc(info.w||'')}</dd></div><div><dt>${tt('提出時間','Requested')}</dt><dd>${esc(info.at||'')}</dd></div><div><dt>${tt('目前','Status')}</dt><dd>${stTxt(d&&d.st)}</dd></div></div>
+  <p class="small muted" style="margin:8px 0">${tt('核可後，那個平台下一次同步（通常 2 分鐘內、有人開著那頁時）才真的刪；不核可就一直保留在雲端。','After approval, that platform deletes on its next sync (usually within 2 minutes while the page is open); if rejected the cloud data stays.')}</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" onclick='delokSet(${JSON.stringify(info.sig)},"ok",${esc(JSON.stringify(info))})'>✅ ${tt('核可刪除','Approve deletion')}</button><button class="btn dng" onclick='delokSet(${JSON.stringify(info.sig)},"no",${esc(JSON.stringify(info))})'>❌ ${tt('不核可（雲端保留）','Reject (keep cloud data)')}</button><button class="btn" onclick="location.hash='#delok'">${tt('之後再說','Later')}</button></div></div>`}
+ const rows=Object.entries(M).sort((a,b)=>String(b[1].at||'').localeCompare(String(a[1].at||'')));
+ h+=`<div class="panel mt"><h2>📋 ${tt('核可紀錄','Decision log')} · ${fmt(rows.length)}</h2><p class="small muted" style="margin:0 0 8px">${tt('所有平台（HRA-PAY、HRA Portal、GASCheck、GA-EXP、VRT ERP、VRT HR）要刪雲端資料都會先私訊你；這裡列出你的決定，可以改。','Every platform asks you by private message before deleting cloud data; your decisions are listed here and can be changed.')}</p>${rows.length?`<div class="tbl-wrap"><table class="t cards"><thead><tr><th>${tt('決定時間','Decided')}</th><th>${tt('平台／頁面','Platform / page')}</th><th>${tt('內容','Details')}</th><th>${tt('決定','Decision')}</th><th></th></tr></thead><tbody>${rows.map(([sig,d])=>`<tr><td class="mono lead" data-l="">${esc(d.at||'')}</td><td data-l="${esc(tt('平台','Platform'))}">${esc(d.p||'')}<div class="small muted">${esc(d.pg||'')}</div></td><td data-l="${esc(tt('內容','Details'))}" class="small">${esc(d.a||'')}${d.t?' · '+esc(d.t):''}<div>${esc(d.w||'')}</div></td><td data-l="${esc(tt('決定','Decision'))}">${stTxt(d.st)}</td><td data-l=""><div style="display:flex;gap:4px;flex-wrap:wrap">${d.st!=='ok'?`<button class="btn sm" onclick="delokSet('${esc(sig)}','ok')">✅</button>`:''}${d.st!=='no'?`<button class="btn sm" onclick="delokSet('${esc(sig)}','no')">❌</button>`:''}<button class="btn sm" title="${esc(tt('移除紀錄','Remove record'))}" onclick="delokSet('${esc(sig)}','del')">🗑</button></div></td></tr>`).join('')}</tbody></table></div>`:`<p class="small muted">${tt('還沒有任何刪除申請。','No deletion requests yet.')}</p>`}</div>`;
+ return h}
+RENDER.delok=renderDelok;T.delok=['雲端刪除核可','Cloud deletion approvals','ការអនុម័តលុបលើ Cloud'];T.sub_delok=['各平台要刪雲端資料都要你核可','Every platform needs your approval to delete cloud data'];
 async function init(){
  $('#page').innerHTML=`<div class="note">${tt('載入資料中…','Loading data…')}</div>`;
  await IDB.open(); bgLoad(); await loadDB(); document.documentElement.dataset.theme='light'; document.body.classList.toggle('show-pii',SHOW_PII); $('#piiBtn').textContent=SHOW_PII?'👁️':'🙈';
