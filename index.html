@@ -2947,14 +2947,20 @@ function recNoteHTML(key,auto){const n=recNote(key);return `${auto?`<div class="
 function editRecNote(key){const n=recNote(key);showModal(`<h2>📝 ${tt('備註','Note')}</h2><p class="small muted mono">${esc(key)}</p><textarea class="inp" id="recNoteTx" rows="4" style="width:100%">${esc(n)}</textarea><div style="display:flex;gap:8px;margin-top:10px"><button class="btn pri" onclick="saveRecNote('${esc(key)}',$('#recNoteTx').value)">💾 ${tt('儲存','Save')}</button><button class="btn" onclick="$('#modal').hidden=true">${esc(t('cancel'))}</button></div>`)}
 function saveRecNote(key,txt){DB.config=DB.config||{};const m=DB.config.recnote||(DB.config.recnote={});txt=String(txt||'').trim();if(txt)m[key]={t:txt,at:nowStamp(),by:'paul.weng'};else delete m[key];cfgSave();$('#modal').hidden=true;toast(tt('備註已儲存（雲端同步）','Note saved (synced)'));rerender()}
 function hpMealFx(hk){const m=hpMealAny(hk);if(!m)return null;const r=Object.values(m).filter(v=>v.usd>0&&v.riel>0).map(v=>v.riel/v.usd).sort((x,y)=>x-y);return r.length?Math.round(r[Math.floor(r.length/2)]):null}
-function payInputs(R){const {a,b}=rangeStr(R);const P=C().pay;const NP=noPunchSet();const H=holidaySet();const LV=leaveDays();const UH=unpaidHrs();const rows=attRowsIn(R);const by={};
+/* v0.3.4 薪資用的假日只算國定假日；BEST 假日檔裡的 Sunday、Shutdown（停工）不算假日。停工日另外算：沒上班的停工日扣 基本÷26×50%（HRA-PAY T 欄，2026-07 對上 85%） */
+function payHolSet(){return cached('phol',()=>new Set((DB.holiday||[]).filter(h=>!/sunday|shutdown|停工/i.test((h.name||'')+' '+(h.type||''))).map(h=>h.date)))}
+function shutSet(){return cached('shut',()=>{const S2=new Set((DB.holiday||[]).filter(h=>/shutdown|停工/i.test((h.name||'')+' '+(h.type||''))).map(h=>h.date));
+ try{for(const r of (typeof xrAll==='function'?xrAll('stop'):[])){if(+r.remainPPL>0)continue;const s0=parseD(String(r.start||'').slice(0,10)),e0=parseD(String(r.end||r.start||'').slice(0,10))||s0;if(!s0)continue;for(let d=new Date(s0);d<=e0&&d-s0<120*864e5;d=addD(d,1))if(d.getDay()!==0)S2.add(ymd(d))}}catch(e){}return S2})}
+function shutExempt(ym){return cached('shutx|'+ym,()=>{const H=HPD();const ks=Object.keys(H.pay||{}).filter(k=>k<ym&&Object.values(H.pay[k]).filter(r=>+r.T).length>=50).sort();const k=ks[ks.length-1];if(!k)return null;return new Set(Object.entries(H.pay[k]).filter(([id,r])=>r.AK!=null&&!+r.T).map(([id])=>id))})}
+function payInputs(R){const {a,b}=rangeStr(R);const P=C().pay;const NP=noPunchSet();const H=payHolSet();const SH=shutSet();const LV=leaveDays();const UH=unpaidHrs();const rows=attRowsIn(R);const by={};
  for(const r of rows){if(r.date<a||r.date>b)continue;const e=emp(r.emp_no)||{};const jd=(e.join_date||'').slice(0,10),ld=(e.leave_date||e.quit_date||'').slice(0,10);
-  const o=by[r.emp_no]||(by[r.emp_no]={emp_no:r.emp_no,name:r.name,dept:OD(r.emp_no,r.dept||r.dept_code),J:0,J1:0,U:0,V:0,AB:0,AD:0,AA:0,days:0,absent:0,first:r.date,last:r.date,np:!!NP[r.emp_no],staleLeave:''});
+  const o=by[r.emp_no]||(by[r.emp_no]={emp_no:r.emp_no,name:r.name,dept:OD(r.emp_no,r.dept||r.dept_code),J:0,J1:0,U:0,V:0,AB:0,AD:0,AA:0,SDn:0,SDw:0,days:0,absent:0,first:r.date,last:r.date,np:!!NP[r.emp_no],staleLeave:''});
   let ld2=ld;if(e.status==='在職'&&ld2&&ld2<a){o.staleLeave=ld2;ld2=''}
   const d=parseD(r.date);const sun=d.getDay()===0,hol=H.has(r.date)&&!sun;const eh=effHrs(r),worked=eh>0||(o.np&&!sun&&!hol);const lv=LV.get(r.emp_no+'|'+r.date);if(r.date<o.first)o.first=r.date;if(r.date>o.last)o.last=r.date;
   if(worked)o.days++;if(sun&&worked)o.AD++;if(hol&&worked)o.AA++;
   const employed=(!jd||r.date>=jd)&&(!ld2||r.date<=ld2);
-  if(!sun&&employed&&lv!=='nopay'){o.J++;if(d.getDate()<=15)o.J1++;if(!worked&&!hol&&!lv){o.absent++;if(P.absentDed)o.V+=8}}
+  const sd=SH.has(r.date)&&!sun&&!hol;if(sd&&employed&&lv!=='nopay'){o.SDn++;if(worked)o.SDw++}
+  if(!sun&&employed&&lv!=='nopay'){o.J++;if(d.getDate()<=15)o.J1++;if(!worked&&!hol&&!lv&&!sd){o.absent++;if(P.absentDed)o.V+=8}}
   const out=hDec(r.time_out);if(!sun&&!hol&&worked&&out!=null&&out>=P.otMinOut)o.AB+=Math.floor((out-P.stdEnd)/P.otStep+1e-9)*P.otStep}
  const ym=a.slice(0,7);for(const o of Object.values(by)){o.J=Math.min(P.div,o.J);o.J1=Math.min(Math.floor(P.div/2),o.J1);o.U=UH[o.emp_no+'|'+ym]||0;o.U1=UH[o.emp_no+'|'+ym+'|1']||0}
  return by}
@@ -2973,10 +2979,11 @@ function payCalc(R){const P=C().pay;const ym=monthKey(R.from);const NFX=nssfFxAt
   const join=parseD(e.join_date);const X=join&&(parseD(me)-join)/864e5>31?P.trans:(J>14?P.trans:P.transHalf);const Y=Math.max(0,P.attBonus/P.div*(J-(U+V)/8));
   const AA=r.E/P.div*o.AA, ABa=r.E/P.hrs*P.ot1*AB, AD=r.E/P.div*P.sun*o.AD, AE=AA+ABa+AD;
   const N=adj._ed&&adj.bonus!=null&&adj.bonus!==''?+adj.bonus:Math.max(0,(fl.incBase||0)-P.incDed*(U+V)),M=-(+adj.deduct||0),Ra=+adj.al_paid||0,AF=+adj.adjust||0;
-  const AG=Y+X+N+M+K+Uamt+Ra+Vamt+AF-S; const gross=AG+AE+S;
+  const SX=shutExempt(ym);const Tsh=(o.SDn>o.SDw)&&!(SX&&SX.has(o.emp_no))?-r.E/P.div*0.5*(o.SDn-o.SDw):0;
+  const AG=Y+X+N+M+K+Uamt+Ra+Vamt+AF+Tsh-S; const gross=AG+AE+S;
   const NB=nssfAt(ym);const nssfB=Math.min(NB.max,Math.max(NB.min,gross*NFX)); const AH=fl.nssfEx?0:-nssfB*NB.pen/NFX;
   const AJ1=(AG+AE)-X+S; const AJ=fl.taxEx?0:-(taxKHR(AJ1*TFX-(fl.deps||0)*P.taxDep)/TFX); const AK=Math.round((AG+AE+AJ+AH+(fl.other||0))*10)/10;
-  out.push({est:!!r.est,np:o.np,stale:o.staleLeave,days:o.days,emp_no:o.emp_no,name:o.name||e.name,dept:o.dept||e.dept,src:r.src,E:r.E,F:r.F,G:r.G,H:r.H,I:r.I,J,J1,U,V,AB,AD:o.AD,AA:o.AA,K,S,Sest,Sact,T:Math.round((S+AK)*100)/100,X,Y,AE,AG,gross,AH,AJ,AK,N,fl,adj:!!adj._ed,nfx:NFX,tfx:TFX})}
+  out.push({est:!!r.est,np:o.np,stale:o.staleLeave,days:o.days,emp_no:o.emp_no,name:o.name||e.name,dept:o.dept||e.dept,src:r.src,E:r.E,F:r.F,G:r.G,H:r.H,I:r.I,J,J1,U,V,AB,AD:o.AD,AA:o.AA,K,S,Sest,Sact,TK:Math.round((S+AK)*100)/100,Tsh,SDn:o.SDn,SDw:o.SDw,X,Y,AE,AG,gross,AH,AJ,AK,N,fl,adj:!!adj._ed,nfx:NFX,tfx:TFX})}
  return out}
 function renderPayroll(){
  const k='payroll';if(!hasData('att'))return pageHead(k)+needHTML('att');const st=S(k);const R=rangeOf(st);
@@ -3219,9 +3226,9 @@ function pestAll(){if(PEST)return PEST;try{PEST=JSON.parse(localStorage.getItem(
 function pestSave(){try{localStorage.setItem(PEST_K,JSON.stringify(PEST||{}))}catch(e){}}
 function pestNeed(ym){const H=HPD();const c=hpCompl(ym);return !H.pay[ym]||!Object.values(H.pay[ym]).some(x=>x.AK!=null)||(c&&!c.ok)}
 async function pestMonth(ym,force){const P=pestAll();if(!force&&P[ym]&&P[ym].v===APPV)return P[ym];const [y,m]=ym.split('-').map(Number);const R={from:new Date(y,m-1,1),to:new Date(y,m,0)};
- if(!attBatches(R).length)return null;for(const k of attNeed(R))await attRowsOf(k);GC.clear();const rows=payCalc(R);if(!rows.length)return null;
+ if(!attBatches(R).length)return null;try{await xrEnsure()}catch(e){}for(const k of attNeed(R))await attRowsOf(k);GC.clear();const rows=payCalc(R);if(!rows.length)return null;
  const o={v:APPV,at:nowStamp(),n:rows.length,gross:0,Y:0,X:0,N:0,AE:0,AH:0,AJ:0,S:0,AK:0,take:0,meal:0,nEst:rows.filter(r=>r.est).length};
- for(const r of rows){['gross','Y','X','N','AE','AH','AJ','AK'].forEach(f=>o[f]+=(+r[f]||0));o.S+=(+r.S||0);o.take+=(+r.T||0)}
+ for(const r of rows){['gross','Y','X','N','AE','AH','AJ','AK'].forEach(f=>o[f]+=(+r[f]||0));o.S+=(+r.S||0);o.take+=(+r.TK||0)}
  try{o.meal=sum(mealCalc(R),'usd')}catch(e){}
  P[ym]=o;pestSave();return o}
 let PEST_RUN=null;
@@ -3236,7 +3243,7 @@ function pestBar(){const P=pestAll();const n=Object.keys(P).filter(m=>pestNeed(m
 window.pestKick=pestKick;
 window.pestFill=pestFill;window.pestMonth=pestMonth;window.pestMonths=pestMonths;window.nssfFxAt=nssfFxAt;window.taxFxAt=taxFxAt;
 const RECON_TOL=0.02;
-const RC_F=[['K','底薪類','Base pay'],['Y','全勤','Attendance'],['X','交通／住宿','Transport'],['N','$12／獎勵','$12 / incentive'],['AE','加班／假日','OT / holiday'],['AH','NSSF','NSSF'],['AJ','薪資稅','Tax'],['S','預支','Advance'],['AK','月底實發','Month-end net'],['T','實拿合計','Take-home']];
+const RC_F=[['K','底薪類','Base pay'],['Y','全勤','Attendance'],['X','交通／住宿','Transport'],['N','$12／獎勵','$12 / incentive'],['AE','加班／假日','OT / holiday'],['AH','NSSF','NSSF'],['AJ','薪資稅','Tax'],['S','預支','Advance'],['AK','月底實發','Month-end net'],['TK','實拿合計','Take-home']];
 function rcPayday(y,m,day){let d=new Date(y,m,day);const hol=new Set((DB.holiday||[]).filter(r=>!/sunday/i.test(r.name||'')).map(r=>r.date));while(d.getDay()===0||d.getDay()===6||hol.has(ymd(d)))d=addD(d,-1);return d}
 /* 每月要算什麼、什麼時候算、什麼時候發 */
 function rcCalendar(base){const y=base.getFullYear(),m=base.getMonth();const ym=monthKey(base),prev=monthKey(new Date(y,m-1,1));const ev=[];
@@ -3258,8 +3265,8 @@ function rcCalendar(base){const y=base.getFullYear(),m=base.getMonth();const ym=
 function rcPay(ym){{const R0={from:parseD(ym+'-01'),to:new Date(+ym.slice(0,4),+ym.slice(5,7),0)};if(attNeed(R0).length)return {ym,est:0,hp:0,both:0,allok:0,ok:{},rows:[],onlyEst:[],onlyHp:[],tot:{est:{},hp:{}},loading:true}}return cached('rc|'+ym+'|'+EF_F.map(f=>S('recon')['ef_'+f]||'').join('|'),()=>{const R={from:parseD(ym+'-01'),to:new Date(+ym.slice(0,4),+ym.slice(5,7),0)};const est=payCalc(R);const H=HPD();const hp=H.pay[ym]||null,ha=H.adv[ym]||{};
  const res={ym,est:est.length,hp:hp?Object.keys(hp).length:0,both:0,allok:0,ok:{},rows:[],onlyEst:[],onlyHp:[],tot:{est:{},hp:{}}};
  RC_F.forEach(([f])=>{res.ok[f]=0;res.tot.est[f]=0;res.tot.hp[f]=0});
- for(const o of est){RC_F.forEach(([f])=>res.tot.est[f]+=(f==='S'?+o.Sest||0:+o[f]||0));const a=hp&&hp[o.emp_no];if(!a){if(hp)res.onlyEst.push(o);continue}res.both++;const d={};let good=true;
-  for(const [f] of RC_F){let av=f==='T'?(+a.AK||0)+(+a.S||0):+a[f];if(isNaN(av))av=0;res.tot.hp[f]+=av;const ev=f==='S'?+o.Sest||0:+o[f]||0;const tol=f==='AK'||f==='T'?0.11:RECON_TOL;const df=ev-av;if(Math.abs(df)<=tol)res.ok[f]++;else if(f!=='S'||o.Sact==null){good=false;d[f]=Math.round(df*100)/100}else{res.advOff=(res.advOff||0)+1;d[f]=Math.round(df*100)/100}}
+ for(const o of est){const a=hp&&hp[o.emp_no];if(!hp||a)RC_F.forEach(([f])=>res.tot.est[f]+=(f==='S'?+o.Sest||0:+o[f]||0));if(!a){if(hp)res.onlyEst.push(o);continue}res.both++;const d={};let good=true;
+  for(const [f] of RC_F){let av=f==='TK'?(+a.AK||0)+(+a.S||0):+a[f];if(isNaN(av))av=0;res.tot.hp[f]+=av;const ev=f==='S'?+o.Sest||0:+o[f]||0;const tol=f==='AK'||f==='TK'?0.11:RECON_TOL;const df=ev-av;if(Math.abs(df)<=tol)res.ok[f]++;else if(f!=='S'||o.Sact==null){good=false;d[f]=Math.round(df*100)/100}else{res.advOff=(res.advOff||0)+1;d[f]=Math.round(df*100)/100}}
   if(good)res.allok++;else res.rows.push({o,a,d})}
  if(hp){const E=new Set(est.map(o=>o.emp_no));Object.entries(hp).forEach(([id,a])=>{if(!E.has(id))res.onlyHp.push({id,a})})}
  res.rows.sort((x,y)=>Math.abs(y.d.AK||0)-Math.abs(x.d.AK||0));return res})}
@@ -3268,11 +3275,11 @@ function rcMeal(ym,b){return cached('rcm|'+ym+'|'+b,()=>{const R=b===1?{from:par
  est.forEach(o=>{const usd=o.usd!=null?+o.usd:(o.riel||0)/(C().meal.fx||4000);te+=usd;const h=X&&X[o.emp_no];if(!h)return;both++;th+=+h[0]||0;const df=usd-(+h[0]||0);if(Math.abs(df)<=RECON_TOL)ok++;else rows.push({o,usd,h,df})});
  return {ym,b,est:est.length,hp:X?Object.keys(X).length:0,both,ok,te,th,rows:rows.sort((x,y)=>Math.abs(y.df)-Math.abs(x.df))}})}
 function rcMsg(ym){const r=rcPay(ym);const f2=v=>'$'+fmt(v,2);const L=[];L.push(`🧮 VRT HR 試算對帳 · ${ym} 月薪`);
- if(!r.hp){L.push(`（HRA-PAY 表還沒進來，先給試算）`);L.push(`人數 ${r.est}｜預支 ${f2(r.tot.est.S)}｜月底實發 ${f2(r.tot.est.AK)}｜實拿合計 ${f2(r.tot.est.T)}`);L.push(`加班假日 ${f2(r.tot.est.AE)}｜NSSF ${f2(Math.abs(r.tot.est.AH))}｜稅 ${f2(Math.abs(r.tot.est.AJ))}`);return L.join('\n')}
+ if(!r.hp){L.push(`（HRA-PAY 表還沒進來，先給試算）`);L.push(`人數 ${r.est}｜預支 ${f2(r.tot.est.S)}｜月底實發 ${f2(r.tot.est.AK)}｜實拿合計 ${f2(r.tot.est.TK)}`);L.push(`加班假日 ${f2(r.tot.est.AE)}｜NSSF ${f2(Math.abs(r.tot.est.AH))}｜稅 ${f2(Math.abs(r.tot.est.AJ))}`);return L.join('\n')}
  const c=hpCompl(ym);if(c&&!c.ok)L.push('⚠️ '+hpComplMsg(c));
  L.push(`✅ 全部項目吻合 ${r.allok}/${r.both} 人（${r.both?Math.round(r.allok/r.both*100):0}%，差 ≤ $${RECON_TOL} 不計）`);
  L.push(RC_F.map(([f,z])=>`${z} ${r.both?Math.round(r.ok[f]/r.both*100):0}%`).join('｜'));
- L.push(`實拿合計（預支＋月底）：試算 ${f2(r.tot.est.T)} ／ HRA-PAY ${f2(r.tot.hp.T)}（差 ${f2(r.tot.est.T-r.tot.hp.T)}）`);
+ L.push(`實拿合計（預支＋月底）：試算 ${f2(r.tot.est.TK)} ／ HRA-PAY ${f2(r.tot.hp.TK)}（差 ${f2(r.tot.est.TK-r.tot.hp.TK)}）`);
  L.push(`　預支：試算 ${f2(r.tot.est.S)} ／ 實發 ${f2(r.tot.hp.S)}｜月底：試算 ${f2(r.tot.est.AK)} ／ HRA-PAY ${f2(r.tot.hp.AK)}`);
  L.push(`　（月底試算已改用實際發出的預支扣回，所以預支多算少算不會讓月底對不上）`);
  if(r.rows.length){L.push(`⚠️ 不吻合 ${r.rows.length} 人（差最多的前 8 位）：`);r.rows.slice(0,8).forEach(x=>L.push(`• ${x.o.emp_no} ${String(x.o.name||'').replace(/\s*\(.*$/,'').slice(0,18)}：`+Object.entries(x.d).map(([f,v])=>`${(RC_F.find(q=>q[0]===f)||[,f])[1]}${v>0?'+':''}${fmt(v,2)}`).join('、')))}
@@ -3315,7 +3322,7 @@ function renderRecon(){const k='recon';const st=S(k);const H=HPD();if(!hasData('
  if(!r.hp){h+=`<p class="small muted">${tt('HRA-PAY 這個月的表還沒進來，先看試算：','HRA-PAY has not sent this month yet — estimate:','')}</p><div class="kpis">${kpi(tt('人數','People'),fmt(r.est))}${kpi(tt('預支','Advance'),'$'+fmt(r.tot.est.S,2))}${kpi(tt('月底實發','Month-end net'),'$'+fmt(r.tot.est.AK,2))}${kpi(tt('加班／假日','OT / holiday'),'$'+fmt(r.tot.est.AE,2))}${kpi('NSSF','$'+fmt(Math.abs(r.tot.est.AH),2))}${kpi(tt('薪資稅','Tax'),'$'+fmt(Math.abs(r.tot.est.AJ),2))}</div></div>`}
  else{const pc=n=>r.both?Math.round(n/r.both*100):0;
   const dd=(a,b)=>{const v=a-b;return (v>0?'+':v<0?'−':'')+'$'+fmt(Math.abs(v),2)};
-  h+=`<div class="kpis">${kpi(tt('全部項目吻合','All items match'),`${r.allok}/${r.both}`,'',pc(r.allok)+'%')}${kpi(tt('實拿合計（預支＋月底）','Take-home (advance + month-end)'),'$'+fmt(r.tot.est.T,2),'',tt('HRA-PAY ','HRA-PAY ')+'$'+fmt(r.tot.hp.T,2)+' · '+tt('差 ','diff ')+dd(r.tot.est.T,r.tot.hp.T))}${kpi(tt('預支 試算','Advance (estimate)'),'$'+fmt(r.tot.est.S,2),'',tt('實發 ','Paid ')+'$'+fmt(r.tot.hp.S,2)+' · '+tt('差 ','diff ')+dd(r.tot.est.S,r.tot.hp.S))}${kpi(tt('月底實發 試算','Month-end (estimate)'),'$'+fmt(r.tot.est.AK,2),'',tt('HRA-PAY ','HRA-PAY ')+'$'+fmt(r.tot.hp.AK,2)+' · '+tt('差 ','diff ')+dd(r.tot.est.AK,r.tot.hp.AK))}</div>
+  h+=`<div class="kpis">${kpi(tt('全部項目吻合','All items match'),`${r.allok}/${r.both}`,'',pc(r.allok)+'%')}${kpi(tt('實拿合計（預支＋月底）','Take-home (advance + month-end)'),'$'+fmt(r.tot.est.TK,2),'',tt('HRA-PAY ','HRA-PAY ')+'$'+fmt(r.tot.hp.TK,2)+' · '+tt('差 ','diff ')+dd(r.tot.est.TK,r.tot.hp.TK))}${kpi(tt('預支 試算','Advance (estimate)'),'$'+fmt(r.tot.est.S,2),'',tt('實發 ','Paid ')+'$'+fmt(r.tot.hp.S,2)+' · '+tt('差 ','diff ')+dd(r.tot.est.S,r.tot.hp.S))}${kpi(tt('月底實發 試算','Month-end (estimate)'),'$'+fmt(r.tot.est.AK,2),'',tt('HRA-PAY ','HRA-PAY ')+'$'+fmt(r.tot.hp.AK,2)+' · '+tt('差 ','diff ')+dd(r.tot.est.AK,r.tot.hp.AK))}</div>
   <p class="small muted" style="margin:6px 0 0">${tt('預支和月薪一起算：月底試算用「實際已發的預支」扣回，所以預支多算或少算只會出現在「預支」欄，不會讓月底和實拿合計對不上。NSSF／薪資稅用當月 HRA-PAY 反推的匯率（','Advance and month-end are computed together: the month-end estimate deducts the advance actually paid, so an advance difference shows only in the Advance column. NSSF / tax use the month’s exchange rate learned from HRA-PAY (')}NSSF ${fmt(nssfFxAt(ym))}・${tt('稅','tax')} ${fmt(taxFxAt(ym))}${tt('）。',').')}${r.advOff?tt(` 預支有 ${r.advOff} 人和 HRA 當時算的不同（多半是 13 日以後才送的假單、或 HRA 手動調整），不算月底錯誤。`,` ${r.advOff} advances differ from HRA’s (mostly leave filed after the 13th or manual changes); not counted as month-end errors.`):''}</p>`;
   h+=`<div class="tbl-wrap mt"><table class="t"><thead><tr><th>${tt('項目','Item')}</th><th class="r">${tt('吻合人數','Matching')}</th><th class="r">%</th><th class="r">${tt('試算合計','Estimate total')}</th><th class="r">HRA-PAY</th><th class="r">${tt('差額','Diff')}</th></tr></thead><tbody>${RC_F.map(([f,z,en])=>{const p=pc(r.ok[f]);const df=r.tot.est[f]-r.tot.hp[f];return `<tr><td>${tt(z,en)}</td><td class="r">${r.ok[f]}/${r.both}</td><td class="r" style="color:${p>=98?'var(--good)':p>=90?'var(--warn)':'var(--crit)'}"><b>${p}%</b></td><td class="r">$${fmt(r.tot.est[f],2)}</td><td class="r">$${fmt(r.tot.hp[f],2)}</td><td class="r"${Math.abs(df)>RECON_TOL?' style="color:var(--warn)"':''}>${df>0?'+':''}${fmt(df,2)}</td></tr>`}).join('')}</tbody></table></div>`;
   if(r.rows.length)h+=`<h3 style="margin:14px 0 6px">⚠️ ${tt('不吻合','Mismatches')} ${r.rows.length} ${tt('人（差額＝試算−HRA-PAY）','people (diff = estimate − HRA-PAY)')}</h3><div class="tbl-wrap"><table class="t list"><thead><tr><th>${tt('工號','No.')}</th><th>${tt('姓名','Name')}</th>${RC_F.map(([f,z,en])=>`<th class="r">${tt(z,en)}</th>`).join('')}</tr></thead><tbody>${r.rows.slice(0,200).map(x=>`<tr class="click" onclick="PROF_TAB='pay';openEmp('${esc(x.o.emp_no)}')"><td class="mono">${esc(x.o.emp_no)}</td><td>${esc(x.o.name||'')}</td>${RC_F.map(([f])=>`<td class="r">${x.d[f]!=null?`<b style="color:var(--crit)">${x.d[f]>0?'+':''}${fmt(x.d[f],2)}</b>`:'<span class="muted">✓</span>'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
