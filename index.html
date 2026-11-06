@@ -3308,7 +3308,7 @@ function rcCalendar(base){const y=base.getFullYear(),m=base.getMonth();const ym=
  add(new Date(y,m,28),'event',tt('離職結算、產假、停工：HRA Portal 送核准時逐筆試算比對','Resign settlement, maternity, shutdown: estimate and compare each one when HRA Portal sends it for approval'),ym,'event');
  return ev.sort((a,b)=>a.date-b.date)}
 /* 月薪逐人逐項比對 */
-function rcPay(ym){{const R0={from:parseD(ym+'-01'),to:new Date(+ym.slice(0,4),+ym.slice(5,7),0)};if(attNeed(R0).length)return {ym,est:0,hp:0,both:0,allok:0,ok:{},rows:[],onlyEst:[],onlyHp:[],tot:{est:{},hp:{}},loading:true}}return cached('rc|'+ym+'|'+EF_F.map(f=>S('recon')['ef_'+f]||'').join('|'),()=>{const R={from:parseD(ym+'-01'),to:new Date(+ym.slice(0,4),+ym.slice(5,7),0)};const est=payCalc(R);const H=HPD();const hp=H.pay[ym]||null,ha=H.adv[ym]||{};
+function rcPay(ym){{const R0={from:parseD(ym+'-01'),to:new Date(+ym.slice(0,4),+ym.slice(5,7),0)};if(attNeed(R0).length)return {ym,est:0,hp:0,both:0,allok:0,ok:{},rows:[],onlyEst:[],onlyHp:[],settle:[],tot:{est:{},hp:{}},loading:true}}return cached('rc|'+ym+'|'+EF_F.map(f=>S('recon')['ef_'+f]||'').join('|'),()=>{const R={from:parseD(ym+'-01'),to:new Date(+ym.slice(0,4),+ym.slice(5,7),0)};const est=payCalc(R);const H=HPD();const hp=H.pay[ym]||null,ha=H.adv[ym]||{};
  const res={ym,est:est.length,hp:hp?Object.keys(hp).length:0,both:0,allok:0,ok:{},rows:[],onlyEst:[],onlyHp:[],tot:{est:{},hp:{}}};
  RC_F.forEach(([f])=>{res.ok[f]=0;res.tot.est[f]=0;res.tot.hp[f]=0});
  res.settle=est.filter(o=>o.settleOnly||o.settleU>0);
