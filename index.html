@@ -2970,7 +2970,7 @@ function payInputs(R){const {a,b}=rangeStr(R);const P=C().pay;const NP=noPunchSe
 let HPF_SAME=false;
 /* v0.3.4 工會會費（HRA-PAY AI 欄，每月 $1）：用 HRA Portal 工會會費名單，當月沒有就用最近一期 */
 function unionMap(){return cached('unionm',()=>{const by={};try{for(const r of xrAll('union')){const p=String(r.period||'').slice(0,7);if(!p)continue;if(r.status&&!/paid|已/i.test(r.status))continue;const id=String(r.employeeId||r.fid||'').replace(/^0+/,'');if(!id)continue;(by[p]||(by[p]={}))[id]=+r.amount||1}}catch(e){}return by})}
-function unionDue(no,ym){const M=unionMap();const ks=Object.keys(M).filter(k=>k<=ym).sort();const k=ks[ks.length-1];if(!k)return 0;return (M[k][no]||0)}
+function unionDue(no,ym){const M=unionMap();const nx=monthKey(new Date(+ym.slice(0,4),+ym.slice(5,7),1));/* 工會名單的期別＝薪資月份的下一個月（10 月名單 12 人＝9 月薪資 AI 12 人） */const ks=Object.keys(M).filter(k=>k<=nx).sort();const k=ks[ks.length-1];if(!k)return 0;return (M[k][no]||0)}
 function hpFlags(no,ym){const H=HPD();const ks=Object.keys(H.pay).filter(k=>(HPF_SAME?k<=ym:k<ym)&&Object.values(H.pay[k]).some(x=>x.AK!=null)).sort();const k=ks[ks.length-1];if(!k)return {};const h=H.pay[k][no];if(!h)return {};const adv=H.adv[k]||{};const P=C().pay;
  const TF=taxFxAt(k);const khr=((+h.AG||0)+(+h.AE||0)-(+h.X||0)+(+h.S||0))*TF;const aj=-(+h.AJ||0)*TF;let deps=0,taxEx=false;
  if(aj>0){const inv=[[0.05,75000,2e6],[0.1,175000,8.5e6],[0.15,600000,12.5e6],[0.2,1225000,1e13]].map(([r,d,mx])=>{const b=(aj+d)/r;return b<=mx?b:null}).find(b=>b!=null);deps=Math.max(0,Math.round((khr-inv)/P.taxDep))}
