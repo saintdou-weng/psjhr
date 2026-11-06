@@ -475,7 +475,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.3.0';
+const APPV='0.3.1';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -3169,8 +3169,8 @@ function setLang(i){LANG=i;LS.set('lang',i);try{GC.clear()}catch(e){}try{(IMPQ||
  rerender=function(){ const fr=document.querySelector('#page iframe.pframe');
   if(fr&&fr.dataset.k===CUR&&isFr(CUR)){ const ph=$('#page .fr-ph'),ht=$('#page .hub-tabs'); const tmp=document.createElement('div'); tmp.innerHTML=renderFrame(CUR);
    if(ph)ph.replaceWith(tmp.querySelector('.fr-ph')); const nt=hubTabs(CUR); if(ht&&nt)ht.outerHTML=nt; renderNav(); applyStatic(); themeFrame(fr); return }
-  _rr.apply(this,arguments); const ht=hubTabs(CUR); if(ht){ const pg=$('#page'); pg.insertAdjacentHTML('afterbegin',ht); const on=pg.querySelector('.hub-tabs .on'); if(on&&on.scrollIntoView)try{on.scrollIntoView({block:'nearest',inline:'center'})}catch(e){} }
-  document.querySelectorAll('#page iframe.pframe').forEach(hookFrame); sizeFrames() };
+  _rr.apply(this,arguments); if(isFr(CUR))window.scrollTo(0,0); const ht=hubTabs(CUR); if(ht){ const pg=$('#page'); pg.insertAdjacentHTML('afterbegin',ht); const on=pg.querySelector('.hub-tabs .on'); if(on&&on.scrollIntoView)try{on.scrollIntoView({block:'nearest',inline:'center'})}catch(e){} }
+  document.querySelectorAll('#page iframe.pframe').forEach(hookFrame); sizeFrames(); setTimeout(sizeFrames,400) };
  let LAST_SITE='';
  const _route=route;
  route=function(){ const prev=CUR; _route.apply(this,arguments); document.body.classList.toggle('framed',isFr(CUR));
@@ -3186,8 +3186,9 @@ function setLang(i){LANG=i;LS.set('lang',i);try{GC.clear()}catch(e){}try{(IMPQ||
    GC.clear(); if(!isFr(CUR))rerender() }catch(e){ console.warn('refresh',site,e) } },300) }
  window.addEventListener('focus',()=>{ if(isFr(CUR))return; if(LAST_SITE)refreshFrom(LAST_SITE) });
  /* 框的高度：撐到畫面底 */
- function sizeFrames(){ document.querySelectorAll('#page iframe.pframe').forEach(fr=>{ const r=fr.getBoundingClientRect(); const top=r.top+window.scrollY; const h=Math.max(420,window.innerHeight-Math.max(0,top-window.scrollY)-(innerWidth<=860?0:14)); fr.style.height=h+'px' }) }
- window.addEventListener('resize',()=>sizeFrames());
+ function sizeFrames(){ document.querySelectorAll('#page iframe.pframe').forEach(fr=>{ const top=fr.getBoundingClientRect().top+window.scrollY; const vh=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; const h=Math.max(360,Math.round(vh-top-(innerWidth<=860?0:14))); fr.style.height=h+'px' }) }
+ window.addEventListener('resize',()=>sizeFrames()); if(window.visualViewport)window.visualViewport.addEventListener('resize',()=>sizeFrames());
+ [300,1200,3000].forEach(ms=>setTimeout(sizeFrames,ms));
  /* ── 平台頁換上 VRT HR 的外觀（同 PSJERP v1.3.0 的作法） ── */
  const VARS=['bg','surface','surface-2','sunk','ink','ink-2','muted','line','line-2','accent','accent-2','accent-soft','on-accent','good','good-soft','warn','warn-soft','crit','crit-soft'];
  const hex2=c=>{ c=String(c||'').trim(); let m=c.match(/^#([0-9a-f]{3,8})$/i); if(m){ let h=m[1]; if(h.length<6)h=h.split('').map(x=>x+x).join(''); return [0,2,4].map(i=>parseInt(h.substr(i,2),16)/255) }
@@ -3219,6 +3220,9 @@ ${H} input{background:var(--psj-surface-2)!important;border:1px solid var(--psj-
 ${H} .psj-floats{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-left:auto}
 .psj-float{position:static!important;inset:auto!important;transform:none!important;margin:0!important;box-shadow:none!important;z-index:auto!important}
 ${H} .psj-float{background:var(--psj-surface-2)!important;border:1px solid var(--psj-line)!important;border-radius:var(--psj-r)!important;padding:2px 6px!important;font-size:11.5px!important}
+${'.psj-dz'}{padding:6px 12px!important;min-height:0!important;height:auto!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:6px!important;margin:0!important}
+.psj-dz .psj-dz-x{display:none!important}.psj-dz .psj-dz-t{margin:0!important;font-size:12.5px!important}.psj-dz .psj-dz-t::after{content:'　（點選或拖放檔案）';font-weight:400;opacity:.6;font-size:11px}
+.psj-empty{display:none!important}
 a.back,.back-btn,.btn-back,a[href="./index.html"].back,a[href="index.html"].back,a[href="hra_portal_v2.html"].back{display:none!important}
 @media (max-width:760px){${H}{padding:4px 8px!important;gap:4px!important}${H} .hstats,${H} .h-stats,${H} .hstat,${H} .hsub,${H} .h-sub,${H} .sub,${H} .brand-sub,${H} p{display:none!important}${H} button,${H} .hbtn{padding:4px 8px!important;font-size:12px!important}}
 ${isDark()?'img,video,picture,canvas{filter:invert(1) hue-rotate(180deg)}':''}` }
@@ -3228,7 +3232,8 @@ ${isDark()?'img,video,picture,canvas{filter:invert(1) hue-rotate(180deg)}':''}` 
   [...doc.body.children].slice(0,4).forEach(e=>{ if(!cand.includes(e))cand.push(e) });
   cand.forEach(e=>{ if(e.classList.contains('psj-hdr')){n++;return} const cs=w.getComputedStyle(e); if(cs.display==='none'||cs.position==='fixed'&&e.offsetHeight<60)return; const r=e.getBoundingClientRect(); if(r.top>140||r.height>320||r.height<24)return;
    const bg=cs.backgroundColor,img=cs.backgroundImage; const dark=(bg&&!/rgba\(0, 0, 0, 0\)|transparent/.test(bg)&&lum(bg)<0.45)||(img&&img!=='none'&&/gradient/.test(img)&&lum((img.match(/rgba?\([^)]+\)|#[0-9a-f]{3,8}/i)||['#fff'])[0])<0.45);
-   if(dark){ e.classList.add('psj-hdr'); n++ } });
+   const titled=r.top<60&&r.height<260&&(e.tagName==='HEADER'||(!!e.querySelector('h1,.logo,.brand,.htitle,.h-title')&&/header|hdr|topbar|top-bar|hd\b/i.test(e.className||'')));
+   if(dark||titled){ e.classList.add('psj-hdr'); n++ } });
   const hd=doc.querySelector('.psj-hdr');
   if(hd){ let box=hd.querySelector(':scope > .psj-floats'); [...doc.body.children].forEach(e=>{ if(e===hd||e.classList.contains('psj-float'))return; const cs=w.getComputedStyle(e); if(cs.position!=='fixed')return; const r=e.getBoundingClientRect(); if(r.top>12||r.height>48||r.width>320||r.width<10)return;
     if(!box){ box=doc.createElement('div'); box.className='psj-floats'; hd.appendChild(box) } e.classList.add('psj-float'); box.appendChild(e) }) }
@@ -3242,16 +3247,32 @@ ${isDark()?'img,video,picture,canvas{filter:invert(1) hue-rotate(180deg)}':''}` 
   doc.addEventListener('click',e=>{ const a=e.target.closest&&e.target.closest('a[href]'); if(!a||e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey)return; const href=a.getAttribute('href'); if(!href||href.startsWith('#')||/^(javascript|mailto|tel|blob|data):/i.test(href))return;
    const k=keyOfUrl(a.href); if(!k||k===fr.dataset.k)return; e.preventDefault(); location.hash=k },true) }
  function themeFrame(fr){ let doc=null; try{ doc=fr.contentDocument }catch(e){ doc=null } if(!doc||!doc.head||!doc.body)return false;
-  try{ let st=doc.getElementById('psj-theme'); if(!st){ st=doc.createElement('style'); st.id='psj-theme' } st.textContent=css(tokens()); doc.head.appendChild(st);
+  try{ markHeaders(doc); let st=doc.getElementById('psj-theme'); if(!st){ st=doc.createElement('style'); st.id='psj-theme' } st.textContent=css(tokens()); doc.head.appendChild(st);
    if(!doc.getElementById('psj-font')){ const lk=document.querySelector('link[href*="fonts.googleapis.com/css2"]'); if(lk){ const l2=doc.createElement('link'); l2.id='psj-font'; l2.rel='stylesheet'; l2.href=lk.href; doc.head.appendChild(l2) } }
-   markHeaders(doc); hookLinks(doc,fr); fr.classList.add('psj-themed'); const ld=fr.parentElement&&fr.parentElement.querySelector('.fr-load'); if(ld)ld.remove();
-   [700,2500,6000].forEach(ms=>setTimeout(()=>{ try{ if(fr.contentDocument===doc){ markHeaders(doc); if(!doc.getElementById('psj-theme'))doc.head.appendChild(st) } }catch(e){} },ms));
-   return true }catch(e){ console.warn('frame theme',e); return false } }
+   markHeaders(doc); compactImport(doc); hookLinks(doc,fr); fr.classList.add('psj-themed'); const ld=fr.parentElement&&fr.parentElement.querySelector('.fr-load'); if(ld)ld.remove();
+   [700,2500,6000].forEach(ms=>setTimeout(()=>{ try{ if(fr.contentDocument===doc){ markHeaders(doc); compactImport(doc); if(!doc.getElementById('psj-theme'))doc.head.appendChild(st) } }catch(e){} },ms));
+   sizeFrames(); return true }catch(e){ console.warn('frame theme',e); return false } }
  window.themeFrame=themeFrame;
+ /* v0.3.1：平台頁的「智慧匯入」大框縮成一條（照樣可點選或拖放檔案）；還沒匯入時的說明框收起來 → 打開就看得到內容 */
+ function compactImport(doc){ const w=doc.defaultView; if(!w||!doc.body)return;
+  const sel='#dz,.dz,#dropZone,.dropzone,#smartDrop,.drop-zone,.smart-drop,.si-drop,.drop,[id*="dropzone" i],[class*="dropzone" i]';
+  const dz=[...doc.querySelectorAll(sel)].filter(e=>!e.classList.contains('psj-dz')&&!e.closest('[class*="modal" i],dialog,[role="dialog"],.psj-hdr')&&e.offsetHeight>56&&e.getBoundingClientRect().top<900);
+  dz.forEach(e=>{ e.classList.add('psj-dz'); let kept=false; [...e.children].forEach(c=>{ if(c.tagName==='INPUT')return; const tx=(c.textContent||'').trim(); if(!kept&&tx.length>=4){ kept=true; c.classList.add('psj-dz-t'); return } c.classList.add('psj-dz-x') }); e.title=e.title||'點選或拖放檔案 / Tap or drop files' });
+  doc.querySelectorAll('#import-report,#importReport,#import-log,#importLog,.import-report,.import-log,#impLog,#siLog,#dz-report').forEach(e=>{ const tx=(e.textContent||'').trim(); const empty=!e.querySelector('table,li,.row,tr')&&tx.length<260&&/尚未匯入|還沒匯入|No file|no files|មិនទាន់/i.test(tx); e.classList.toggle('psj-empty',empty) }) }
+ window.compactImport=compactImport;
  function hookFrame(fr){ if(fr.dataset.psjHook)return; fr.dataset.psjHook=1;
   fr.addEventListener('load',()=>{ themeFrame(fr); /* 框裡自己換頁（例：平台的返回鈕）→ VRT HR 的分頁跟著換 */ try{ const k=keyOfUrl(fr.contentWindow.location.href); if(k&&k!==fr.dataset.k&&k!==CUR){ fr.dataset.k=k; history.replaceState(null,'','#'+k); CUR=k; rerender() } }catch(e){} });
   try{ if(fr.contentDocument&&fr.contentDocument.readyState!=='loading'&&fr.contentDocument.URL!=='about:blank')themeFrame(fr) }catch(e){} }
  const _st=window.setTint; if(typeof _st==='function'){ setTint=function(){ const r=_st.apply(this,arguments); setTimeout(()=>document.querySelectorAll('iframe.pframe').forEach(themeFrame),30); return r } }
+ /* v0.3.1（Paul 11/6）：VRT HR 只要一組密碼——這台裝置用 VRT HR 的同步密碼連上雲端成功過，HRA-PAY、HRA Portal 的平台密碼就不再問
+    （同網域，直接寫入兩個平台「已輸入過密碼」的記號；只存兩個平台程式本來就公開的雜湊值，不存密碼本身） */
+ const GATES=[['hrpay_gate_v1','6051fc84a7a0d74c225fb18a496b09952da5642e60723ecae543298edd7d82d6'],['ac_hra_gate_v1','41e5653fc7aeb894026d6bb7b2db7f65902b454945fa8fd65a6327047b5277fb']];
+ function passGates(){ try{ if(!(typeof cloudReady==='function'&&cloudReady()&&CLOUD.last))return false; const exp=Date.now()+30*864e5;
+   GATES.forEach(([k,h])=>{ let v=null; try{v=JSON.parse(localStorage.getItem(k)||'null')}catch(e){} if(!v||v.h!==h||v.exp<Date.now()+7*864e5)localStorage.setItem(k,JSON.stringify({h,exp,by:'psjhr'})) }); return true }catch(e){ return false } }
+ window.passGates=passGates; passGates();
+ /* 第一次在這台裝置連上雲端後：解鎖並把正停在密碼畫面的平台頁重新載入 */
+ const _cs=typeof cloudSync==='function'?cloudSync:null;
+ if(_cs){ cloudSync=async function(){ const r=await _cs.apply(this,arguments); const before=GATES.every(([k,h])=>{try{const v=JSON.parse(localStorage.getItem(k)||'null');return v&&v.h===h&&v.exp>Date.now()}catch(e){return false}}); if(passGates()&&!before)document.querySelectorAll('iframe.pframe').forEach(fr=>{try{fr.contentWindow.location.reload()}catch(e){}}); return r } }
  /* 側欄最下面原本的「HRA Portal ↗」已經併進來，拿掉；改放兩個平台的原網址（要單獨開時用） */
  try{ const pl=document.getElementById('prodLinks'); if(pl){ const a=[...pl.querySelectorAll('a')].find(x=>/ac-hra-portal/.test(x.href)); if(a)a.remove();
    pl.insertAdjacentHTML('beforeend',`<a href="${SITES.pay.base}index.html" target="_blank" rel="noopener">💼 HRA-PAY ↗</a><a href="${SITES.hra.base}hra_portal_v2.html" target="_blank" rel="noopener">🏥 HRA Portal ↗</a>`) } }catch(e){}
