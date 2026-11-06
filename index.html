@@ -3106,7 +3106,7 @@ const xrL=c=>tt(XR_CAT[c][1],XR_CAT[c][2],XR_CAT[c][3]);
 const xrId=r=>String(r.empId||r.employeeId||r.factoryId||r.fid||r.cardId||r.idNo||'').trim();
 const xrDate=(c,r,bk)=>{const v=c==='trans'||c==='union'||c==='sen'||c==='nssf'?(r.period||bk):c==='join'?r.joinDate:c==='resign'?r.resignDate:c==='settle'?r.settleDate:c==='prob'?(r.evalDate||r.probEnd||r.period):c==='recruit'?r.registerDate:c==='visa'?(r.visaExpiry||r.workPermitExpiry||r.joinDate):c==='cert'?(r.expiryDate||r.startDate):c==='lform'?r.startDate:c==='mat'?(r.date||r.visitDate||r.leaveStart||r.payMonth||r.applyDate||r.period):c==='transfer'?r.effDate:c==='stop'?r.start:c==='otb'?(r.year&&r.month?r.year+'-'+pad(r.month):bk):c==='cal'?r.date:'';return String(v||bk||'').slice(0,10)};
 let XR_P=null,XR_BUSY=false;
-function XRD(){const H=HPD();return H.xr||(H.xr={})}
+function XRD(){const H=HPD();if(!H.xr||H.xr._v!==2)H.xr={_v:2};return H.xr}
 function xrEnsure(force){if(XR_P&&!force)return XR_P;XR_P=(async()=>{XR_BUSY=true;let changed=0;const X=XRD();const tasks=[];
  /* 先一次抓 12 個資料集的目錄（並行），再用 10 條線一起抓有變的桶子 */
  await Promise.all(XR_SRC.map(async([tool,u,kinds])=>{try{const url=u==='hp'?HP_URL:SAL_URL;const m=await fetch(url+'?action=smartManifest&tool='+tool).then(r=>r.json());const d=m.data||m;const hs=d.hashes||{};const T0=X[tool]||(X[tool]={h:{},b:{}});
