@@ -3237,14 +3237,14 @@ function advHrsMap(ym){return cached('advh|'+ym,()=>{const P=C().pay;const m={};
 /* 實際已發的預支：月薪表有就用月薪表扣回的 S；只有預支表就用預支表的實發（AK）；兩個都沒有回 null */
 function advActual(no,ym){const H=HPD();const p=(H.pay[ym]||{})[no];if(p&&p.AK!=null)return +p.S||0;const A=H.adv[ym];if(A&&Object.keys(A).length){const a=A[no];return a?(a.AK!=null?+a.AK:+a.S||0):0}return null}
 /* 沒有 HRA-PAY 的月份：用 VRT HR 出勤＋請假＋員工資料試算，存在這台電腦；HRA-PAY 進來後自動改用實際 */
-const PEST_K='psj_pest_v1';let PEST=null;
+const PEST_K='psj_pest_v1';const PEST_V='0.3.4-c3';/* 試算規則有改就換這個，所有試算月份會重算 */let PEST=null;
 function pestAll(){if(PEST)return PEST;try{PEST=JSON.parse(localStorage.getItem(PEST_K)||'{}')}catch(e){PEST={}}return PEST}
 function pestSave(){try{localStorage.setItem(PEST_K,JSON.stringify(PEST||{}))}catch(e){}}
 let HP_MAN_MONTHS=null;
 function pestNeed(ym){const H=HPD();if(!H.pay[ym]&&HP_MAN_MONTHS&&HP_MAN_MONTHS.has(ym))return false;/* HRA-PAY 有、只是沒載入的舊月份不試算 */const c=hpCompl(ym);return !H.pay[ym]||!Object.values(H.pay[ym]).some(x=>x.AK!=null)||(c&&!c.ok)}
-async function pestMonth(ym,force){const P=pestAll();if(!force&&P[ym]&&P[ym].v===APPV)return P[ym];const [y,m]=ym.split('-').map(Number);const R={from:new Date(y,m-1,1),to:new Date(y,m,0)};
+async function pestMonth(ym,force){const P=pestAll();if(!force&&P[ym]&&P[ym].v===PEST_V)return P[ym];const [y,m]=ym.split('-').map(Number);const R={from:new Date(y,m-1,1),to:new Date(y,m,0)};
  if(!attBatches(R).length)return null;try{await xrEnsure()}catch(e){}for(const k of attNeed(R))await attRowsOf(k);GC.clear();const rows=payCalc(R);if(!rows.length)return null;
- const o={v:APPV,at:nowStamp(),n:rows.length,gross:0,Y:0,X:0,N:0,AE:0,AH:0,AJ:0,S:0,AK:0,take:0,meal:0,nEst:rows.filter(r=>r.est).length};
+ const o={v:PEST_V,at:nowStamp(),n:rows.length,gross:0,Y:0,X:0,N:0,AE:0,AH:0,AJ:0,S:0,AK:0,take:0,meal:0,nEst:rows.filter(r=>r.est).length};
  for(const r of rows){['gross','Y','X','N','AE','AH','AJ','AK'].forEach(f=>o[f]+=(+r[f]||0));o.S+=(+r.S||0);o.take+=(+r.TK||0)}
  try{o.meal=sum(mealCalc(R),'usd')}catch(e){}
  P[ym]=o;pestSave();return o}
@@ -3255,7 +3255,7 @@ function pestMonths(){const out=[];const first=(DB.hrfiles||[]).filter(f=>f.rep=
 let PEST_ST={done:0,total:0,cur:''};
 let PEST_KICKED=0;
 function pestKick(force){if(PEST_RUN||(!force&&Date.now()-PEST_KICKED<60000))return;PEST_KICKED=Date.now();
- setTimeout(async()=>{try{await hpEnsureAll()}catch(e){}if(PEST_RUN)return;const P=pestAll();const list=pestMonths().filter(m=>force||!P[m]||P[m].v!==APPV);if(!list.length)return;PEST_ST={done:0,total:list.length,cur:''};
+ setTimeout(async()=>{try{await hpEnsureAll()}catch(e){}if(PEST_RUN)return;const P=pestAll();const list=pestMonths().filter(m=>force||!P[m]||P[m].v!==PEST_V);if(!list.length)return;PEST_ST={done:0,total:list.length,cur:''};
   pestFill(list,(ym,n)=>{PEST_ST.done++;PEST_ST.cur=ym;if(PEST_ST.done%6===0||PEST_ST.done===PEST_ST.total){GC.clear();if(CUR==='payroll'||CUR==='recon')rerender()}})},400)}
 function pestBar(){const P=pestAll();const n=Object.keys(P).filter(m=>pestNeed(m)).length;const run=!!PEST_RUN;
  return `<div class="note small" style="margin:8px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap">🧮 ${run?tt(`正在試算沒有 HRA-PAY 的月份… ${PEST_ST.done}/${PEST_ST.total}（${PEST_ST.cur}）`,`Estimating months without HRA-PAY… ${PEST_ST.done}/${PEST_ST.total}`):tt(`沒有 HRA-PAY 實發的月份用 VRT HR 出勤、請假、員工資料試算（${n} 個月，標「🧮 試算」）；HRA-PAY 進來後自動改用實際。`,`Months without HRA-PAY actuals are estimated from VRT HR attendance, leave and staff data (${n} months, marked “🧮 est.”); they switch to actuals automatically.`)}${run?'':` <button class="btn sm" onclick="pestKick(true);rerender()">↻ ${tt('重新試算','Re-estimate')}</button>`}</div>`}
