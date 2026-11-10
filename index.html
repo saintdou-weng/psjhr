@@ -704,7 +704,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.3.5';
+const APPV='0.3.6';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2183,7 +2183,7 @@ function topList(rows,key,val,unit){const by={};rows.forEach(r=>{const o=by[r[ke
 const AGEB=[['<20','20 歲以下','Under 20','ក្រោម 20',0,19],['20-29','20–29','20–29','20–29',20,29],['30-39','30–39','30–39','30–39',30,39],['40-49','40–49','40–49','40–49',40,49],['50+','50 歲以上','50 and over','50 ឡើង',50,200],['none','無生日資料','No birthday','គ្មានថ្ងៃកំណើត',null,null]];
 /* v0.3.5 工會身份（Paul 2026-11-10）：原工會＝HRA Portal 工會會費名單最近一期；新工會＝雲端設定 config.unionNew（籌組公告的發起人／候選人，名單只存在雲端、不寫進程式）。
    依工會法，創會成員、候選人、會員受特別保護：懲處、調動、解僱前要先跟 Paul 確認，必要時須勞動督察核准。這個標示是為了提醒保護，不作任何人事評價。 */
-function unionOf(no){no=String(no||'').replace(/^0+/,'');const out=[];try{const M=unionMap();const ks=Object.keys(M).sort();const k=ks[ks.length-1];if(k&&M[k][no])out.push({kind:'old',label:tt('原工會會員','Existing union member','សមាជិកសហជីពចាស់'),src:tt('HRA Portal 工會會費 ','HRA Portal union dues ')+k})}catch(e){}
+function unionOf(no){no=String(no||'').replace(/^0+/,'');const out=[];try{const D=unionDues();const d=D.by[no];if(d){if(d.lastP===D.last)out.push({kind:'old',label:tt('原工會會員','Existing union member','សមាជិកសហជីពចាស់'),src:tt('HRA Portal 工會會費 ','HRA Portal union dues ')+D.last});else out.push({kind:'old',label:tt('原工會（已停繳）','Existing union (stopped paying)','សហជីពចាស់ (ឈប់បង់)'),src:tt('最後繳會費 ','last paid ')+d.lastP+tt('，工會沒撤銷前仍標示','; still marked until the union is dissolved')})}}catch(e){}
  const U=(DB.config||{}).unionNew;if(U&&U.members&&U.members[no]){const m=U.members[no];out.push({kind:'new',label:(m.role==='founder'?tt('新工會發起人','New union founder','អ្នកផ្តួចផ្តើមសហជីពថ្មី'):tt('新工會候選人','New union candidate','បេក្ខជនសហជីពថ្មី')),src:(U.name||'')+' '+(U.date||'')})}return out}
 function unionChip(no){const u=unionOf(no);if(!u.length)return '';return `<span class="hr-chip" style="background:#ede9fe;color:#5b21b6" title="${esc(u.map(x=>x.label+'（'+x.src+'）').join('；')+'\n'+tt('受工會法保護：懲處、調動、解僱前先跟 Paul 確認（必要時須勞動督察核准）','Protected under the Trade Union Law: check with Paul before any discipline, transfer or dismissal'))}">🛡 ${esc(u.map(x=>x.label).join('／'))}</span>`}
 function empSpecial(e){const d=e.det||{};const now=ymd(TODAY);const out=[];if(/^(y|是)$/i.test(String(d.pregnant||'')))out.push('preg');if(d.lact_from&&!/^0000/.test(d.lact_from)&&d.lact_from<=now&&(!d.lact_to||d.lact_to>=now))out.push('nurse');if(e.status==='留職停薪')out.push('lsp');const j=parseD(e.join_date);if(j&&(TODAY-j)/864e5<=90)out.push('new');if(!hasPhoto(e.emp_no))out.push('nophoto');if(e.org_miss)out.push('notitle');if(unionOf(e.emp_no).length)out.push('union');return out}
@@ -2825,11 +2825,14 @@ applyTint(LS.get('tint','white'));
 function togglePii(on){SHOW_PII=on;LS.set('pii',on);document.body.classList.toggle('show-pii',on);$('#piiBtn').textContent=on?'👁️':'🙈'}
 
 /* ---------- global search ---------- */
+const PAGE_KW={union:'工會 union 會費 dues សហជីព',trans:'交通 住宿 宿舍 transport housing bus dorm',x_hra_cert:'簽證 工作證 證書 visa permit',x_hra_welfare:'意見箱 福利 suggestion welfare','annual-hist':'特休 年假 歷年 annual leave','sen-hist':'年資 補償 seniority indemnity',x_hra_mat:'產假 護理 maternity nursing',x_pay_warn:'警告 warning'};
+function pageHits(q){q=q.toLowerCase();const out=[];Object.keys(RENDER).forEach(k=>{const lab=[t(k),(T[k]||[]).join(' '),PAGE_KW[k.replace(/-/g,'_')]||PAGE_KW[k]||''].join(' ').toLowerCase();if(q.length>=2&&lab.includes(q))out.push(k)});return out.slice(0,5)}
 function gsearch(q){const box=$('#sres');q=q.trim().toLowerCase();if(!q){box.hidden=true;return}
+ const PH=/^\d/.test(q)?[]:pageHits(q);const phH=PH.map(k=>`<a href="#${k}" onclick="$('#sres').hidden=true"><b>📂 ${esc(t(k))}</b> <span class="muted small">${tt('頁面','page')}</span></a>`).join('');
  const MT=qTokens(q);if(MT.length>1){const all=[...empIdx().values()];const hit=all.filter(e=>rowHitsTok(e,{q:['emp_no','name','dept']},MT));const nums=MT.filter(x=>/^\d+$/.test(x)),have=new Set(hit.map(e=>String(e.emp_no).replace(/^0+/,'')));const miss=nums.filter(x=>!have.has(x.replace(/^0+/,'')));
   box.innerHTML=`<a href="javascript:void(0)" onclick="const s=S('emp');s.q=${esc(JSON.stringify(MT.join(', ')))};s.page=0;s.view='table';$('#sres').hidden=true;location.hash='#emp';rerender()"><b>📋 ${tt('在員工頁列出這','List these')} ${hit.length} ${tt('人','people')}</b>${miss.length?` <span class="small" style="color:var(--crit)">${tt('找不到','not found')}：${esc(miss.slice(0,10).join(', '))}${miss.length>10?'…':''}</span>`:''}</a>`+hit.slice(0,30).map(e=>`<a href="javascript:void(0)" onclick="openEmp('${esc(e.emp_no)}');$('#sres').hidden=true"><span class="mono">${esc(e.emp_no)}</span> ${esc(e.name||'')} <span class="muted small">${esc(e.dept||'')} ${statusChip(e.status)}</span></a>`).join('');box.hidden=false;return}
  const hits=[...empIdx().values()].filter(e=>(e.emp_no||'').toLowerCase().includes(q)||(e.name||'').toLowerCase().includes(q)||(e.dept||'').toLowerCase().includes(q)).slice(0,12);
- box.innerHTML=hits.length?hits.map(e=>`<a href="javascript:void(0)" onclick="openEmp('${esc(e.emp_no)}');$('#sres').hidden=true"><span class="mono">${esc(e.emp_no)}</span> ${esc(e.name||'')} <span class="muted small">${esc(e.dept||'')} ${statusChip(e.status)}</span></a>`).join(''):`<div class="muted small" style="padding:8px">${esc(t('no_data'))}</div>`;box.hidden=false}
+ box.innerHTML=(phH+(hits.length?hits.map(e=>`<a href="javascript:void(0)" onclick="openEmp('${esc(e.emp_no)}');$('#sres').hidden=true"><span class="mono">${esc(e.emp_no)}</span> ${esc(e.name||'')} <span class="muted small">${esc(e.dept||'')} ${statusChip(e.status)}</span></a>`).join(''):''))||`<div class="muted small" style="padding:8px">${esc(t('no_data'))}</div>`;box.hidden=false}
 
 /* ---------- router / boot ---------- */
 /* ================= v0.2 · edits layer, config, HRA-PAY link, meal, payroll, benefits ================= */
@@ -3722,7 +3725,8 @@ T.sub_recon=['AI 先試算各種費用，HRA-PAY 的表進來後逐人逐項比�
   ['smart-import','🧠','g_over',['smart-import','x-pay-home','x-hra-home']],
   ['emp','👤','g_people',['emp','x-pay-emp','x-pay-transfer']],
   ['joinleave','🔁','g_people',['joinleave','x-hra-onb','x-hra-contract']],
-  ['annual','🌴','g_people',['annual']],
+  ['annual','🌴','g_people',['annual','annual-hist']],
+  ['union','🛡','g_people',['union']],
   ['x-hra-mat','🤱','g_people',['x-hra-mat']],
   ['x-hra-man','👷','g_people',['x-hra-man']],
   ['x-hra-cert','🛂','g_people',['x-hra-cert']],
@@ -3736,7 +3740,8 @@ T.sub_recon=['AI 先試算各種費用，HRA-PAY 的表進來後逐人逐項比�
   ['payroll','💰','g_pay',['payroll','x-pay-payroll']],
   ['recon','🧮','g_pay',['recon']],
   ['meal','🍚','g_pay',['meal','x-pay-meal']],
-  ['benefits','🎁','g_pay',['benefits','x-pay-sen','x-pay-nssf','x-hra-welfare']],
+  ['trans','🚌','g_pay',['trans']],
+  ['benefits','🎁','g_pay',['benefits','sen-hist','x-pay-sen','x-pay-nssf','x-hra-welfare']],
   ['sync','🔄','g_hub',['sync']],['reports','📑','g_hub',['reports']],['jobcode','🏷️','g_hub',['jobcode']],
   ['settings','⚙️','g_sys',['settings']],
  ];
@@ -3900,6 +3905,57 @@ ${isDark()?'img,video,picture,canvas{filter:invert(1) hue-rotate(180deg)}':''}` 
  document.head.appendChild(st);
 })();
 
+/* ---------- v0.3.6 工會、交通、特休歷年、年資補償歷年（Paul 2026-11-10：不要藏在「福利」裡、要像員工頁一樣可一次看一大串或特定人、看歷年金額） ---------- */
+function unionDues(){return cached('udues',()=>{const by={};let last='';try{for(const r of xrAll('union')){const p=String(r.period||'').slice(0,7);const id=String(r.employeeId||r.fid||'').replace(/^0+/,'');if(!p||!id)continue;if(p>last)last=p;const o=by[id]||(by[id]={id,name:r.name||'',dept:r.department||'',months:new Set(),amt:0,first:p,lastP:p});o.months.add(p);o.amt+=parseFloat(r.amount)||0;if(p<o.first)o.first=p;if(p>o.lastP)o.lastP=p}}catch(e){}return {by,last}})}
+function pyFilters(k,rows,extra){const st=S(k);const stat=['在職','離職','留職停薪'];const dc={};rows.forEach(r=>{if(!st.status||r.status===st.status){const d=r.dept||'—';dc[d]=(dc[d]||0)+1}});
+ return `<div class="toolbar">${sel(k,'status',t('emp_status'),stat.map(x=>[x,x]))}${sel(k,'dept',t('dept'),Object.keys(dc).sort((a,b)=>dc[b]-dc[a]).map(d=>[d,d+' ('+dc[d]+')']))}${extra||''}<input class="inp grow" id="q_${k}" placeholder="${esc(t('filter'))} ${esc(tt('（多個工號用逗號分開，或直接貼一整欄）','(several IDs: commas or paste a column)'))}" value="${esc(st.q||'')}" oninput="S('${k}').q=this.value;S('${k}').page=0;debounceRender('q_${k}')"></div>${multiQHTML(k,rows)}`}
+function pyApply(k,rows){const st=S(k);const MQ=multiQ(k);if(MQ)return rows.filter(r=>rowHitsTok(r,{q:['emp_no','name','dept','section']},MQ));let out=rows;if(st.status)out=out.filter(r=>r.status===st.status);if(st.dept)out=out.filter(r=>(r.dept||'—')===st.dept);const q=String(st.q||'').trim().toLowerCase();if(q)out=out.filter(r=>[r.emp_no,r.name,r.dept,r.section].some(v=>String(v||'').toLowerCase().includes(q)));return out}
+function empBase(no){const e=emp(no)||{};const r=enrichRow('emp',e);return {emp_no:String(no),name:e.name||'',dept:r.dept||'',section:r.section||'',status:e.status||'',title:e.title||''}}
+/* 1 工會 */
+function renderUnion(){const k='union';const st=S(k);if(st.status===undefined)st.status='';let h=pageHead(k,`<a class="btn sm" href="#x-hra-welfare">✏️ ${tt('到 HRA Portal 工會費頁編輯','Edit in HRA Portal')}</a>`);
+ const D=unionDues();const U=(DB.config||{}).unionNew||{};const NM=U.members||{};const ids=new Set([...Object.keys(D.by),...Object.keys(NM)]);
+ const rows=[...ids].map(id=>{const b=empBase(id);const d=D.by[id];const n=NM[id];const old=d?(d.lastP===D.last?'pay':'stop'):'';return Object.assign(b,{name:b.name||(d&&d.name)||'',old,lastP:d?d.lastP:'',first:d?d.first:'',months:d?d.months.size:0,amt:d?d.amt:0,nw:n?n.role:''})});
+ if(!xrAll('union').length)xrEnsure();
+ const nPay=rows.filter(r=>r.old==='pay').length,nStop=rows.filter(r=>r.old==='stop').length,nF=rows.filter(r=>r.nw==='founder').length,nC=rows.filter(r=>r.nw==='candidate').length,nBoth=rows.filter(r=>r.old&&r.nw).length;
+ h+=`<div class="note" style="border-left:4px solid #7c3aed">🛡 ${tt('依柬埔寨工會法，創會成員、選舉候選人、工會會員受特別保護：懲處、調動、解僱前先跟 Paul 確認，必要時須勞動督察核准。這頁是為了知道誰受保護，不作任何人事評價。','Under the Cambodian Trade Union Law, founders, candidates and members are specially protected: check with Paul before any discipline, transfer or dismissal (labour inspector approval may be needed). This page is to know who is protected, not to evaluate anyone.')}</div>
+ <div class="kpis">${kpi(tt('原工會：還在繳會費','Existing union: paying'),fmt(nPay),'',D.last?tt('最近一期 ','latest ')+D.last:'')}${kpi(tt('原工會：已停繳','Existing union: stopped paying'),fmt(nStop),'',tt('沒撤銷前仍標示','still marked until dissolved'))}${kpi(tt('新工會：發起人','New union: founders'),fmt(nF))}${kpi(tt('新工會：候選人','New union: candidates'),fmt(nC),'',U.date?esc(U.date)+' '+tt('公告','notice'):'')}${kpi(tt('兩邊都有','In both'),fmt(nBoth))}</div>`;
+ const extra=sel(k,'kind',tt('身份','Status'),[['pay',tt('原工會在繳','Existing – paying')],['stop',tt('原工會已停繳','Existing – stopped')],['founder',tt('新工會發起人','New – founder')],['candidate',tt('新工會候選人','New – candidate')]]);
+ let list=pyApply(k,rows);if(st.kind)list=list.filter(r=>st.kind==='pay'||st.kind==='stop'?r.old===st.kind:r.nw===st.kind);list.sort((a,b)=>(+a.emp_no||0)-(+b.emp_no||0));
+ const oldTxt=r=>r.old==='pay'?`<b style="color:var(--good)">${tt('在繳','Paying')}</b>`:r.old==='stop'?`<span style="color:var(--warn)">${tt('已停繳','Stopped')}</span> <span class="small muted">${tt('最後 ','last ')}${esc(r.lastP)}</span>`:'<span class="muted">—</span>';
+ const nwTxt=r=>r.nw==='founder'?`<b style="color:#6d28d9">${tt('發起人','Founder')}</b>`:r.nw==='candidate'?`<span style="color:#6d28d9">${tt('候選人','Candidate')}</span>`:'<span class="muted">—</span>';
+ h+=`<div class="panel mt"><h2>👥 ${tt('工會人員','Union people')} · ${fmt(list.length)}</h2>${pyFilters(k,rows,extra)}<div class="tbl-wrap"><table class="t cards"><thead><tr><th>${tt('工號','No.')}</th><th>${tt('姓名','Name')}</th><th>${tt('部門／組別','Dept / section')}</th><th>${tt('在職','Status')}</th><th>${tt('原工會','Existing union')}</th><th>${tt('新工會','New union')}</th><th class="r">${tt('繳費月數','Months paid')}</th><th class="r">${tt('會費合計','Dues total')}</th></tr></thead><tbody>${list.slice(0,600).map(r=>`<tr class="click" onclick="openEmp('${esc(r.emp_no)}')"><td class="mono lead" data-l="">${esc(r.emp_no)}</td><td data-l="${esc(tt('姓名','Name'))}">${esc(r.name)}</td><td data-l="${esc(tt('部門','Dept'))}">${esc(r.dept)}${r.section?' · '+esc(r.section):''}</td><td data-l="${esc(tt('在職','Status'))}">${statusChip(r.status)}</td><td data-l="${esc(tt('原工會','Existing'))}">${oldTxt(r)}</td><td data-l="${esc(tt('新工會','New'))}">${nwTxt(r)}</td><td class="r" data-l="${esc(tt('月數','Months'))}">${r.months?fmt(r.months)+' <span class="small muted">'+esc(r.first)+'～'+esc(r.lastP)+'</span>':'—'}</td><td class="r" data-l="${esc(tt('會費','Dues'))}">${r.amt?'$'+fmt(r.amt,2):'—'}</td></tr>`).join('')}</tbody></table></div><p class="small muted" style="margin:6px 0 0">${tt('原工會＝HRA Portal 工會會費名單（每月一份）；新工會＝雲端設定裡的籌組公告名單。以後有當選名單或勞工部登記資料，交給 Claude 更新。','Existing union = HRA Portal monthly dues lists; new union = the formation notice list in cloud settings.')}</p></div>`;
+ h+=`<div class="panel mt">${xrCatHTML('union',{from:new Date(2000,0,1),to:TODAY},k)}</div>`;return h}
+/* 2 交通／住宿 */
+function renderTrans(){const k='trans';const st=S(k);const all=xrAll('trans');if(!all.length)xrEnsure();const months=[...new Set(all.map(r=>String(r.period||'').slice(0,7)).filter(Boolean))].sort().reverse();const ym=months.includes(st.ym)?st.ym:months[0]||'';
+ const yes=v=>v!=null&&v!==''&&!/^(no|0|false|-|—|n)$/i.test(String(v));
+ let h=pageHead(k,`<a class="btn sm" href="#x-hra-welfare">✏️ ${tt('到 HRA Portal 交通／住宿頁編輯','Edit in HRA Portal')}</a>`);
+ const cur=all.filter(r=>String(r.period||'').slice(0,7)===ym);const rows=cur.map(r=>Object.assign(empBase(String(r.employeeId||'').replace(/^0+/,'')),{tr:yes(r.transport),ac:yes(r.accommodation),dep0:r.department||'',name0:r.name||''}));rows.forEach(r=>{if(!r.name)r.name=r.name0});
+ const hist={};all.forEach(r=>{const id=String(r.employeeId||'').replace(/^0+/,'');if(!id)return;(hist[id]||(hist[id]=new Set())).add(String(r.period||'').slice(0,7))});
+ h+=`<div class="toolbar"><select class="inp" style="width:auto" onchange="S('trans').ym=this.value;rerender()">${months.map(m=>`<option value="${m}"${m===ym?' selected':''}>${m}</option>`).join('')}</select></div>`;
+ h+=`<div class="kpis">${kpi(tt('名單人數','On the list'),fmt(rows.length),'',ym)}${kpi(tt('交通','Transport'),fmt(rows.filter(r=>r.tr).length))}${kpi(tt('住宿','Housing'),fmt(rows.filter(r=>r.ac).length))}</div>`;
+ const list=pyApply(k,rows).sort((a,b)=>(+a.emp_no||0)-(+b.emp_no||0));
+ h+=`<div class="panel mt"><h2>🚌 ${tt('名單','List')} · ${esc(ym)} · ${fmt(list.length)}</h2>${pyFilters(k,rows)}<div class="tbl-wrap"><table class="t cards"><thead><tr><th>${tt('工號','No.')}</th><th>${tt('姓名','Name')}</th><th>${tt('部門／組別','Dept / section')}</th><th>${tt('在職','Status')}</th><th>${tt('交通','Transport')}</th><th>${tt('住宿','Housing')}</th><th class="r">${tt('歷來在名單月數','Months on list')}</th></tr></thead><tbody>${list.map(r=>`<tr class="click" onclick="openEmp('${esc(r.emp_no)}')"><td class="mono lead" data-l="">${esc(r.emp_no)}</td><td data-l="${esc(tt('姓名','Name'))}">${esc(r.name)}</td><td data-l="${esc(tt('部門','Dept'))}">${esc(r.dept||r.dep0)}${r.section?' · '+esc(r.section):''}</td><td data-l="${esc(tt('在職','Status'))}">${statusChip(r.status)}</td><td data-l="${esc(tt('交通','Transport'))}">${r.tr?'✔':'—'}</td><td data-l="${esc(tt('住宿','Housing'))}">${r.ac?'✔':'—'}</td><td class="r" data-l="${esc(tt('月數','Months'))}">${fmt((hist[r.emp_no]||new Set()).size)}</td></tr>`).join('')}</tbody></table></div></div>`;
+ const g={};all.forEach(r=>{const m=String(r.period||'').slice(0,7);if(!m)return;const o=g[m]||(g[m]={n:0,tr:0,ac:0});o.n++;if(yes(r.transport))o.tr++;if(yes(r.accommodation))o.ac++});
+ h+=`<div class="panel mt"><h2>📅 ${tt('每月人數','Per month')}</h2><div class="tbl-wrap"><table class="t"><thead><tr><th>${tt('月份','Month')}</th><th class="r">${tt('名單','List')}</th><th class="r">${tt('交通','Transport')}</th><th class="r">${tt('住宿','Housing')}</th></tr></thead><tbody>${Object.keys(g).sort().reverse().map(m=>`<tr class="click" onclick="S('trans').ym='${m}';rerender();scrollTo(0,0)"><td class="mono">${m}</td><td class="r">${fmt(g[m].n)}</td><td class="r">${fmt(g[m].tr)}</td><td class="r">${fmt(g[m].ac)}</td></tr>`).join('')}</tbody></table></div></div>`;return h}
+/* 3 每人歷年（特休、年資補償）：像員工頁一樣篩、可一次搜一串工號，一年一欄 */
+function pyMatrix(k,byEmp,years,cell,total,note){const st=S(k);const rows=Object.keys(byEmp).map(id=>Object.assign(empBase(id),{d:byEmp[id]}));rows.forEach(r=>{if(!r.name)r.name=r.d._name||''});
+ let list=pyApply(k,rows).sort((a,b)=>(+a.emp_no||0)-(+b.emp_no||0));const N=list.length;const shown=list.slice(0,(st.page||0)*300+300);
+ return `<div class="panel mt">${pyFilters(k,rows)}<div class="small muted" style="margin:4px 0 8px">${tt('符合','Matching')} <b>${fmt(N)}</b> ${tt('人','people')}${note?' · '+note:''}</div><div class="tbl-wrap"><table class="t"><thead><tr><th>${tt('工號','No.')}</th><th>${tt('姓名','Name')}</th><th>${tt('部門','Dept')}</th>${years.map(y=>`<th class="r">${y}</th>`).join('')}<th class="r">${tt('合計','Total')}</th></tr></thead><tbody>${shown.map(r=>`<tr class="click" onclick="openEmp('${esc(r.emp_no)}')"><td class="mono">${esc(r.emp_no)}</td><td>${esc(r.name)} ${r.status&&r.status!=='在職'?statusChip(r.status):''}</td><td class="small">${esc(r.dept)}${r.section?' · '+esc(r.section):''}</td>${years.map(y=>`<td class="r small">${cell(r.d[y])}</td>`).join('')}<td class="r"><b>${total(r.d)}</b></td></tr>`).join('')}</tbody></table></div>${N>shown.length?`<div style="text-align:center;margin:8px"><button class="btn sm" onclick="S('${k}').page=(S('${k}').page||0)+1;rerender()">${tt('再顯示 300 人','Show 300 more')}（${fmt(shown.length)}/${fmt(N)}）</button></div>`:''}</div>`}
+function renderAnnualHist(){const k='annual-hist';const st=S(k);if(!st._i){st.status='在職';st._i=1}let h=pageHead(k);
+ const by={};const ys=new Set();DB.annual.forEach(r=>{if(!r.emp_no)return;const y=String(r.year);ys.add(y);const o=by[r.emp_no]||(by[r.emp_no]={_name:r.name});const dh=+r.day_hrs||8;o[y]={ent:(+r.al_hrs||0)/dh,used:(+r.al_used_hrs||0)/dh,left:(+r.al_left||0)/dh}});
+ const H=HPD();Object.entries(H.pay||{}).forEach(([m,P])=>Object.entries(P).forEach(([id,a])=>{const R=+a.R||0;if(!R)return;const y=m.slice(0,4);const o=by[id]||(by[id]={});const c=o[y]||(o[y]={});c.cash=(c.cash||0)+R;ys.add(y)}));
+ const years=[...ys].sort();
+ h+=`<p class="small muted">${tt('每格：已休／可休（天），剩幾天；有 HRA-PAY 實發的年終特休折現會加 $。點員工看個人頁。','Each cell: used / entitled days, days left; $ = annual-leave cash-out paid in HRA-PAY. Tap a person for the profile.')}</p>`;
+ h+=pyMatrix(k,by,years,c=>c?(c.ent!=null?`${fmt(c.used,1)}/${fmt(c.ent,1)}<div class="muted">${tt('剩','left')} ${fmt(c.left,1)}</div>`:'')+(c.cash?`<div style="color:var(--good)">$${fmt(c.cash,2)}</div>`:''):'<span class="muted">—</span>',d=>{const L=years.reduce((s,y)=>s+((d[y]&&d[y].used)||0),0);const C=years.reduce((s,y)=>s+((d[y]&&d[y].cash)||0),0);return `${fmt(L,1)} ${tt('天','d')}${C?`<div style="color:var(--good)">$${fmt(C,2)}</div>`:''}`},tt('合計＝歷年已休天數（＋折現金額）','Total = days used over the years (+ cash-out)'));
+ return h}
+function renderSenHist(){const k='sen-hist';const st=S(k);if(!st._i){st.status='在職';st._i=1}let h=pageHead(k,`<a class="btn sm" href="#x-pay-sen">✏️ ${tt('到 HRA-PAY 年資補償頁','Open HRA-PAY seniority page')}</a>`);const all=xrAll('sen');if(!all.length)xrEnsure();
+ const by={};const ys=new Set();all.forEach(r=>{const id=String(r.empId||r.employeeId||'').replace(/^0+/,'');const p=String(r.period||r._bk||'').slice(0,7);if(!id||!p)return;const y=p.slice(0,4);ys.add(y);const o=by[id]||(by[id]={_name:r.nameKh||r.name||''});const c=o[y]||(o[y]={amt:0,n:0,days:0});c.amt+=parseFloat(r.sourceAmount)||0;c.days+=parseFloat(r.days)||0;c.n++});
+ const years=[...ys].sort();
+ h+=`<p class="small muted">${tt('每格：那一年年資補償金額（上下半年合計），下面是天數。資料來自 HRA-PAY 半年年資補償名單。','Each cell: seniority indemnity paid that year (both halves), days below. From the HRA-PAY seniority lists.')}</p>`;
+ h+=pyMatrix(k,by,years,c=>c?`$${fmt(c.amt,2)}<div class="muted">${fmt(c.days,1)} ${tt('天','d')}</div>`:'<span class="muted">—</span>',d=>'$'+fmt(years.reduce((s,y)=>s+((d[y]&&d[y].amt)||0),0),2));
+ return h}
+RENDER.union=renderUnion;RENDER.trans=renderTrans;RENDER['annual-hist']=renderAnnualHist;RENDER['sen-hist']=renderSenHist;
+Object.assign(T,{union:['工會','Trade union','សហជីព'],sub_union:['原工會、新工會、會費（誰受工會法保護）','Existing / new union and dues (who is protected)','សហជីព និងថ្លៃសមាជិក'],trans:['交通／住宿','Transport / housing','ដឹកជញ្ជូន / ស្នាក់នៅ'],sub_trans:['每月交通、住宿名單','Monthly transport and housing lists','បញ្ជីប្រចាំខែ'],'annual-hist':['特休歷年（每人）','Annual leave by year (per person)','ច្បាប់ប្រចាំឆ្នាំ តាមឆ្នាំ'],'sub_annual-hist':['一人一列、一年一欄：已休／可休／剩、年終折現','One row per person, one column per year','មួយជួរម្នាក់ មួយជួរឈរមួយឆ្នាំ'],'sen-hist':['年資補償歷年（每人）','Seniority indemnity by year (per person)','ប្រាក់អតីតភាព តាមឆ្នាំ'],'sub_sen-hist':['一人一列、一年一欄的年資補償金額','One row per person, one column per year','មួយជួរម្នាក់']});
 /* ---------- v0.3.4 雲端刪除核可（HRA-PAY、HRA Portal、GASCheck、GA-EXP、VRT ERP、VRT HR 共用） ----------
    各平台要刪雲端資料時，del-guard 會先攔下、私訊 Paul 一個連結（#delok/…）；Paul 在這裡按核可／不核可，
    決定存在 VRT HR 雲端設定（config.delok），各平台每 2 分鐘讀一次，核可的下一次同步才真的刪。 */
