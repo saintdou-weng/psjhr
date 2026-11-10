@@ -704,7 +704,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.3.4';
+const APPV='0.3.5';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2018,14 +2018,29 @@ function cell(r,c){const v=r[c.f];
  if(c.ty==='usd')return fUSD(v);if(c.ty==='khr')return fKHR(v);
  if(isNum(c))return v==null||v===''?'—':fmt(v,c.ty==='n1'?1:0);
  return esc(v==null||v===''?'—':vl(v))}
+/* v0.3.5 單位整合（Paul 2026-11-10）：Line1 就是 Line 1，舊資料的 A1、G1（BEST 以前的車縫單位）都算 Line 1；舊部門名稱（Production、QC-Apron、Administration…）併到現在的部門 */
+function unitNorm(v){let s=String(v||'').trim();if(!s)return '';let m=s.match(/^(?:line|l)\s*[-_.]?\s*0*(\d+)$/i)||s.match(/^[AG]\s*[-_.]?\s*0*(\d+)$/i);if(m)return 'Line '+(+m[1]);
+ const fix={'mechine on line':'Machine on Line','mainternace':'Maintenance','qc-a':'QC A','qc-b':'QC B','production& qc':'Production & QC'};return fix[s.toLowerCase()]||s}
+const isUnitCode=v=>/^(?:[AG]|line|l)\s*[-_.]?\s*\d+$/i.test(String(v||'').trim());
+function deptNorm(v){const s=String(v||'').trim();if(!s)return '';if(/^(生產|行政中心|船務|會計)$/.test(s))return s;
+ if(isUnitCode(s)||/^(production|qc|cutting|packing|warehouse|training|sample|sewing|finish|line|ie\b|me\b|pc\b|development|machine|mechine)/i.test(s))return '生產';
+ if(/^(accounting\s*\(\s*shipping|shipping|im\s*\/\s*export|import|export)/i.test(s))return '船務';
+ if(/^(account|finance)/i.test(s))return '會計';
+ if(/^(admin|hra|hr\b|ga\b|security|compliance|it\b|office|nurse|doctor|clinic|canteen|driver|electric|maint)/i.test(s))return '行政中心';
+ return s}
 function enrichRow(k,r){
- if(k==='emp'){return Object.assign({},r,{sen:seniority(r.join_date,r.leave_date),age:age(r.birthday),stype:stypeOf(r).v,stype_inf:stypeOf(r).inf})}
+ if(k==='emp'){return Object.assign({},r,{dept:deptNorm(r.dept)||r.dept,section:unitNorm(r.section)||(isUnitCode(r.dept)?unitNorm(r.dept):''),sen:seniority(r.join_date,r.leave_date),age:age(r.birthday),stype:stypeOf(r).v,stype_inf:stypeOf(r).inf})}
  if(k==='joinleave'){const e=emp(r.emp_no)||{};return Object.assign({},r,{dept:e.dept||'',status:e.status||(r.leave_date?'離職':''),sen:seniority(r.join_date,r.leave_date)})}
  if(k==='leave'){const e=emp(r.emp_no)||{};return Object.assign({},r,{dept:e.dept||''})}
  if(k==='basepay'){const e=emp(r.emp_no)||{};return Object.assign({},r,{name:r.name||e.name,dept:/^\d{3}$/.test(r.dept||'')?deptName(r.dept):(r.dept||e.dept),_edb:r._ed?'✏️':'',pay_usd:payUSD(r).total})}
  if(k==='holiday'){const d=parseD(r.date);return Object.assign({},r,{wd:d?WDN()[d.getDay()]:''})}
  return r}
+/* v0.3.5 一次搜多個：用逗號、空白、換行分開（從 Word／Excel 貼一整欄工號也可以）；多個工號時不管上面的部門、狀態等篩選，全部找出來 */
+function qTokens(q){return String(q||'').split(/[\s,，、;；|]+/).map(x=>x.trim()).filter(Boolean)}
+function multiQ(k){const t=qTokens(S(k).q);return t.length>1?t:null}
+function rowHitsTok(r,cfg,toks){const no=String(r.emp_no||'').replace(/^0+/,'');for(const x of toks){const xl=x.toLowerCase();if(/^\d+$/.test(x)){if(no&&no===x.replace(/^0+/,''))return true}else if(cfg.q.some(f=>String(r[f]||'').toLowerCase().includes(xl)))return true}return false}
 function filterRows(k,rows){const st=S(k),cfg=CFG[k];const q=(st.q||'').trim().toLowerCase();let out=rows.map(r=>enrichRow(k,r));
+ const MQ=multiQ(k);if(MQ)return out.filter(r=>rowHitsTok(r,cfg,MQ));
  if(st.dept)out=out.filter(r=>(r.dept||r.dept_code)===st.dept);if(st.status)out=out.filter(r=>r.status===st.status);if(st.type)out=out.filter(r=>(r.leave_type||r.kind||r.pay_type)===st.type);
  if(k==='emp')out=empFilt(out,st);
  if(q)out=out.filter(r=>cfg.q.some(f=>String(r[f]||'').toLowerCase().includes(q)));return out}
@@ -2042,9 +2057,12 @@ function tableHTML(k,rows,opts={}){
 let dT; function debounceRender(id){clearTimeout(dT);dT=setTimeout(()=>{rerender();const el=document.getElementById(id);if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length)}},250)}
 function sel(k,field,label,opts){const st=S(k);return `<select class="inp" style="width:auto" onchange="S('${k}').${field}=this.value;S('${k}').page=0;rerender()"><option value="">${esc(label)}: ${esc(t('ALL'))}</option>${opts.map(o=>`<option value="${esc(o[0])}" ${st[field]===o[0]?'selected':''}>${esc(vl(o[1]))}</option>`).join('')}</select>`}
 function toolbar(k,rows,o={}){const st=S(k);
- const depts=o.dept?uniq(rows.map(r=>r.dept||r.dept_code).filter(Boolean)).sort().map(d=>[d,d]):null;
+ const rs=o.status&&st.status?rows.filter(r=>r.status===st.status):rows;const dc={};rs.forEach(r=>{const d=r.dept||r.dept_code;if(d)dc[d]=(dc[d]||0)+1});if(st.dept&&!dc[st.dept])dc[st.dept]=0;
+ const depts=o.dept?Object.keys(dc).sort((a,b)=>dc[b]-dc[a]).map(d=>[d,d+' ('+dc[d]+')']):null;
  return `<div class="toolbar">${depts?sel(k,'dept',t('dept'),depts):''}${o.status?sel(k,'status',t('emp_status'),[['在職',tt('在職','Active')],['離職',tt('離職','Left')],['留職停薪',tt('留職停薪（產假）','Maternity / unpaid leave','ច្បាប់មាតុភាព / គ្មានប្រាក់ខែ')]]):''}${o.type?sel(k,'type',o.typeLabel||t('type'),o.type):''}
-  <input class="inp grow" id="q_${k}" placeholder="${esc(t('filter'))}" value="${esc(st.q)}" oninput="S('${k}').q=this.value;S('${k}').page=0;debounceRender('q_${k}')"></div>`}
+  <input class="inp grow" id="q_${k}" placeholder="${esc(t('filter'))} ${esc(tt('（多個工號用逗號分開，或直接貼一整欄）','(several IDs: separate with commas or paste a column)','(លេខច្រើន៖ ដាក់ក្បៀស)'))}" value="${esc(st.q)}" oninput="S('${k}').q=this.value;S('${k}').page=0;debounceRender('q_${k}')"></div>${multiQHTML(k,rows)}`}
+function multiQHTML(k,rows){const MQ=multiQ(k);if(!MQ)return '';const nums=MQ.filter(x=>/^\d+$/.test(x));const have=new Set(rows.map(r=>String(r.emp_no||'').replace(/^0+/,'')));const miss=nums.filter(x=>!have.has(x.replace(/^0+/,'')));
+ return `<div class="note small" style="margin:6px 0">🔎 ${tt('一次搜','Searching')} <b>${MQ.length}</b> ${tt('個（不套用上面的部門、狀態篩選）','items (department / status filters ignored)')}${miss.length?` · <span style="color:var(--crit)">${tt('找不到','Not found')}：${esc(miss.join(', '))}</span>`:''} <button class="btn sm" onclick="S('${k}').q='';rerender()">✕ ${tt('清除','Clear')}</button></div>`}
 function pageHead(k,acts=''){return `<div class="ph"><div style="min-width:0"><h1>${modIcon(k)} ${esc(t(k))}</h1><div class="sub">${esc(t('sub_'+k))}</div><div class="url-chip" title="${esc(t('direct_url'))}">${esc(PAGE_BASE)}#${k}</div></div><div class="acts">${acts}${k!=='dashboard'?`<a class="btn sm" href="#solo-${k}">${esc(t('open_solo'))} ↗</a>`:''}</div></div>`}
 const stdActs=k=>`<button class="btn sm" onclick="exportXLSX('${k}')">${esc(t('export'))}</button><button class="btn sm" onclick="tgPreview('${k}')">${esc(t('send_tg'))}</button>`;
 function needHTML(k){
@@ -2167,9 +2185,9 @@ function empFilt(out,st){if(st.sex)out=out.filter(r=>(r.sex||'')===st.sex);if(st
  if(st.ageb){const b=AGEB.find(x=>x[0]===st.ageb);out=out.filter(r=>{const a=r.age;if(b[0]==='none')return a===''||a==null;return a!==''&&a!=null&&a>=b[4]&&a<=b[5]})}
  if(st.jy)out=out.filter(r=>String(r.join_date||'').startsWith(st.jy));if(st.mar)out=out.filter(r=>((r.det||{}).marital||'')===st.mar);
  if(st.sec)out=out.filter(r=>(r.section||'')===st.sec);if(st.ttl)out=out.filter(r=>(r.title||'')===st.ttl);if(st.sp)out=out.filter(r=>empSpecial(r).includes(st.sp));return out}
-function empFiltersHTML(all){const k='emp',st=S(k);const u=f=>uniq(all.map(f).filter(Boolean)).sort();
+function empFiltersHTML(all){const k='emp',st=S(k);all=all.map(e=>enrichRow('emp',e)).filter(r=>(!st.status||r.status===st.status)&&(!st.dept||r.dept===st.dept));const u=f=>uniq(all.map(f).filter(Boolean)).sort((a,b)=>String(a).localeCompare(String(b),undefined,{numeric:true}));const cnt=f=>{const c={};all.forEach(r=>{const v=f(r);if(v)c[v]=(c[v]||0)+1});return c};const secC=cnt(e=>e.section),ttlC=cnt(e=>e.title);
  const n=['sex','stype','ageb','jy','mar','sec','ttl','sp'].filter(f=>st[f]).length;
- return `<div class="toolbar" style="margin-top:-4px">${sel(k,'sex',t('sex'),u(e=>e.sex).map(x=>[x,x]))}${sel(k,'stype',tt('合約','Contract','កិច្ចសន្យា'),[['UDC','UDC'],['FDC','FDC']])}${sel(k,'ageb',t('age'),AGEB.map(x=>[x[0],tt(x[1],x[2],x[3])]))}${sel(k,'jy',tt('到職年份','Join year','ឆ្នាំចូល'),u(e=>String(e.join_date||'').slice(0,4)).reverse().map(x=>[x,x]))}${sel(k,'mar',t('marital'),[['已婚','已婚'],['未婚','未婚']])}${sel(k,'sec',tt('組別','Section','ផ្នែក'),u(e=>e.section).map(x=>[x,x]))}${sel(k,'ttl',tt('職稱','Title','មុខតំណែង'),u(e=>e.title).map(x=>[x,x]))}${sel(k,'sp',tt('特殊狀態','Special','ស្ថានភាពពិសេស'),[['preg',tt('🤰 懷孕滿 3 個月','🤰 Pregnant 3M+','🤰 មានផ្ទៃពោះ')],['nurse',tt('🍼 哺乳期中','🍼 Nursing now','🍼 កំពុងបំបៅ')],['lsp',tt('🤱 產假／留停','🤱 Maternity leave','🤱 ច្បាប់មាតុភាព')],['new',tt('🆕 到職 90 天內','🆕 Joined ≤ 90 days','🆕 ចូល ≤ 90 ថ្ងៃ')],['nophoto',tt('📷 沒照片','📷 No photo','📷 គ្មានរូបថត')],['notitle',tt('🏷️ 職稱待確認','🏷️ Title to confirm','🏷️ មុខតំណែងត្រូវបញ្ជាក់')]])}${n?`<button class="btn sm" onclick="['sex','stype','ageb','jy','mar','sec','ttl','sp'].forEach(f=>S('emp')[f]='');S('emp').page=0;rerender()">✕ ${tt('清除分類','Clear filters','សម្អាត')} (${n})</button>`:''}</div>`}
+ return `<div class="toolbar" style="margin-top:-4px">${sel(k,'sex',t('sex'),u(e=>e.sex).map(x=>[x,x]))}${sel(k,'stype',tt('合約','Contract','កិច្ចសន្យា'),[['UDC','UDC'],['FDC','FDC']])}${sel(k,'ageb',t('age'),AGEB.map(x=>[x[0],tt(x[1],x[2],x[3])]))}${sel(k,'jy',tt('到職年份','Join year','ឆ្នាំចូល'),u(e=>String(e.join_date||'').slice(0,4)).reverse().map(x=>[x,x]))}${sel(k,'mar',t('marital'),[['已婚','已婚'],['未婚','未婚']])}${sel(k,'sec',tt('組別','Section','ផ្នែក'),u(e=>e.section).map(x=>[x,x+' ('+secC[x]+')']))}${sel(k,'ttl',tt('職稱','Title','មុខតំណែង'),u(e=>e.title).map(x=>[x,x+' ('+ttlC[x]+')']))}${sel(k,'sp',tt('特殊狀態','Special','ស្ថានភាពពិសេស'),[['preg',tt('🤰 懷孕滿 3 個月','🤰 Pregnant 3M+','🤰 មានផ្ទៃពោះ')],['nurse',tt('🍼 哺乳期中','🍼 Nursing now','🍼 កំពុងបំបៅ')],['lsp',tt('🤱 產假／留停','🤱 Maternity leave','🤱 ច្បាប់មាតុភាព')],['new',tt('🆕 到職 90 天內','🆕 Joined ≤ 90 days','🆕 ចូល ≤ 90 ថ្ងៃ')],['nophoto',tt('📷 沒照片','📷 No photo','📷 គ្មានរូបថត')],['notitle',tt('🏷️ 職稱待確認','🏷️ Title to confirm','🏷️ មុខតំណែងត្រូវបញ្ជាក់')]])}${n?`<button class="btn sm" onclick="['sex','stype','ageb','jy','mar','sec','ttl','sp'].forEach(f=>S('emp')[f]='');S('emp').page=0;rerender()">✕ ${tt('清除分類','Clear filters','សម្អាត')} (${n})</button>`:''}</div>`}
 function renderEmp(){
  const k='emp'; if(!hasData(k))return pageHead(k)+needHTML(k);
  const st=S(k); if(!st._init){st.status='在職';st._init=1} if(!['D','W','H','M','Q','Y'].includes(st.pt)){st.pt='M';st.anchor=ymd(TODAY)} const all=[...empIdx().values()].filter(e=>e.name||e.status);
@@ -2801,6 +2819,8 @@ function togglePii(on){SHOW_PII=on;LS.set('pii',on);document.body.classList.togg
 
 /* ---------- global search ---------- */
 function gsearch(q){const box=$('#sres');q=q.trim().toLowerCase();if(!q){box.hidden=true;return}
+ const MT=qTokens(q);if(MT.length>1){const all=[...empIdx().values()];const hit=all.filter(e=>rowHitsTok(e,{q:['emp_no','name','dept']},MT));const nums=MT.filter(x=>/^\d+$/.test(x)),have=new Set(hit.map(e=>String(e.emp_no).replace(/^0+/,'')));const miss=nums.filter(x=>!have.has(x.replace(/^0+/,'')));
+  box.innerHTML=`<a href="javascript:void(0)" onclick="const s=S('emp');s.q=${esc(JSON.stringify(MT.join(', ')))};s.page=0;s.view='table';$('#sres').hidden=true;location.hash='#emp';rerender()"><b>📋 ${tt('在員工頁列出這','List these')} ${hit.length} ${tt('人','people')}</b>${miss.length?` <span class="small" style="color:var(--crit)">${tt('找不到','not found')}：${esc(miss.slice(0,10).join(', '))}${miss.length>10?'…':''}</span>`:''}</a>`+hit.slice(0,30).map(e=>`<a href="javascript:void(0)" onclick="openEmp('${esc(e.emp_no)}');$('#sres').hidden=true"><span class="mono">${esc(e.emp_no)}</span> ${esc(e.name||'')} <span class="muted small">${esc(e.dept||'')} ${statusChip(e.status)}</span></a>`).join('');box.hidden=false;return}
  const hits=[...empIdx().values()].filter(e=>(e.emp_no||'').toLowerCase().includes(q)||(e.name||'').toLowerCase().includes(q)||(e.dept||'').toLowerCase().includes(q)).slice(0,12);
  box.innerHTML=hits.length?hits.map(e=>`<a href="javascript:void(0)" onclick="openEmp('${esc(e.emp_no)}');$('#sres').hidden=true"><span class="mono">${esc(e.emp_no)}</span> ${esc(e.name||'')} <span class="muted small">${esc(e.dept||'')} ${statusChip(e.status)}</span></a>`).join(''):`<div class="muted small" style="padding:8px">${esc(t('no_data'))}</div>`;box.hidden=false}
 
@@ -3881,6 +3901,7 @@ function renderDelok(){const k='delok';const info=delokParse();const M=delokMap(
  h+=`<div class="panel mt"><h2>📋 ${tt('核可紀錄','Decision log')} · ${fmt(rows.length)}</h2><p class="small muted" style="margin:0 0 8px">${tt('所有平台（HRA-PAY、HRA Portal、GASCheck、GA-EXP、VRT ERP、VRT HR）要刪雲端資料都會先私訊你；這裡列出你的決定，可以改。','Every platform asks you by private message before deleting cloud data; your decisions are listed here and can be changed.')}</p>${rows.length?`<div class="tbl-wrap"><table class="t cards"><thead><tr><th>${tt('決定時間','Decided')}</th><th>${tt('平台／頁面','Platform / page')}</th><th>${tt('內容','Details')}</th><th>${tt('決定','Decision')}</th><th></th></tr></thead><tbody>${rows.map(([sig,d])=>`<tr><td class="mono lead" data-l="">${esc(d.at||'')}</td><td data-l="${esc(tt('平台','Platform'))}">${esc(d.p||'')}<div class="small muted">${esc(d.pg||'')}</div></td><td data-l="${esc(tt('內容','Details'))}" class="small">${esc(d.a||'')}${d.t?' · '+esc(d.t):''}<div>${esc(d.w||'')}</div></td><td data-l="${esc(tt('決定','Decision'))}">${stTxt(d.st)}</td><td data-l=""><div style="display:flex;gap:4px;flex-wrap:wrap">${d.st!=='ok'?`<button class="btn sm" onclick="delokSet('${esc(sig)}','ok')">✅</button>`:''}${d.st!=='no'?`<button class="btn sm" onclick="delokSet('${esc(sig)}','no')">❌</button>`:''}<button class="btn sm" title="${esc(tt('移除紀錄','Remove record'))}" onclick="delokSet('${esc(sig)}','del')">🗑</button></div></td></tr>`).join('')}</tbody></table></div>`:`<p class="small muted">${tt('還沒有任何刪除申請。','No deletion requests yet.')}</p>`}</div>`;
  return h}
 RENDER.delok=renderDelok;T.delok=['雲端刪除核可','Cloud deletion approvals','ការអនុម័តលុបលើ Cloud'];T.sub_delok=['各平台要刪雲端資料都要你核可','Every platform needs your approval to delete cloud data'];
+document.addEventListener('paste',e=>{const el=e.target;if(!el||el.tagName!=='INPUT'||!/^(text|search)$/.test(el.type||'text'))return;if(!(el.id==='gsearch'||/^q_/.test(el.id||'')))return;const tx=(e.clipboardData||window.clipboardData).getData('text');if(!/[\r\n\t]/.test(tx))return;e.preventDefault();const v=tx.split(/[\r\n\t]+/).map(x=>x.trim()).filter(Boolean).join(', ');const a=el.selectionStart||0,b=el.selectionEnd||0;el.value=el.value.slice(0,a)+v+el.value.slice(b);el.dispatchEvent(new Event('input',{bubbles:true}))},true);
 async function init(){
  $('#page').innerHTML=`<div class="note">${tt('載入資料中…','Loading data…')}</div>`;
  await IDB.open(); bgLoad(); await loadDB(); document.documentElement.dataset.theme='light'; document.body.classList.toggle('show-pii',SHOW_PII); $('#piiBtn').textContent=SHOW_PII?'👁️':'🙈';

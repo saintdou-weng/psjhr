@@ -1,3 +1,8 @@
+## v0.3.5 (2026-11-10)
+- 單位整合：組別 Line1／L1／舊資料的 A1、G1 都算「Line 1」；舊部門名稱（Production、QC-Apron、Cutting、A5、G8…→生產；Administration→行政中心；Shipping、Im/Export→船務；Accounting→會計）併到現在的部門。
+- 篩選選單只列「目前狀態／部門」下真的有人的選項，並顯示人數（以前在職＋Production 會篩出 0 人，因為 Production 只剩離職的舊資料）。
+- 一次搜多個：工號用逗號、空白分開，或從 Word／Excel 直接貼一整欄（換行自動變逗號）；多個工號時不套用部門、狀態篩選，並列出找不到的工號。上方總搜尋也可以一次搜多個，按「在員工頁列出這 N 人」。
+
 ## 雲端刪除核可（2026-11-07）
 - 六個平台（HRA-PAY、HRA Portal、GASCheck、GA-EXP、VRT ERP、VRT HR）共用 `tools/del-guard.js`：任何會刪除或覆蓋雲端資料的請求先攔下、雲端保留，私訊 Paul；Paul 在 VRT HR `#delok` 核可／不核可（存在雲端設定 config.delok），核可後那個平台下一次同步才真的刪。新增、修改照常。
 - 進平台、切分頁會自動同步到完成（失敗每 20 秒重試，最多 6 次）；本來就只下載有變的區塊。
