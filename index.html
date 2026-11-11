@@ -3491,7 +3491,9 @@ function xrProfHTML(no){const m=xrByEmp();const L=(m[String(no)]||m[String(no).r
  return h}
 /* 福利結算頁的新分頁 */
 /* v0.3.8 外籍人員：HRA Portal 標成離職／停止、或最新名單沒列的不顯示（Paul 2026-11-11：已離職的外幹不用再出現） */
-const visaOn=o=>!/resign|stop|left|inactive|離職/i.test(String(o.status||''))&&String(o.notInLatest)!=='true';
+/* HRA Portal 現在的外籍名單都是新版格式（cvSchema）；雲端還留著舊格式、Portal 已經不列的人（例：已離職的 NGUYEN THI THU、LIN KUO TUNG）就不顯示 */
+const visaNew=()=>cached('visaNew',()=>xrAll('visa').some(o=>o.cvSchema));
+const visaOn=o=>!/resign|stop|left|inactive|離職/i.test(String(o.status||''))&&String(o.notInLatest)!=='true'&&(!!o.cvSchema||!visaNew());
 /* v0.3.8 到期提醒：簽證／工作證／護照／居留、公司證照 45 天內到期或已過期，每筆只跳出提醒一次（過期時會再提醒一次） */
 function expList(){const lim=ymd(addD(TODAY,45)),now=ymd(TODAY),out=[];
  xrAll('visa').filter(visaOn).forEach(o=>{[['visaExpiry',tt('簽證','Visa')],['workPermitExpiry',tt('工作證','Work permit')],['passportExpiry',tt('護照','Passport')],['residenceExpiry',tt('居留證','Residence')]].forEach(([f,l])=>{const d=String(o[f]||'').slice(0,10);if(d&&d<=lim)out.push({c:'visa',key:'v|'+(o.passport||o.id)+'|'+f+'|'+d+'|'+(d<now?'x':'s'),who:(o.nameEn||'')+(o.nickname?' ('+o.nickname+')':''),what:l,d,exp:d<now})})});
