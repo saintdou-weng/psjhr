@@ -4009,4 +4009,6 @@ async function init(){
  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&cloudReady()&&(!CLOUD.last||Date.now()-new Date(CLOUD.last.replace(' ','T'))>3*60e3))cloudSync(false)});
 }
 init();
-</script></body></html>
+</script><!-- VRT swipe-tabs：左右滑動（手指／滑鼠拖曳）切換分頁，只聽手勢、不改資料 -->
+<script src="https://saintdou-weng.github.io/ac-admin/shared/swipe-tabs.js" defer></script>
+</body></html>
