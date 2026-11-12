@@ -704,7 +704,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.5.1';
+const APPV='0.5.2';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -3467,7 +3467,7 @@ async function xrLoad(SRC){let changed=0;const X=XRD();const tasks=[];
    t.T0.b[t.k]=out;t.T0.h[t.k]=t.h;changed++;done++;if(done%60===0){HP_DIRTY=true;persist();GC.clear()}}catch(e){}}};
  await Promise.all(Array.from({length:10},w));SRC.forEach(([tool])=>{if(X[tool])X[tool].at=nowStamp()});
  if(changed){HP_DIRTY=true;persist();GC.clear();if(PROF_NO&&!$('#drawer').hidden&&PROF_TAB==='hr')openEmp(PROF_NO,true);else if(XR_PAGE[CUR]||XR_OWN[CUR])rerender()}return changed}
-const XR_OWN={union:['welfare'],trans:['welfare'],'sen-hist':['hrpay_seniority'],severance:['hrpay_seniority'],hrcal:['calendar']};
+const XR_OWN={union:['welfare'],trans:['welfare'],'sen-hist':['hrpay_seniority'],severance:['hrpay_seniority'],hrcal:['calendar','hrpay_seniority']};
 function xrEnsure(force){if(XR_P&&!force)return XR_P;XR_P=(async()=>{XR_BUSY=true;try{return await xrLoad(XR_SRC)}finally{XR_BUSY=false;if(XR_OWN[CUR])rerender()}})();return XR_P}
 const XR_NEED={};function xrNeed(tools){const key=tools.join(',');const X=XRD();const have=tools.every(t=>X[t]&&X[t].at);if(XR_NEED[key])return XR_NEED[key];
  XR_NEED[key]=(async()=>{try{await xrLoad(XR_SRC.filter(x=>tools.includes(x[0])))}finally{delete XR_NEED[key];XR_NEED['done|'+key]=1;if(XR_OWN[CUR])rerender()}})();if(have)XR_NEED['done|'+key]=1;return XR_NEED[key]}
@@ -4054,19 +4054,19 @@ function renderSeverance(){const k='severance';const st=S(k);if(!st._i){st._i=1;
 /* 假日：BEST 國定假日＋HRA Portal 行事曆（legal，含連假起迄）；發放日 HRA Portal 已經排好的（adv-／pay-）就照它 */
 function hrHolMap(){return cached('hrHol|'+xrAll('cal').length+'|'+(DB.holiday||[]).length,()=>{const M={};(DB.holiday||[]).forEach(r=>{if(r.date&&!/sunday/i.test(r.name||''))M[r.date]=r.name||''});xrAll('cal').forEach(c=>{if(!/legal|holiday|factory/i.test(String(c.type||'')))return;let d=parseD(c.date);const e=parseD(c.enddate)||d;if(!d)return;for(let i=0;i<15&&d<=e;i++){M[ymd(d)]=tt(c.zh||c.en||'',c.en||c.zh||'',c.km||c.en||'');d=addD(d,1)}});return M})}
 function hrPayday(y,m,day,id){const c=id&&xrAll('cal').find(x=>x.id===id&&parseD(x.date));if(c)return parseD(c.date);const H=hrHolMap();let d=new Date(y,m,day);while(d.getDay()===0||d.getDay()===6||H[ymd(d)]!=null)d=addD(d,-1);return d}
-function hrCalEvents(y,m){const ym=y+'-'+pad(m+1),prev=monthKey(new Date(y,m-1,1));const ev=[];const add=(d,ic,what,note,est)=>ev.push({d,ic,what,note:note||'',est:est||0});
+function hrCalEvents(y,m){const ym=y+'-'+pad(m+1),prev=monthKey(new Date(y,m-1,1));const ev=[];const add=(d,ic,what,note,est,k)=>ev.push({d,ic,what,note:note||'',est:est||0,k:k||''});
  /* 排程照 Paul 2021-02-01「薪資計算／發薪行程表」＋ Phary 2022–2025 伙食費發放信的日期；現金不同一天發兩次：撞日就再往前一個工作天 */
- const HMc=hrHolMap();const used={};const wk=d=>{while(d.getDay()===0||HMc[ymd(d)]!=null)d=addD(d,-1);return d};
- const cash=(day,ic,what,id,note)=>{const c=id&&xrAll('cal').find(x=>x.id===id&&parseD(x.date));let d=c?parseD(c.date):wk(new Date(y,m,day));while(used[ymd(d)])d=wk(addD(d,-1));used[ymd(d)]=1;const mv=d.getDate()!==day?tt(`原訂 ${day} 日，遇假日或跟別筆現金撞日所以提前`,`Normally the ${day}th; moved earlier`):'';add(d,ic,what,[mv,note].filter(Boolean).join('；'),1);return d};
- cash(10,'💰',tt(`發 ${prev} 月薪（上月 1 日–月底，扣掉預支）`,`Pay ${prev} salary (less advance)`),'pay-'+ym);
- cash(25,'💵',tt(`發 ${ym} 預支（當月 1–15 日）`,`Pay ${ym} advance (1st–15th)`),'adv-'+ym);
- cash(6,'🍚',tt(`發 ${prev} 下半月伙食費（16 日–月底）`,`Pay ${prev} 2nd-half meal fee (16th–end)`),'',tt('月初先算 3 天、檢查 1 天','3 days to calculate, 1 to check'));
- cash(21,'🍚',tt(`發 ${ym} 上半月伙食費（1–15 日）`,`Pay ${ym} 1st-half meal fee (1st–15th)`),'',tt('16 日起算','Calculated from the 16th'));
- cash(11,'⏱️',tt(`發 ${prev} 特別加班費（超時／假日加班發現金的部分）`,`Pay ${prev} special overtime (cash part)`),'');
- cash(12,'📄',tt('發合同到期人員 5%（當月續約的；不續約的在合同到期日結算）','Pay 5% to staff whose contract ends (renewals; non-renewals settle on the end date)'),'',tt('通常 12–15 日之間','Usually between the 12th and 15th'));
- if(m===6||m===0)cash(13,'🎖️',tt(`發半年年資補償（UDC，7.5 天，${m===6?y+' 年 1–6':(y-1)+' 年 7–12'} 月）`,`Pay half-year seniority indemnity (UDC, 7.5 days, ${m===6?'Jan–Jun '+y:'Jul–Dec '+(y-1)})`),'',tt('跟月薪錯開','Kept apart from salary'));
- cash(15,'🍼',tt('發育兒津貼（產假後回來的）','Pay nursing allowance (after maternity leave)'),'');
- add(wk(new Date(y,m,20)),'🏥',tt(`繳 ${prev} 的 NSSF`,`Pay NSSF for ${prev}`),'',1);
+ const HMc=hrHolMap();const used={};const wk=d=>{while(d.getDay()===0||d.getDay()===6||HMc[ymd(d)]!=null)d=addD(d,-1);return d};
+ const cash=(day,ic,what,id,note,k)=>{const c=id&&xrAll('cal').find(x=>x.id===id&&parseD(x.date));let d=c?parseD(c.date):wk(new Date(y,m,day));while(used[ymd(d)])d=wk(addD(d,-1));used[ymd(d)]=1;const mv=d.getDate()!==day?tt(`原訂 ${day} 日，遇假日或跟別筆現金撞日所以提前`,`Normally the ${day}th; moved earlier`):'';add(d,ic,what,[mv,note].filter(Boolean).join('；'),1,k);return d};
+ cash(10,'💰',tt(`發 ${prev} 月薪（上月 1 日–月底，扣掉預支）`,`Pay ${prev} salary (less advance)`),'pay-'+ym,'','sal');
+ cash(25,'💵',tt(`發 ${ym} 預支（當月 1–15 日）`,`Pay ${ym} advance (1st–15th)`),'adv-'+ym,'','adv');
+ cash(6,'🍚',tt(`發 ${prev} 下半月伙食費（16 日–月底）`,`Pay ${prev} 2nd-half meal fee (16th–end)`),'',tt('月初先算 3 天、檢查 1 天','3 days to calculate, 1 to check'),'meal2');
+ cash(21,'🍚',tt(`發 ${ym} 上半月伙食費（1–15 日）`,`Pay ${ym} 1st-half meal fee (1st–15th)`),'',tt('16 日起算','Calculated from the 16th'),'meal1');
+ cash(11,'⏱️',tt(`發 ${prev} 特別加班費（超時／假日加班發現金的部分）`,`Pay ${prev} special overtime (cash part)`),'','','ot');
+ cash(12,'📄',tt('發合同到期人員 5%（當月續約的；不續約的在合同到期日結算）','Pay 5% to staff whose contract ends (renewals; non-renewals settle on the end date)'),'',tt('通常 12–15 日之間','Usually between the 12th and 15th'),'fdc');
+ if(m===6||m===0)cash(13,'🎖️',tt(`發半年年資補償（UDC，7.5 天，${m===6?y+' 年 1–6':(y-1)+' 年 7–12'} 月）`,`Pay half-year seniority indemnity (UDC, 7.5 days, ${m===6?'Jan–Jun '+y:'Jul–Dec '+(y-1)})`),'',tt('跟月薪錯開','Kept apart from salary'),'sen');
+ cash(15,'🍼',tt('發育兒津貼（產假後回來的）','Pay nursing allowance (after maternity leave)'),'','','nurse');
+ add(wk(new Date(y,m,20)),'🏥',tt(`繳 ${prev} 的 NSSF`,`Pay NSSF for ${prev}`),'',1,'nssf');
  add(wk(new Date(y,m,20)),'🧾',tt(`薪資稅：申報 ${prev}`,`Salary tax return for ${prev}`),tt('以稅務局期限為準','Follow the tax deadline'),1);
  add(new Date(y,m,5),'📥',tt(`HR 算好 ${prev} 薪資給會計匯款（發薪前 5 天）`,`HR finishes ${prev} payroll for remittance (5 days before payday)`),'',1);add(new Date(y,m,20),'📥',tt(`HR 算好 ${ym} 預支`,`HR finishes ${ym} advance`),'',1);
  if(m===0)add(hrPayday(y,m,10,'pay-'+ym),'🌴',tt(`${y-1} 沒休完的特休折現（併 12 月薪資）`,`${y-1} unused annual leave paid out (with December pay)`),'',1);
@@ -4074,9 +4074,29 @@ function hrCalEvents(y,m){const ym=y+'-'+pad(m+1),prev=monthKey(new Date(y,m-1,1
  const HM=hrHolMap();Object.keys(HM).filter(d=>d.slice(0,7)===ym).sort().forEach(d=>add(parseD(d),'🎌',tt('假日：','Holiday: ')+HM[d],''));
  try{expList().filter(x=>x.c==='visa'&&x.d.slice(0,7)===ym).forEach(x=>add(parseD(x.d),'🛂',x.who+' '+x.what+tt(' 到期',' expires'),''))}catch(_){}
  return ev.sort((a,b)=>a.d-b.d)}
+/* 全年預算：用 HRA-PAY 已載入的最近幾個月平均去估每一筆 */
+function hrBudget(){const H=HPD();return cached('hrBud|'+Object.keys(H.pay||{}).length+'|'+Object.keys(H.meal||{}).length+'|'+Object.keys(H.mealIdx||{}).length+'|'+xrAll('sen').length,()=>{const B={src:{}};const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+ const tot=(o,f)=>Object.values(o||{}).reduce((a,x)=>a+(+f(x)||0),0);const big=o=>Object.keys(o||{}).length>=50;
+ const pm=Object.keys(H.pay||{}).filter(m=>big(H.pay[m])).sort().slice(-6);B.sal=avg(pm.map(m=>tot(H.pay[m],x=>x.AK!=null?x.AK:(+x.AG||0)+(+x.AH||0)+(+x.AJ||0)-(+x.S||0))));B.src.sal=pm;B.n=pm.length?Object.keys(H.pay[pm[pm.length-1]]).length:0;
+ B.nssfW=avg(pm.map(m=>tot(H.pay[m],x=>Math.abs(+x.AH||0))));B.nssf=B.nssfW*3.7;
+ const am=Object.keys(H.adv||{}).filter(m=>big(H.adv[m])).sort().slice(-6);B.adv=avg(am.map(m=>tot(H.adv[m],x=>x.AK!=null?x.AK:x.AG!=null?x.AG:x.S)));B.src.adv=am;
+ const mk={};Object.keys(H.meal||{}).forEach(k=>mk[k]=tot(H.meal[k],x=>x.usd));Object.keys(H.mealIdx||{}).forEach(k=>{if(mk[k]==null)mk[k]=tot(H.mealIdx[k],x=>x[0])});
+ for(const b of ['1','2']){const ks=Object.keys(mk).filter(k=>k.split(':')[1]===b&&mk[k]>0).sort().slice(-6);B['meal'+b]=avg(ks.map(k=>mk[k]));B.src['meal'+b]=ks}
+ const sp={};xrAll('sen').forEach(o=>{const p=String(o.period||'');sp[p]=(sp[p]||0)+(+o.sourceAmount||0)});const lp=Object.keys(sp).filter(p=>sp[p]>0).sort().pop();B.sen=lp?sp[lp]:0;B.src.sen=lp?[lp]:[];
+ const y=TODAY.getFullYear();B.mw0=minWageAt(y+'-01');return B})}
+function hrYearHTML(Y){const B=hrBudget();const WD=[tt('日','Sun'),tt('一','Mon'),tt('二','Tue'),tt('三','Wed'),tt('四','Thu'),tt('五','Fri'),tt('六','Sat')];const $m=v=>v?'$'+fmt(Math.round(v)):'—';
+ const mw=minWageAt(Y+'-01'),up=(mw&&B.mw0&&mw>B.mw0)?(mw-B.mw0)*B.n:0;
+ const COL=[['meal2','🍚 '+tt('伙食費（下半月）','Meal fee (2nd half)')],['sal','💰 '+tt('月薪','Salary')],['ot','⏱️ '+tt('特別加班','Special OT')],['fdc','📄 '+tt('合同 5%','Contract 5%')],['sen','🎖️ '+tt('年資補償','Seniority')],['nurse','🍼 '+tt('育兒','Nursing')],['nssf','🏥 NSSF'],['meal1','🍚 '+tt('伙食費（上半月）','Meal fee (1st half)')],['adv','💵 '+tt('預支','Advance')]];
+ const amt=k=>k==='sal'?(B.sal?B.sal+up:0):k==='sen'?B.sen:(B[k]||0);const sums={};let grand=0;let rows='';
+ for(let m=0;m<12;m++){const ev=hrCalEvents(Y,m);let mt=0;rows+=`<tr><td class="mono lead" data-l=""><b>${Y}-${pad(m+1)}</b></td>`+COL.map(([k,l])=>{const e=ev.find(x=>x.k===k);if(!e)return `<td data-l="${esc(l)}" class="muted">—</td>`;const a=amt(k);mt+=a;sums[k]=(sums[k]||0)+a;return `<td data-l="${esc(l)}" style="white-space:nowrap"><span class="mono">${ymd(e.d).slice(5)}（${WD[e.d.getDay()]}）</span>${a?`<div class="r"><b>${$m(a)}</b></div>`:''}</td>`}).join('')+`<td class="r" data-l="${esc(tt('當月合計','Month total'))}"><b>${$m(mt)}</b></td></tr>`;grand+=mt}
+ const nod=COL.filter(([k])=>!amt(k)).map(([k,l])=>l.replace(/^\S+\s/,''));
+ return `<div class="kpis">${kpi(tt(Y+' 全年預估要付','Estimated total for '+Y),$m(grand),'',tt('平均每月 ','Monthly average ')+$m(grand/12))}${kpi(tt('月薪（10 日）','Salary (10th)'),$m(amt('sal')),'',tt('每月','per month'))}${kpi(tt('預支（25 日）','Advance (25th)'),$m(amt('adv')),'',tt('每月','per month'))}${kpi(tt('伙食費（6 日＋21 日）','Meal fee (6th + 21st)'),$m((B.meal1||0)+(B.meal2||0)),'',tt('每月','per month'))}</div>
+ <div class="panel mt"><h2>🗓️ ${Y} ${tt('全年發放日＋預算','pay dates and budget')}</h2><div class="tbl-wrap"><table class="t cards"><thead><tr><th>${tt('月份','Month')}</th>${COL.map(c=>`<th>${esc(c[1])}</th>`).join('')}<th class="r">${tt('當月合計','Month total')}</th></tr></thead><tbody>${rows}<tr style="font-weight:700"><td>${tt('全年','Year')}</td>${COL.map(([k])=>`<td class="r">${$m(sums[k])}</td>`).join('')}<td class="r">${$m(grand)}</td></tr></tbody></table></div>
+ <p class="small muted" style="margin:8px 0 0;line-height:1.7">${tt('金額怎麼估：月薪＝HRA-PAY 最近 '+(B.src.sal||[]).length+' 個月實發平均'+(up?'，再加 '+Y+' 年最低工資調升（每人 +$'+(mw-B.mw0)+' × '+B.n+' 人）':'')+'；預支＝最近 '+(B.src.adv||[]).length+' 個月平均；伙食費＝最近 '+(B.src.meal1||[]).length+'／'+(B.src.meal2||[]).length+' 期平均；年資補償＝最近一期（'+((B.src.sen||[])[0]||'無資料')+'）總額；NSSF＝員工自付額 × 3.7（員工 2%＋公司 5.4%，粗估）。','How amounts are estimated: salary = HRA-PAY average of the last '+(B.src.sal||[]).length+' months'+(up?' plus the '+Y+' minimum-wage rise':'')+'; advance and meal fee = recent averages; seniority = latest period total; NSSF = worker share × 3.7 (rough).')}${nod.length?'<br>⚠️ '+tt('沒有資料、只排日期沒估金額：','No data, dates only: ')+esc(nod.join('、')):''}</p></div>`}
 function renderHrcal(){const k='hrcal';const st=S(k);const off=+st.off||0;const WD=[tt('日','Sun'),tt('一','Mon'),tt('二','Tue'),tt('三','Wed'),tt('四','Thu'),tt('五','Fri'),tt('六','Sat')];const today=ymd(TODAY);
- let h=pageHead(k,`<button class="btn sm" onclick="S('hrcal').off=${off-3};saveNav('hrcal');rerender()">◀ ${tt('前 3 個月','Prev 3')}</button> <button class="btn sm" onclick="S('hrcal').off=0;saveNav('hrcal');rerender()">${tt('本月','This month')}</button> <button class="btn sm" onclick="S('hrcal').off=${off+3};saveNav('hrcal');rerender()">${tt('後 3 個月','Next 3')} ▶</button>`);
- h+=xrLoadingHTML(['calendar'],tt('假日行事曆','holiday calendar'));h+=`<div class="note">${tt('每月固定要付、要做的事。<b>都是預估日期</b>：照 2021 年訂的發薪行程表（月薪 10 日、預支 25 日、伙食費 6 日和 21 日、特別加班 11 日、合同 5% 12 日、育兒 15 日、NSSF 20 日）。遇週日或國定假日往前提；現金不在同一天發兩次，撞日就再提前一天。','Fixed monthly payments and tasks. <b>All dates are estimates</b>: based on the 2021 pay schedule (salary 10th, advance 25th, meal fee 6th and 21st, special OT 11th, contract 5% 12th, nursing 15th, NSSF 20th). Dates move earlier on Sundays and public holidays, and two cash payments never share a day.')}</div>`;
+ let h=pageHead(k,`<button class="btn sm" onclick="S('hrcal').off=${off-3};saveNav('hrcal');rerender()">◀ ${tt('前 3 個月','Prev 3')}</button> <button class="btn sm" onclick="S('hrcal').off=0;saveNav('hrcal');rerender()">${tt('本月','This month')}</button> <button class="btn sm" onclick="S('hrcal').off=${off+3};saveNav('hrcal');rerender()">${tt('後 3 個月','Next 3')} ▶</button> <button class="btn sm${st.yr?' pri':''}" onclick="S('hrcal').yr=S('hrcal').yr?'':${TODAY.getFullYear()+1};saveNav('hrcal');rerender()">📅 ${TODAY.getFullYear()+1} ${tt('全年預算','year budget')}</button>`);
+ h+=xrLoadingHTML(['calendar'],tt('假日行事曆','holiday calendar'));h+=`<div class="note">${tt('每月固定要付、要做的事。<b>都是預估日期</b>：照 2021 年訂的發薪行程表（月薪 10 日、預支 25 日、伙食費 6 日和 21 日、特別加班 11 日、合同 5% 12 日、育兒 15 日、NSSF 20 日）。遇週六、週日或國定假日往前提（週六不發任何款）；現金不在同一天發兩次，撞日就再提前一天。','Fixed monthly payments and tasks. <b>All dates are estimates</b>: based on the 2021 pay schedule (salary 10th, advance 25th, meal fee 6th and 21st, special OT 11th, contract 5% 12th, nursing 15th, NSSF 20th). Dates move earlier on Saturdays, Sundays and public holidays, and two cash payments never share a day.')}</div>`;
+ if(st.yr)return h+hrYearHTML(+st.yr);
  for(let i=0;i<3;i++){const b=new Date(TODAY.getFullYear(),TODAY.getMonth()+off+i,1);const ev=hrCalEvents(b.getFullYear(),b.getMonth());
   h+=`<div class="panel mt"><h2>🗓️ ${b.getFullYear()}-${pad(b.getMonth()+1)}</h2><div class="tbl-wrap"><table class="t"><thead><tr><th>${tt('日期','Date')}</th><th>${tt('事項','Item')}</th><th>${tt('備註','Note')}</th></tr></thead><tbody>${ev.map(e=>{const ds=ymd(e.d);const past=ds<today;return `<tr style="${ds===today?'background:rgba(250,204,21,.18)':past?'opacity:.55':''}"><td class="mono" style="white-space:nowrap">${ds.slice(5)}（${WD[e.d.getDay()]}）</td><td>${e.ic} ${esc(e.what)}</td><td class="small muted">${esc(e.note)}${e.est&&!e.note?esc(tt('預估','Estimate')):''}</td></tr>`}).join('')}</tbody></table></div></div>`}
  return h}
