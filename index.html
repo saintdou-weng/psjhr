@@ -704,7 +704,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.4.0';
+const APPV='0.4.1';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2029,7 +2029,8 @@ function cell(r,c){const v=r[c.f];
  return esc(v==null||v===''?'—':vl(v))}
 /* v0.3.5 單位整合（Paul 2026-11-10）：Line1 就是 Line 1，舊資料的 A1、G1（BEST 以前的車縫單位）都算 Line 1；舊部門名稱（Production、QC-Apron、Administration…）併到現在的部門 */
 function unitNorm(v){let s=String(v||'').trim();if(!s)return '';let m=s.match(/^(?:line|l)\s*[-_.]?\s*0*(\d+)$/i)||s.match(/^[AG]\s*[-_.]?\s*0*(\d+)$/i);if(m)return 'Line '+(+m[1]);
- if(/^(maint|mainternace|electric|電工)/i.test(s))return 'ME';/* Paul：電工屬 ME，Maintenance 也併進 ME */
+ if(/^(maint|mainternace|electric|電工)/i.test(s))return 'ME';
+ if(/^(development|develop|dev|開發|marker ?room|版房)$/i.test(s))return 'Marker Room';/* Paul：電工屬 ME，Maintenance 也併進 ME */
  const fix={'mechine on line':'Machine on Line','qc-a':'QC A','qc-b':'QC B','production& qc':'Production & QC'};return fix[s.toLowerCase()]||s}
 const isUnitCode=v=>/^(?:[AG]|line|l)\s*[-_.]?\s*\d+$/i.test(String(v||'').trim());
 function deptNorm(v){const s=String(v||'').trim();if(!s)return '';if(/^(生產|行政中心|船務|會計)$/.test(s))return s;
@@ -3041,7 +3042,7 @@ const ORG_DEPT={'production':['生產','Production'],'admin center':['行政中�
 /* 職位文字 → 職稱表（英文名，可多個別名）；只放有把握的，其他保留 HRA-PAY 原本的職位文字並列在「職稱對照」請 Paul 確認 */
 const ORG_RULES=[[/^spreader/,['Spreader']],[/^leader\.?\s*service/,['Line Service Leader']],[/^service on line/,['Line Service Worker']],[/^ie$/,['IE Specialist']],[/^assist\.?\s*cutting/,['Cutting Assistant']],[/^assist\.?\s*qc/,['QC Assistant']],
  [/^leader\.?\s*accessory/,['Trim Leader']],[/^warehouse supervisor/,['Warehouse Supervisor']],[/^warehouse$/,['Warehouse Worker']],[/^training leader/,['Training Leader']],[/^lab officer/,['Lab Officer']],[/^sample coordinator/,['Sample Coordinator']],[/^pattern designer/,['Pattern Designer']],
- [/^production assist/,['Production Special Assistant']],[/^marker assistant/,['Marker Assistant']],[/env|canteen/,['ENV / Canteen Worker']],[/^cook/,['Cook']],[/^doctor/,['Doctor']],[/^gas office/,['GAS Office Staff']],[/^leader\.?\s*mai/,['Maintenance Leader']],[/^leader\.?\s*cleaner/,['Cleaner Leader']],
+ [/^production assist/,['Production Special Assistant']],[/^marker assistant/,['Marker Assistant']],[/env|canteen/,['ENV / Canteen Worker']],[/^cook/,['Cook']],[/^doctor/,['Doctor']],[/^gas office/,['GAS Office Staff']],[/^leader\.?\s*mai/,['ME Leader','Maintenance Leader']],[/^leader\.?\s*cleaner/,['Cleaner Leader']],
  [/^compliance coordinator/,['Compliance Coordinator']],[/^payroll\s*&\s*erp/,['Payroll & ERP Specialist']],[/^factory director/,['Factory Director']],[/sewing operator|^sl sewer|^sewer$/,['Sewing Operator']],[/^supervisor\s*line|^line supervisor|^sewing supervisor/,['Line Supervisor','Sewing Supervisor']],[/^leader\.?\s*line|^line leader|^sewing leader/,['Line Leader','Sewing Leader']],
  [/^leader\.?\s*qc|^qc leader/,['QC Leader']],[/^qc supervisor/,['QC Supervisor']],[/^leader\.?\s*cutting|^cutting leader/,['Cutting Leader']],[/^leader\.?\s*sample|^sample leader/,['Sample Leader']],[/^leader\.?\s*packing|^finishing leader/,['Finishing Leader']],
  [/^(assist\.?|assistant)\s*line|^sewing assistant/,['Sewing Assistant']],[/^(assist\.?|assistant)\s*packing|^packing assistant/,['Packing Assistant']],[/^inspector|^qc inspector|^qc [ab]$/,['QC Inspector']],[/^packing\s*[ab]?$|^packer|^packing worker/,['Packing Worker']],
@@ -3049,9 +3050,12 @@ const ORG_RULES=[[/^spreader/,['Spreader']],[/^leader\.?\s*service/,['Line Servi
  [/^helper|^general worker/,['General Worker']],[/^iron|^presser/,['Ironing Worker']],[/^it\b|^it specialist/,['IT']],[/^driver/,['Driver']],[/^security captain/,['Security Captain']],[/^security/,['Security Guard','Security']],[/^nurse/,['Nurse']],
  [/^maiternance$|^maintenance$|^me$|^me technician/,['ME Technician']],[/^supervisor\s*ga|^general affair supervisor|^ga supervisor/,['General Affair Supervisor']],[/^administration manager/,['Administration Manager']],[/^assist\.?\s*administration|^admin assistant/,['Admin Assistant']],
  [/^assist\.?\s*hr|^hr assistant/,['HR Assistant']],[/^hr supervisor/,['HR Supervisor']],[/^gas office|^ga assistant/,['GA Assistant']],[/^accounting assistant/,['Accounting Assistant']],[/^shipping assistant/,['Shipping Assistant']],[/^cleaner$/,['Cleaner']]];
-function orgTitles(){const H=HPD();return (H.titles&&H.titles.length?H.titles:ORG_TITLES0)}
+/* v0.4.1 Paul：Maintenance Leader 叫 ME Leader（ME 組長） */
+const ORG_TREN={'maintenance leader':{en:'ME Leader',zh:'ME 組長'}};
+function orgTitles(){const H=HPD();return cached('orgT|'+(H.titlesAt||'')+'|'+((H.titles||[]).length),()=>{return (H.titles&&H.titles.length?H.titles:ORG_TITLES0).map(t=>{const r=ORG_TREN[String(t.en||'').toLowerCase()];return r?Object.assign({},t,r):t})})}
 function orgFindTitle(cands){const T=orgTitles();for(const c of cands){const t=T.find(x=>String(x.en||'').toLowerCase()===c.toLowerCase());if(t)return t}return null}
-function orgSec(s){return String(s||'').replace(/\s+/g,' ').trim().replace(/^line\s*(\d+)$/i,'Line $1').replace(/^qc\s*([ab])$/i,'QC $1').replace(/^packing\s*([ab])$/i,'Packing $1')}
+/* v0.4.1 Paul：工廠沒有開發組，Development／Sample／Pattern 這類一律叫「版房 Marker Room」 */
+function orgSec(s){const x=String(s||'').replace(/\s+/g,' ').trim();if(/^(development|develop|dev|r ?& ?d|開發)$/i.test(x))return 'Marker Room';return x.replace(/^line\s*(\d+)$/i,'Line $1').replace(/^qc\s*([ab])$/i,'QC $1').replace(/^packing\s*([ab])$/i,'Packing $1')}
 function orgTitleOf(pos,dept,sec){const p=String(pos||'').replace(/\s+/g,' ').trim().toLowerCase();if(!p)return null;
  if(dept==='accounting'&&/^assist/.test(p))return orgFindTitle(['Accounting Assistant']);if(dept==='shipping'&&/^assist/.test(p))return orgFindTitle(['Shipping Assistant']);
  const sc=String(sec||'').toLowerCase();
