@@ -704,7 +704,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.4.2';
+const APPV='0.5.0';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2842,7 +2842,7 @@ applyTint(LS.get('tint','white'));
 function togglePii(on){SHOW_PII=on;LS.set('pii',on);document.body.classList.toggle('show-pii',on);$('#piiBtn').textContent=on?'👁️':'🙈'}
 
 /* ---------- global search ---------- */
-const PAGE_KW={union:'工會 union 會費 dues សហជីព',trans:'交通 住宿 宿舍 transport housing bus dorm',x_hra_cert:'簽證 工作證 證書 visa permit',x_hra_welfare:'意見箱 福利 suggestion welfare','annual-hist':'特休 年假 歷年 annual leave','sen-hist':'年資 補償 seniority indemnity',x_hra_mat:'產假 護理 maternity nursing',x_pay_warn:'警告 warning'};
+const PAGE_KW={severance:'遣散 資遣 關廠 severance closure layoff',hrcal:'行事曆 發薪日 預支 伙食費 calendar payday',union:'工會 union 會費 dues សហជីព',trans:'交通 住宿 宿舍 transport housing bus dorm',x_hra_cert:'簽證 工作證 證書 visa permit',x_hra_welfare:'意見箱 福利 suggestion welfare','annual-hist':'特休 年假 歷年 annual leave','sen-hist':'年資 補償 seniority indemnity',x_hra_mat:'產假 護理 maternity nursing',x_pay_warn:'警告 warning'};
 function pageHits(q){q=q.toLowerCase();const out=[];Object.keys(RENDER).forEach(k=>{const lab=[t(k),(T[k]||[]).join(' '),PAGE_KW[k.replace(/-/g,'_')]||PAGE_KW[k]||''].join(' ').toLowerCase();if(q.length>=2&&lab.includes(q))out.push(k)});return out.slice(0,5)}
 function gsearch(q){const box=$('#sres');q=q.trim().toLowerCase();if(!q){box.hidden=true;return}
  const PH=/^\d/.test(q)?[]:pageHits(q);const phH=PH.map(k=>`<a href="#${k}" onclick="$('#sres').hidden=true"><b>📂 ${esc(t(k))}</b> <span class="muted small">${tt('頁面','page')}</span></a>`).join('');
@@ -3467,7 +3467,7 @@ async function xrLoad(SRC){let changed=0;const X=XRD();const tasks=[];
    t.T0.b[t.k]=out;t.T0.h[t.k]=t.h;changed++;done++;if(done%60===0){HP_DIRTY=true;persist();GC.clear()}}catch(e){}}};
  await Promise.all(Array.from({length:10},w));SRC.forEach(([tool])=>{if(X[tool])X[tool].at=nowStamp()});
  if(changed){HP_DIRTY=true;persist();GC.clear();if(PROF_NO&&!$('#drawer').hidden&&PROF_TAB==='hr')openEmp(PROF_NO,true);else if(XR_PAGE[CUR]||XR_OWN[CUR])rerender()}return changed}
-const XR_OWN={union:['welfare'],trans:['welfare'],'sen-hist':['hrpay_seniority']};
+const XR_OWN={union:['welfare'],trans:['welfare'],'sen-hist':['hrpay_seniority'],severance:['hrpay_seniority']};
 function xrEnsure(force){if(XR_P&&!force)return XR_P;XR_P=(async()=>{XR_BUSY=true;try{return await xrLoad(XR_SRC)}finally{XR_BUSY=false;if(XR_OWN[CUR])rerender()}})();return XR_P}
 const XR_NEED={};function xrNeed(tools){const key=tools.join(',');const X=XRD();const have=tools.every(t=>X[t]&&X[t].at);if(XR_NEED[key])return XR_NEED[key];
  XR_NEED[key]=(async()=>{try{await xrLoad(XR_SRC.filter(x=>tools.includes(x[0])))}finally{delete XR_NEED[key];XR_NEED['done|'+key]=1;if(XR_OWN[CUR])rerender()}})();if(have)XR_NEED['done|'+key]=1;return XR_NEED[key]}
@@ -3784,6 +3784,8 @@ T.sub_recon=['AI 先試算各種費用，HRA-PAY 的表進來後逐人逐項比�
   ['recon','🧮','g_pay',['recon']],
   ['meal','🍚','g_pay',['meal','x-pay-meal']],
   ['trans','🚌','g_pay',['trans']],
+  ['hrcal','🗓️','g_pay',['hrcal']],
+  ['severance','🏭','g_pay',['severance']],
   ['benefits','🎁','g_pay',['benefits','sen-hist','x-pay-sen','x-pay-nssf','x-hra-welfare']],
   ['sync','🔄','g_hub',['sync']],['reports','📑','g_hub',['reports']],['jobcode','🏷️','g_hub',['jobcode']],
   ['settings','⚙️','g_sys',['settings']],
@@ -4009,6 +4011,67 @@ function renderSenHist(){const k='sen-hist';const st=S(k);if(!st._i2){st.status=
  h+=`<p class="small muted">${tt('每格：那一年年資補償金額（上下半年合計），下面是天數。資料來自 HRA-PAY 半年年資補償名單。','Each cell: seniority indemnity paid that year (both halves), days below. From the HRA-PAY seniority lists.')}</p>`;
  h+=pyMatrix(k,by,years,c=>c?`$${fmt(c.amt,2)}<div class="muted">${fmt(c.days,1)} ${tt('天','d')}</div>`:'<span class="muted">—</span>',d=>'$'+fmt(years.reduce((s,y)=>s+((d[y]&&d[y].amt)||0),0),2));
  return h}
+/* ===== v0.5.0 遣散費試算（萬一關廠）＋ 人資行事曆 ===== */
+/* 依柬埔寨勞動法（第 73、75、89 條）、Prakas 443/18、指示 057/19・058/19、勞工部 2024-03-21「終止勞動合同補償」通知。全部是預估，不是法律意見。 */
+function sevDaily(no){const H=HPD();const s=xrAll('sen').filter(o=>String(o.empId||'').replace(/^0+/,'')===String(no).replace(/^0+/,'')&&+o.averageSalary>0).sort((a,b)=>String(b.period).localeCompare(String(a.period)))[0];
+ const ms=Object.keys(H.pay||{}).sort().slice(-6);const g=ms.map(m=>{const x=(H.pay[m]||{})[no];return x&&x.AG!=null?(+x.AG)+(+x.AE||0)+(+x.S||0):null}).filter(v=>v!=null&&v>0);
+ if(g.length)return {mon:g.reduce((a,b)=>a+b,0)/g.length,src:tt('HRA-PAY 近 '+g.length+' 個月平均','HRA-PAY last '+g.length+'-month average')};
+ if(s)return {mon:+s.averageSalary,src:tt('年資補償表 ','Seniority list ')+s.period};
+ const mw=minWageAt(monthKey(TODAY));return {mon:mw||0,src:tt('最低工資（查無薪資）','Minimum wage (no pay data)'),weak:1}}
+function sevRows(D){const out=[];const y0=parseD('2019-01-01');
+ for(const e of empIdx().values()){if(!e.active)continue;const j=parseD(e.join_date);if(!j||j>D)continue;const no=String(e.emp_no);const w=sevDaily(no);const day=w.mon/26;
+  const mos=(D.getFullYear()-j.getFullYear())*12+(D.getMonth()-j.getMonth())+(D.getDate()>=j.getDate()?0:-1);const yrs=mos/12;const ct=(stypeOf(e,D).v||'UDC');
+  const r=Object.assign(empBase(no),{mon:w.mon,day,wsrc:w.src,weak:w.weak,mos,ct,notice:0,nd:'',sem:0,dmg:0,al:0,fdc:0});
+  const a=(DB.annual||[]).filter(x=>String(x.emp_no)===no&&String(x.year)===String(D.getFullYear()))[0];const alH=a?Math.max(0,+a.al_left||0):0;r.alH=alH;r.al=alH/8*day;
+  if(ct==='FDC'){r.fdc=w.mon*Math.max(1,mos)*0.05}
+  else{ /* 預告期（第 75 條） */
+   if(mos<6){r.notice=7*day;r.nd=tt('7 天','7 days')}else if(mos<24){r.notice=15*day;r.nd=tt('15 天','15 days')}else if(mos<60){r.notice=w.mon;r.nd=tt('1 個月','1 month')}else if(mos<120){r.notice=2*w.mon;r.nd=tt('2 個月','2 months')}else{r.notice=3*w.mon;r.nd=tt('3 個月','3 months')}
+   /* 當期（半年）年資補償 7.5 天：這半年做滿 1 個月以上 */
+   const s0=new Date(D.getFullYear(),D.getMonth()<6?0:6,1);const from=j>s0?j:s0;const sm=(D-from)/864e5/30;if(sm>=1)r.sem=7.5*day;
+   /* 損害賠償＝在職期間領過的年資補償總額：2019 起每年 15 天＋2019 以前每年 15 天（上限 6 個月＝156 天） */
+   const newY=Math.max(0,(D-(j>y0?j:y0))/864e5/365.25);const oldY=j<y0?(y0-j)/864e5/365.25:0;r.dmgDays=15*newY+Math.min(156,15*oldY);r.dmg=r.dmgDays*day}
+  r.A=r.sem+r.al+r.fdc;r.B=r.A+r.notice;r.C=r.B+r.dmg;out.push(r)}
+ return out}
+function renderSeverance(){const k='severance';const st=S(k);if(!st._i){st._i=1;st.status='';st.sc='B'}const D=parseD(st.d)||TODAY;const rows=sevRows(D);const $m=v=>v?'$'+fmt(v,2):'—';const sum=f=>rows.reduce((a,r)=>a+(+r[f]||0),0);
+ const SC={A:[tt('最低','Lowest'),tt('已依法預告、正常關廠','Notice given, ordinary closure')],B:[tt('一般','Typical'),tt('沒預告：加付預告金','No notice: plus pay in lieu')],C:[tt('最高','Highest'),tt('再加損害賠償（被認定無正當理由）','Plus damages (if found unjustified)')]};
+ let h=pageHead(k)+xrLoadingHTML(['hrpay_seniority'],tt('年資補償資料','seniority data'));
+ h+=`<div class="note" style="border-left:4px solid var(--warn)">⚠️ ${tt('這是<b>預估</b>，用來先知道「萬一關廠大概要準備多少錢」。實際金額要以勞工部／勞動督察和律師確認為準；當月還沒發的薪資、伙食費、NSSF 不含在內（那是正常薪資）。','This is an <b>estimate</b> of roughly how much to set aside if the factory closed. Actual amounts must be confirmed with the Ministry of Labour / labour inspector and a lawyer; unpaid wages, meal fees and NSSF for the final month are not included.')}</div>`;
+ h+=`<div class="panel mt"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><label>${tt('假設關廠日','Assumed closure date')} <input type="date" value="${ymd(D)}" onchange="S('severance').d=this.value;saveNav('severance');rerender()"></label><span class="small muted">${tt('在職','Active')} ${fmt(rows.length)} ${tt('人','people')}（UDC ${fmt(rows.filter(r=>r.ct!=='FDC').length)}・FDC ${fmt(rows.filter(r=>r.ct==='FDC').length)}）</span></div>
+  <div class="kpis" style="margin-top:10px">${['A','B','C'].map(c=>`<div onclick="S('severance').sc='${c}';saveNav('severance');rerender()" style="cursor:pointer;${st.sc===c?'outline:2px solid var(--pri);border-radius:14px':''}">${kpi(SC[c][0]+'：'+SC[c][1],$m(sum(c)),'',tt('平均每人 ','Per person ')+$m(rows.length?sum(c)/rows.length:0))}</div>`).join('')}</div>
+  <p class="small muted" style="margin:6px 0 0">${tt('點上面三個數字切換下面表格的「合計」欄。','Tap a figure to switch the Total column below.')}</p></div>`;
+ h+=`<div class="panel mt"><h2>🧮 ${tt('各項合計','By item')}</h2><div class="tbl-wrap"><table class="t"><thead><tr><th>${tt('項目','Item')}</th><th>${tt('怎麼算','How')}</th><th class="r">${tt('金額','Amount')}</th></tr></thead><tbody>
+  <tr><td>${tt('當期年資補償（UDC）','Current-semester seniority (UDC)')}</td><td class="small">${tt('這半年做滿 1 個月：平均日薪 × 7.5 天','≥1 month in the half-year: average daily pay × 7.5 days')}</td><td class="r">${$m(sum('sem'))}</td></tr>
+  <tr><td>${tt('沒休完的特休','Unused annual leave')}</td><td class="small">${tt('剩餘時數 ÷ 8 × 平均日薪','Hours left ÷ 8 × average daily pay')}</td><td class="r">${$m(sum('al'))}</td></tr>
+  <tr><td>${tt('合同期滿金（FDC）','Severance (FDC)')}</td><td class="small">${tt('合同期間工資總額 × 5%（用月均 × 月數估）','5% of wages paid during the contract (monthly average × months)')}</td><td class="r">${$m(sum('fdc'))}</td></tr>
+  <tr><td>${tt('預告金（UDC，沒依法預告才付）','Pay in lieu of notice (UDC, only if no notice)')}</td><td class="small">${tt('年資 &lt;6 月 7 天・6 月–2 年 15 天・2–5 年 1 個月・5–10 年 2 個月・10 年以上 3 個月','&lt;6 m 7 d · 6 m–2 y 15 d · 2–5 y 1 month · 5–10 y 2 months · &gt;10 y 3 months')}</td><td class="r">${$m(sum('notice'))}</td></tr>
+  <tr><td>${tt('損害賠償（UDC，被認定無正當理由才付；破產不用）','Damages (UDC, only if found unjustified; not in bankruptcy)')}</td><td class="small">${tt('＝在職期間領過的年資補償總額：2019 起每年 15 天＋2019 前每年 15 天（上限 156 天）','= total seniority received: 15 d/yr from 2019 + 15 d/yr before 2019 (cap 156 d)')}</td><td class="r">${$m(sum('dmg'))}</td></tr></tbody></table></div>
+  <p class="small muted" style="margin:6px 0 0">${tt('平均日薪＝近 6 個月工資＋津貼平均 ÷ 26。2019 年以前的年資補償（back pay）假設已經發完：HRA-PAY 的年資補償表每期都是 7.5 天，沒有再列補發。','Average daily pay = last 6 months of pay and benefits ÷ 26. Pre-2019 back pay is assumed fully paid: every HRA-PAY seniority list shows 7.5 days only.')}</p></div>`;
+ const list=pyApply(k,rows).sort((x,y)=>y[st.sc]-x[st.sc]);
+ h+=`<div class="panel mt"><h2>👥 ${tt('每人試算','Per person')} · ${fmt(list.length)} · ${SC[st.sc][0]}</h2>${pyFilters(k,rows)}<div class="tbl-wrap"><table class="t cards"><thead><tr><th>${tt('工號','No.')}</th><th>${tt('姓名','Name')}</th><th>${tt('部門／組別','Dept / section')}</th><th>${tt('到職日','Joined')}</th><th>${tt('年資','Service')}</th><th>${tt('合同','Contract')}</th><th class="r">${tt('平均月薪','Avg monthly')}</th><th class="r">${tt('當期年資','Semester')}</th><th class="r">${tt('特休','Leave')}</th><th class="r">FDC 5%</th><th class="r">${tt('預告金','Notice')}</th><th class="r">${tt('損害賠償','Damages')}</th><th class="r">${tt('合計','Total')}</th></tr></thead><tbody>${list.map(r=>`<tr class="click" onclick="openEmp('${esc(r.emp_no)}')"><td class="mono lead" data-l="">${esc(r.emp_no)}</td><td data-l="${esc(tt('姓名','Name'))}">${esc(r.name)}</td><td data-l="${esc(tt('部門','Dept'))}">${esc(r.dept)}${r.section?' · '+esc(r.section):''}</td><td class="mono" data-l="${esc(tt('到職日','Joined'))}">${esc(r.join_date||'')}</td><td data-l="${esc(tt('年資','Service'))}">${Math.floor(r.mos/12)}${tt(' 年 ','y ')}${r.mos%12}${tt(' 月','m')}</td><td data-l="${esc(tt('合同','Contract'))}">${esc(r.ct)}</td><td class="r" data-l="${esc(tt('平均月薪','Avg monthly'))}" title="${esc(r.wsrc)}">${$m(r.mon)}${r.weak?' ⚠️':''}</td><td class="r" data-l="${esc(tt('當期年資','Semester'))}">${$m(r.sem)}</td><td class="r" data-l="${esc(tt('特休','Leave'))}">${$m(r.al)}</td><td class="r" data-l="FDC 5%">${$m(r.fdc)}</td><td class="r" data-l="${esc(tt('預告金','Notice'))}" title="${esc(r.nd)}">${$m(r.notice)}</td><td class="r" data-l="${esc(tt('損害賠償','Damages'))}">${$m(r.dmg)}</td><td class="r" data-l="${esc(tt('合計','Total'))}"><b>${$m(r[st.sc])}</b></td></tr>`).join('')}</tbody></table></div></div>`;
+ h+=`<div class="panel mt"><h2>📌 ${tt('關廠程序要記得的事','Closure steps to remember')}</h2><ul class="small" style="margin:0;padding-left:18px;line-height:1.8"><li>${tt('集體資遣（第 95 條）：先書面通知工人代表徵詢意見，並告知勞動督察；勞工部長特殊情況可暫停資遣最多 30 天（可再延一次）。','Collective layoff (Art. 95): written notice to workers’ representatives and inform the labour inspector; the Minister may suspend layoffs up to 30 days (extendable once).')}</li><li>${tt('工會幹部、發起人、工人代表受特別保護：解僱前要勞動督察核准。','Union officers, founders and shop stewards are protected: dismissal needs labour-inspector approval.')}</li><li>${tt('每筆終止要在 15 天內向勞工部申報；被資遣的人 2 年內同職位有優先回聘權。','Each termination is declared to the Ministry within 15 days; laid-off workers have rehire priority for 2 years.')}</li><li>${tt('年資補償免稅；員工自己辭職或重大過失不付年資補償。','Seniority indemnity is tax-exempt; none is due on resignation or serious misconduct.')}</li></ul></div>`;
+ return h}
+/* 人資行事曆：每月固定要付／要做的事，都是預估；發放日遇週六日、假日提前 */
+function hrCalEvents(y,m){const ym=y+'-'+pad(m+1),prev=monthKey(new Date(y,m-1,1));const ev=[];const add=(d,ic,what,note,est)=>ev.push({d,ic,what,note:note||'',est:est||0});
+ const early=(day)=>{const d=rcPayday(y,m,day);return [d,d.getDate()!==day?tt(`原訂 ${day} 日，遇假日／週末提前`,`Normally the ${day}th; moved earlier`):'']};
+ let [d,n]=early(10);add(d,'💰',tt(`發 ${prev} 月薪`,`Pay ${prev} salary`),n);add(d,'🍚',tt(`發 ${prev} 下半月伙食費（16 日–月底）`,`Pay ${prev} 2nd-half meal fee (16th–end)`),tt('預估跟月薪同一天，待確認','Estimated same day as salary; to confirm'),1);
+ [d,n]=early(25);add(d,'💵',tt(`發 ${ym} 預支`,`Pay ${ym} advance`),n);add(d,'🍚',tt(`發 ${ym} 上半月伙食費（1–15 日）`,`Pay ${ym} 1st-half meal fee (1st–15th)`),tt('預估跟預支同一天，待確認','Estimated same day as advance; to confirm'),1);
+ [d,n]=early(15);add(d,'🏥',tt(`NSSF：申報並繳 ${prev} 的保費`,`NSSF: declare and pay ${prev} contributions`),tt('預估，以 NSSF 通知的期限為準','Estimate; follow the NSSF deadline'),1);
+ [d,n]=early(20);add(d,'🧾',tt(`薪資稅：申報 ${prev}`,`Salary tax return for ${prev}`),tt('預估，以稅務局期限為準','Estimate; follow the tax deadline'),1);
+ add(new Date(y,m,6),'📥',tt(`HR 給 ${prev} 薪資表（HRA-PAY）`,`HR sends ${prev} payroll (HRA-PAY)`),'',1);add(new Date(y,m,21),'📥',tt(`HR 給 ${ym} 預支表`,`HR sends ${ym} advance list`),'',1);
+ if(m===5||m===11){const e=rcPayday(y,m,m===5?30:31);add(e,'🎖️',tt(`發半年年資補償（UDC，7.5 天，${m===5?'1–6':'7–12'} 月）`,`Pay half-year seniority indemnity (UDC, 7.5 days, ${m===5?'Jan–Jun':'Jul–Dec'})`),tt('預估月底前','Estimated by month-end'),1)}
+ if(m===0)add(rcPayday(y,m,10),'🌴',tt(`${y-1} 沒休完的特休折現（併 12 月薪資）`,`${y-1} unused annual leave paid out (with December pay)`),'',1);
+ if(m===0)add(new Date(y,m,1),'📈',tt(`新年度最低工資 $${minWageAt(ym)||'?'} 開始適用`,`New minimum wage $${minWageAt(ym)||'?'} applies`),'');
+ (DB.holiday||[]).filter(r=>String(r.date).slice(0,7)===ym&&!/sunday/i.test(r.name||'')).forEach(r=>add(parseD(r.date),'🎌',tt('國定假日：','Public holiday: ')+(r.name||''),''));
+ try{expList().filter(x=>x.c==='visa'&&x.d.slice(0,7)===ym).forEach(x=>add(parseD(x.d),'🛂',x.who+' '+x.what+tt(' 到期',' expires'),''))}catch(_){}
+ return ev.sort((a,b)=>a.d-b.d)}
+function renderHrcal(){const k='hrcal';const st=S(k);const off=+st.off||0;const WD=[tt('日','Sun'),tt('一','Mon'),tt('二','Tue'),tt('三','Wed'),tt('四','Thu'),tt('五','Fri'),tt('六','Sat')];const today=ymd(TODAY);
+ let h=pageHead(k,`<button class="btn sm" onclick="S('hrcal').off=${off-3};saveNav('hrcal');rerender()">◀ ${tt('前 3 個月','Prev 3')}</button> <button class="btn sm" onclick="S('hrcal').off=0;saveNav('hrcal');rerender()">${tt('本月','This month')}</button> <button class="btn sm" onclick="S('hrcal').off=${off+3};saveNav('hrcal');rerender()">${tt('後 3 個月','Next 3')} ▶</button>`);
+ h+=`<div class="note">${tt('每月固定要付、要做的事。<b>都是預估日期</b>：發放日遇到週六、週日或國定假日就往前提。標「待確認」的是我推估的，告訴我實際日子我再改。','Fixed monthly payments and tasks. <b>All dates are estimates</b>: pay dates move earlier on Saturdays, Sundays and public holidays. Items marked “to confirm” are my guesses.')}</div>`;
+ for(let i=0;i<3;i++){const b=new Date(TODAY.getFullYear(),TODAY.getMonth()+off+i,1);const ev=hrCalEvents(b.getFullYear(),b.getMonth());
+  h+=`<div class="panel mt"><h2>🗓️ ${b.getFullYear()}-${pad(b.getMonth()+1)}</h2><div class="tbl-wrap"><table class="t"><thead><tr><th>${tt('日期','Date')}</th><th>${tt('事項','Item')}</th><th>${tt('備註','Note')}</th></tr></thead><tbody>${ev.map(e=>{const ds=ymd(e.d);const past=ds<today;return `<tr style="${ds===today?'background:rgba(250,204,21,.18)':past?'opacity:.55':''}"><td class="mono" style="white-space:nowrap">${ds.slice(5)}（${WD[e.d.getDay()]}）</td><td>${e.ic} ${esc(e.what)}</td><td class="small muted">${esc(e.note)}${e.est&&!e.note?esc(tt('預估','Estimate')):''}</td></tr>`}).join('')}</tbody></table></div></div>`}
+ return h}
+RENDER.severance=renderSeverance;RENDER.hrcal=renderHrcal;
+Object.assign(T,{severance:['遣散費試算','Closure pay estimate','ការប៉ាន់ស្មានប្រាក់បញ្ចប់ការងារ'],sub_severance:['萬一關廠：依柬埔寨勞動法估每人要付多少','If the factory closed: estimated dues per person under Cambodian labour law','ប្រសិនបើរោងចក្របិទ៖ ការប៉ាន់ស្មានតាមច្បាប់ការងារ'],hrcal:['人資行事曆','HR calendar','ប្រតិទិនធនធានមនុស្ស'],sub_hrcal:['每月發薪、預支、伙食費、NSSF、年資補償的預計日期','Estimated dates for salary, advance, meal fee, NSSF and seniority payments','កាលបរិច្ឆេទប៉ាន់ស្មានសម្រាប់ប្រាក់ខែ បុរេប្រទាន និងអាហារ']});
 RENDER.union=renderUnion;RENDER.trans=renderTrans;RENDER['annual-hist']=renderAnnualHist;RENDER['sen-hist']=renderSenHist;
 Object.assign(T,{union:['工會','Trade union','សហជីព'],sub_union:['原工會、新工會、會費（誰受工會法保護）','Existing / new union and dues (who is protected)','សហជីព និងថ្លៃសមាជិក'],trans:['交通／住宿','Transport / housing','ដឹកជញ្ជូន / ស្នាក់នៅ'],sub_trans:['每月交通、住宿名單','Monthly transport and housing lists','បញ្ជីប្រចាំខែ'],'annual-hist':['特休歷年（每人）','Annual leave by year (per person)','ច្បាប់ប្រចាំឆ្នាំ តាមឆ្នាំ'],'sub_annual-hist':['一人一列、一年一欄：已休／可休／剩、年終折現','One row per person, one column per year','មួយជួរម្នាក់ មួយជួរឈរមួយឆ្នាំ'],'sen-hist':['年資補償歷年（每人）','Seniority indemnity by year (per person)','ប្រាក់អតីតភាព តាមឆ្នាំ'],'sub_sen-hist':['一人一列、一年一欄的年資補償金額','One row per person, one column per year','មួយជួរម្នាក់']});
 /* ---------- v0.3.4 雲端刪除核可（HRA-PAY、HRA Portal、GASCheck、GA-EXP、VRT ERP、VRT HR 共用） ----------
