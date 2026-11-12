@@ -704,7 +704,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.4.1';
+const APPV='0.4.2';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2030,7 +2030,7 @@ function cell(r,c){const v=r[c.f];
 /* v0.3.5 單位整合（Paul 2026-11-10）：Line1 就是 Line 1，舊資料的 A1、G1（BEST 以前的車縫單位）都算 Line 1；舊部門名稱（Production、QC-Apron、Administration…）併到現在的部門 */
 function unitNorm(v){let s=String(v||'').trim();if(!s)return '';let m=s.match(/^(?:line|l)\s*[-_.]?\s*0*(\d+)$/i)||s.match(/^[AG]\s*[-_.]?\s*0*(\d+)$/i);if(m)return 'Line '+(+m[1]);
  if(/^(maint|mainternace|electric|電工)/i.test(s))return 'ME';
- if(/^(development|develop|dev|開發|marker ?room|版房)$/i.test(s))return 'Marker Room';/* Paul：電工屬 ME，Maintenance 也併進 ME */
+ if(/^(development|develop|dev|開發|marker ?room|版房|បន្ទប់គំរូ)$/i.test(s))return tt('版房','Marker Room','បន្ទប់គំរូ');/* Paul：電工屬 ME，Maintenance 也併進 ME */
  const fix={'mechine on line':'Machine on Line','qc-a':'QC A','qc-b':'QC B','production& qc':'Production & QC'};return fix[s.toLowerCase()]||s}
 const isUnitCode=v=>/^(?:[AG]|line|l)\s*[-_.]?\s*\d+$/i.test(String(v||'').trim());
 function deptNorm(v){const s=String(v||'').trim();if(!s)return '';if(/^(生產|行政中心|船務|會計)$/.test(s))return s;
@@ -3051,11 +3051,11 @@ const ORG_RULES=[[/^spreader/,['Spreader']],[/^leader\.?\s*service/,['Line Servi
  [/^maiternance$|^maintenance$|^me$|^me technician/,['ME Technician']],[/^supervisor\s*ga|^general affair supervisor|^ga supervisor/,['General Affair Supervisor']],[/^administration manager/,['Administration Manager']],[/^assist\.?\s*administration|^admin assistant/,['Admin Assistant']],
  [/^assist\.?\s*hr|^hr assistant/,['HR Assistant']],[/^hr supervisor/,['HR Supervisor']],[/^gas office|^ga assistant/,['GA Assistant']],[/^accounting assistant/,['Accounting Assistant']],[/^shipping assistant/,['Shipping Assistant']],[/^cleaner$/,['Cleaner']]];
 /* v0.4.1 Paul：Maintenance Leader 叫 ME Leader（ME 組長） */
-const ORG_TREN={'maintenance leader':{en:'ME Leader',zh:'ME 組長'}};
+const ORG_TREN={'maintenance leader':{en:'ME Leader',zh:'工務組長'}};
 function orgTitles(){const H=HPD();return cached('orgT|'+(H.titlesAt||'')+'|'+((H.titles||[]).length),()=>{return (H.titles&&H.titles.length?H.titles:ORG_TITLES0).map(t=>{const r=ORG_TREN[String(t.en||'').toLowerCase()];return r?Object.assign({},t,r):t})})}
 function orgFindTitle(cands){const T=orgTitles();for(const c of cands){const t=T.find(x=>String(x.en||'').toLowerCase()===c.toLowerCase());if(t)return t}return null}
 /* v0.4.1 Paul：工廠沒有開發組，Development／Sample／Pattern 這類一律叫「版房 Marker Room」 */
-function orgSec(s){const x=String(s||'').replace(/\s+/g,' ').trim();if(/^(development|develop|dev|r ?& ?d|開發)$/i.test(x))return 'Marker Room';return x.replace(/^line\s*(\d+)$/i,'Line $1').replace(/^qc\s*([ab])$/i,'QC $1').replace(/^packing\s*([ab])$/i,'Packing $1')}
+function orgSec(s){const x=String(s||'').replace(/\s+/g,' ').trim();if(/^(development|develop|dev|r ?& ?d|開發|marker ?room|版房|បន្ទប់គំរូ)$/i.test(x))return tt('版房','Marker Room','បន្ទប់គំរូ');return x.replace(/^line\s*(\d+)$/i,'Line $1').replace(/^qc\s*([ab])$/i,'QC $1').replace(/^packing\s*([ab])$/i,'Packing $1')}
 function orgTitleOf(pos,dept,sec){const p=String(pos||'').replace(/\s+/g,' ').trim().toLowerCase();if(!p)return null;
  if(dept==='accounting'&&/^assist/.test(p))return orgFindTitle(['Accounting Assistant']);if(dept==='shipping'&&/^assist/.test(p))return orgFindTitle(['Shipping Assistant']);
  const sc=String(sec||'').toLowerCase();

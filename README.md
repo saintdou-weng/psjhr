@@ -1,3 +1,6 @@
+## v0.4.2 (2026-11-12)
+- 版房依語言顯示：中文「版房」、英文「Marker Room」、高棉文「បន្ទប់គំរូ」。ME Leader 中文改叫「工務組長」。
+
 ## v0.4.1 (2026-11-12)
 - 組別「Development」一律改叫「版房 Marker Room」（工廠沒有開發組）。
 - 職稱「Maintenance Leader」改叫「ME Leader（ME 組長）」。
