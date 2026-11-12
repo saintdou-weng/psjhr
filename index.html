@@ -704,7 +704,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.3.9';
+const APPV='0.4.0';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1771,6 +1771,12 @@ function empIdx(){return cached('emp',()=>{const m=new Map();const get=no=>m.get
  const byName={};m.forEach(e=>{if(e.name)(byName[e.name.replace(/\s+/g,'')]=byName[e.name.replace(/\s+/g,'')]||[]).push(e)});
  DB.annual.forEach(r=>{const c=byName[r.name.replace(/\s+/g,'')]||[];const act=c.filter(e=>e.status==='在職');const e=act.length===1?act[0]:c.length===1?c[0]:null;if(e){r.emp_no=e.emp_no;(e.annual=e.annual||[]).push(r)}});
  m.forEach(e=>{if(!e.birthday&&e.birthday0)e.birthday=e.birthday0;if(!e.mobile&&e.mobile0)e.mobile=e.mobile0;e.dept=e.dept_name||deptName(e.dept_code);e.title=e.title_name||titleName(e.title_code);e.active=e.status==='在職'||e.status==='留職停薪';e.best_dept=e.dept;e.best_title=e.title;if(typeof orgOf==='function'){try{const o=orgOf(e);if(o){e.dept=o.dept;e.section=o.section;e.title=o.title;e.grade=o.grade;e.org_src=o.src;e.org_pos=o.pos;e.org_miss=o.miss;e.org_best=!!o.best}}catch(x){console.warn(x)}}if(!e.name_km){const H=HPD();let en='';for(const m of Object.keys(H.pay||{}).concat(Object.keys(H.adv||{})).sort()){const x=(H.pay[m]||{})[e.emp_no]||(H.adv[m]||{})[e.emp_no];if(x&&x.en)en=x.en}if(!en&&e.name_en0)en=e.name_en0;en=String(en).trim().replace(/\s+/g,' ').toLowerCase().replace(/(^|\s)\S/g,c=>c.toUpperCase());if(en&&/[\u1780-\u17FF]/.test(e.name||'')){e.name_km=e.name;e.name_en=en;e.name=e.name+' ('+en+')'}}const xc=excl(e.emp_no);if(xc){e.excl=xc;if(xc.scope!=='pay'&&e.status==='在職')e.status='不計入'}});
+ /* v0.4.0 離職但沒有離職日（例：2014 年進來、早已不在的人）：先用 HRA Portal 離職日；沒有就用 HRA-PAY 薪資／預支／歷年員工資料「最後一次出現」的月份推定（標「推定」並列入資料問題）；什麼都查不到就標「離職日不明」，年資不再一直往上加 */
+ try{const H=HPD();const RM=typeof resignMap==='function'?resignMap():{};const OH=((H.orgHist||{}).rows)||{};const PM=Object.keys(H.pay||{}).sort(),AM=Object.keys(H.adv||{}).sort();
+  m.forEach(e=>{if(e.status!=='離職'||e.leave_date)return;const no=String(e.emp_no);if(RM[no]){e.leave_date=RM[no];e.leave_src='HRA Portal';return}
+   let last='',src='';for(const mm of PM)if((H.pay[mm]||{})[no]&&mm>last){last=mm;src=tt('HRA-PAY 薪資','HRA-PAY payroll')}for(const mm of AM)if((H.adv[mm]||{})[no]&&mm>last){last=mm;src=tt('HRA-PAY 預支','HRA-PAY advance')}
+   const h=OH[no];if(h&&h[0]&&String(h[0]).slice(0,7)>last){last=String(h[0]).slice(0,7);src=tt('HRA-PAY 員工資料','HRA-PAY staff list')}
+   if(last&&(!e.join_date||last>=String(e.join_date).slice(0,7))){const d=new Date(+last.slice(0,4),+last.slice(5,7),0);e.leave_date=ymd(d);e.leave_est=last;e.leave_src=src}else e.leave_unknown=1})}catch(x){console.warn('leaveEst',x)}
  try{ltApply(m)}catch(x){console.warn('ltApply',x)}m.forEach(e=>{const s2=stypeOf(e);e.stype=s2.v;e.stype_inf=s2.inf});
  return m})}
 const emp=no=>empIdx().get(String(no))||null;
@@ -1991,7 +1997,7 @@ function bucketTable(k,R){
 
 /* ================= generic table ================= */
 const CFG={
- emp:{cols:[{f:'emp_no',l:'emp_no',lead:1},{f:'name',l:'name',ty:'empname'},{f:'dept',l:'dept'},{f:'title',l:'title',ty:'title'},{f:'sex',l:'sex'},{f:'age',l:'age',ty:'n'},{f:'stype',l:'staff_type',ty:'stype'},{f:'status',l:'emp_status',ty:'status'},{f:'join_date',l:'join_date'},{f:'leave_date',l:'leave_date'},{f:'sen',l:'seniority'},{f:'mobile',l:'mobile',ty:'pii'}],q:['emp_no','name','dept','section','title','stype']},
+ emp:{cols:[{f:'emp_no',l:'emp_no',lead:1},{f:'name',l:'name',ty:'empname'},{f:'dept',l:'dept'},{f:'title',l:'title',ty:'title'},{f:'sex',l:'sex'},{f:'age',l:'age',ty:'n'},{f:'stype',l:'staff_type',ty:'stype'},{f:'status',l:'emp_status',ty:'status'},{f:'join_date',l:'join_date'},{f:'leave_date',l:'leave_date',ty:'leave'},{f:'sen',l:'seniority'},{f:'mobile',l:'mobile',ty:'pii'}],q:['emp_no','name','dept','section','title','stype']},
  att:{cols:[{f:'date',l:'date',lead:1},{f:'emp_no',l:'emp_no'},{f:'name',l:'name'},{f:'dept',l:'dept'},{f:'time_in',l:'time_in'},{f:'time_out',l:'time_out'},{f:'hrs_clock',l:'hrs_clock',ty:'n1'},{f:'hrs_total',l:'hrs_total',ty:'n1'},{f:'hrs_actual',l:'hrs_actual',ty:'n1'},{f:'lv_should',l:'lv_should',ty:'n1'},{f:'lv_taken',l:'lv_taken',ty:'n1'},{f:'lv_missing',l:'lv_missing',ty:'n1'}],q:['emp_no','name','dept']},
  attexc:{cols:[{f:'date',l:'date',lead:1},{f:'emp_no',l:'emp_no'},{f:'name',l:'name'},{f:'dept',l:'dept'},{f:'group',l:'group'},{f:'kind',l:'type',ty:'kind'},{f:'leave_type',l:'leave_type'},{f:'time_in',l:'time_in'},{f:'time_out',l:'time_out'},{f:'hrs_actual',l:'hrs_actual',ty:'n1'},{f:'lv_should',l:'lv_should',ty:'n1'},{f:'lv_taken',l:'lv_taken',ty:'n1'},{f:'lv_missing',l:'lv_missing',ty:'n1'}],q:['emp_no','name','dept','group']},
  leave:{cols:[{f:'start',l:'start',lead:1},{f:'end',l:'end'},{f:'emp_no',l:'emp_no'},{f:'name',l:'name'},{f:'dept',l:'dept'},{f:'leave_type',l:'leave_type'},{f:'days',l:'days',ty:'n1'},{f:'hours',l:'hours',ty:'n1'},{f:'total_hours',l:'total_hours',ty:'n1'},{f:'apply_date',l:'apply_date'},{f:'approve',l:'approve'}],q:['emp_no','name','leave_type','dept']},
@@ -2014,6 +2020,7 @@ function cell(r,c){const v=r[c.f];
  if(c.ty==='pii')return pii(v);
  if(c.ty==='stype')return v?esc(v)+(r.stype_inf?infTag(stypeWhy(stypeOf(r))):''):'—';
  if(c.ty==='title')return esc(v||'—')+(r.title_inf?infTag(titleWhy(r)):'');
+ if(c.ty==='leave')return r.leave_unknown?`<span style="color:var(--crit)">${tt('不明','unknown')}</span>`:esc(v||'—')+(r.leave_est?` <span class="hr-chip" title="${esc(tt('沒有正式離職日，依 ','No official leave date; estimated from ')+(r.leave_src||'')+tt(' 最後一次出現的月份推定',' last month seen'))}" style="background:#fef3c7;color:#92400e">${tt('推定','est.')}</span>`:'');
  if(c.ty==='empname')return esc(v||'—')+(r.emp_no?' '+unionChip(r.emp_no):'');
  if(c.f==='age'&&(v===''||v==null)&&r.emp_no!=null&&!r.birthday)return noBday();
  if(c.ty==='kind')return {noclock:stChip('crit',tt('未刷卡','No punch')),oneclock:stChip('warn',tt('單邊刷卡','One punch')),missing:stChip('crit',tt('未請假','Unexcused')),other:stChip('neu',tt('其他','Other'))}[v]||esc(v);
@@ -2032,7 +2039,7 @@ function deptNorm(v){const s=String(v||'').trim();if(!s)return '';if(/^(生產|�
  if(/^(admin|hra|hr\b|ga\b|security|compliance|it\b|office|nurse|doctor|clinic|canteen|driver|electric|maint)/i.test(s))return '行政中心';
  return s}
 function enrichRow(k,r){
- if(k==='emp'){return Object.assign({},r,{dept:deptNorm(r.dept)||r.dept,section:unitNorm(r.section)||(isUnitCode(r.dept)||/electric|電工|maint/i.test(r.dept||'')?unitNorm(r.dept):''),sen:seniority(r.join_date,r.leave_date),age:age(r.birthday),stype:stypeOf(r).v,stype_inf:stypeOf(r).inf})}
+ if(k==='emp'){return Object.assign({},r,{dept:deptNorm(r.dept)||r.dept,section:unitNorm(r.section)||(isUnitCode(r.dept)||/electric|電工|maint/i.test(r.dept||'')?unitNorm(r.dept):''),sen:r.leave_unknown?tt('— 離職日不明','— leave date unknown'):seniority(r.join_date,r.leave_date)+(r.leave_est?tt('（推定）',' (est.)'):''),age:age(r.birthday),stype:stypeOf(r).v,stype_inf:stypeOf(r).inf})}
  if(k==='joinleave'){const e=emp(r.emp_no)||{};return Object.assign({},r,{dept:e.dept||'',status:e.status||(r.leave_date?'離職':''),sen:seniority(r.join_date,r.leave_date)})}
  if(k==='leave'){const e=emp(r.emp_no)||{};return Object.assign({},r,{dept:e.dept||''})}
  if(k==='basepay'){const e=emp(r.emp_no)||{};return Object.assign({},r,{name:r.name||e.name,dept:/^\d{3}$/.test(r.dept||'')?deptName(r.dept):(r.dept||e.dept),_edb:r._ed?'✏️':'',pay_usd:payUSD(r).total})}
@@ -2386,7 +2393,8 @@ function healthHTML(){
  const act=E.filter(e=>e.status==='在職'); const noJoin=act.filter(e=>!e.join_date); if(noJoin.length)issues.push([tt('在職但無到職日','Active without join date'),noJoin.length,noJoin]);
  const badJL=E.filter(e=>e.join_date&&e.leave_date&&e.leave_date<e.join_date); if(badJL.length)issues.push([tt('離職日早於到職日','Leave date before join date'),badJL.length,badJL]);
  const futJ=E.filter(e=>e.join_date&&e.join_date>ymd(addD(TODAY,30))); if(futJ.length)issues.push([tt('到職日在未來','Join date in the future'),futJ.length,futJ]);
- const leftNoDate=E.filter(e=>e.status==='離職'&&!e.leave_date); if(leftNoDate.length&&DB.joinleave.length)issues.push([tt('離職但查無離職日（新離職報表未涵蓋）','Left but no leave date in any report'),leftNoDate.length,leftNoDate]);
+ const leftNoDate=E.filter(e=>e.status==='離職'&&(e.leave_unknown||!e.leave_date)); if(leftNoDate.length)issues.push([tt('離職但完全查不到離職日（年資已停算，請 HR 補離職日）','Left with no leave date anywhere (seniority stopped; HR to fill in)'),leftNoDate.length,leftNoDate]);
+ const leftEst=E.filter(e=>e.status==='離職'&&e.leave_est); if(leftEst.length)issues.push([tt('離職日是推定的（BEST／HRA Portal 都沒有，依 HRA-PAY 最後出現月份）','Leave date estimated (not in BEST / HRA Portal; from last month seen in HRA-PAY)'),leftEst.length,leftEst]);
  const actLeft=act.filter(e=>e.leave_date&&e.leave_date<=ymd(TODAY)); if(actLeft.length)issues.push([tt('在職但已有離職日','Active but has a past leave date'),actLeft.length,actLeft]);
  const noBirth=act.filter(e=>DB.emp2.length&&!e.birthday); if(noBirth.length)issues.push([tt('在職但無生日','Active without birthday'),noBirth.length,noBirth]);
  const noPay=act.filter(e=>DB.basepay.length&&!e.pay); if(noPay.length)issues.push([tt('在職但無薪資設定','Active without pay setup'),noPay.length,noPay]);
@@ -2406,7 +2414,7 @@ document.addEventListener('click',ev=>{const el=ev.target&&ev.target.closest&&ev
 function empCardHTML(no){const e=emp(no);if(!e)return '';const p=e.pay;const u=p?payUSD(p):null;const al=(e.annual||[]).slice().sort((a,b)=>String(b.year).localeCompare(String(a.year)))[0];
  const kv=(l,v)=>`<div><dt>${esc(l)}</dt><dd>${v}</dd></div>`;
  return `<div class="ecard" onclick="openEmp('${esc(no)}')"><div class="ecph" data-cph="${esc(no)}">${esc((e.name||'?').slice(0,2))}</div><div style="min-width:0;flex:1"><div class="ecname">${esc(e.name||'—')} <span class="mono muted small">${esc(no)}</span> ${statusChip(e.status)} ${unionChip(no)}</div><div class="small muted">${orgLine(e)}</div>
- <div class="kv small" style="margin-top:6px">${kv(t('join_date'),esc(e.join_date||'—'))}${kv(t('seniority'),esc(seniority(e.join_date,e.leave_date)||'—'))}${kv(t('sex'),esc(vl(e.sex)||'—'))}${kv(t('birthday'),e.birthday?pii(e.birthday)+(age(e.birthday)!==''?` (${age(e.birthday)})`:''):noBday())}${kv(t('mobile'),pii(e.mobile||e.phone))}${(()=>{const r=payRates(String(no),monthKey(TODAY));return kv(tt('月薪（美元）','Monthly pay (USD)'),r?'<b>'+fUSD(monthlyGross(r))+'</b> '+(r.est?'<span style="color:var(--warn)">⚠️ '+tt('擬算','Est.')+'</span>':'<span class="muted">'+esc(String(r.src).split('（')[0])+'</span>'):'<span style="color:var(--crit)">'+tt('沒有薪資資料','No pay data')+'</span>')})()}${al?kv(tt('特休剩餘','Annual leave left'),fmt(al.al_left,1)+'h <span class="muted">'+esc(al.year)+'</span>'):''}${e.leave_date?kv(t('leave_date'),esc(e.leave_date)):''}</div></div></div>`}
+ <div class="kv small" style="margin-top:6px">${kv(t('join_date'),esc(e.join_date||'—'))}${kv(t('seniority'),esc(e.leave_unknown?tt('— 離職日不明','— leave date unknown'):(seniority(e.join_date,e.leave_date)||'—')+(e.leave_est?tt('（推定到 ','(est. to ')+e.leave_est+tt('）',')'):'')))}${kv(t('sex'),esc(vl(e.sex)||'—'))}${kv(t('birthday'),e.birthday?pii(e.birthday)+(age(e.birthday)!==''?` (${age(e.birthday)})`:''):noBday())}${kv(t('mobile'),pii(e.mobile||e.phone))}${(()=>{const r=payRates(String(no),monthKey(TODAY));return kv(tt('月薪（美元）','Monthly pay (USD)'),r?'<b>'+fUSD(monthlyGross(r))+'</b> '+(r.est?'<span style="color:var(--warn)">⚠️ '+tt('擬算','Est.')+'</span>':'<span class="muted">'+esc(String(r.src).split('（')[0])+'</span>'):'<span style="color:var(--crit)">'+tt('沒有薪資資料','No pay data')+'</span>')})()}${al?kv(tt('特休剩餘','Annual leave left'),fmt(al.al_left,1)+'h <span class="muted">'+esc(al.year)+'</span>'):''}${e.leave_date?kv(t('leave_date'),esc(e.leave_date)):''}</div></div></div>`}
 function empCardsInit(){const box=$('#empCards'),more=$('#empMore');if(!box||!more)return;let i=0;const list=EMP_LIST.slice();
  const add=()=>{const n=list.slice(i,i+20);i+=n.length;box.insertAdjacentHTML('beforeend',n.map(empCardHTML).join(''));photoPrefetch(n).then(()=>n.forEach(no=>{if(hasPhoto(no))photoGet(no).then(d=>{const el=box.querySelector(`[data-cph="${CSS.escape(no)}"]`);if(el&&d){el.classList.add('ph');el.innerHTML=`<img src="${d}" alt="" loading="lazy">`}})}));
   more.textContent=i<list.length?tt(`已顯示 ${i} / ${list.length} 人，往下捲會自動載入更多`,`Showing ${i} of ${list.length} — scroll for more`,`បង្ហាញ ${i} នៃ ${list.length} — រំកិលចុះដើម្បីមើលបន្ថែម`):tt(`共 ${list.length} 人，已全部顯示`,`All ${list.length} shown`,`បានបង្ហាញទាំង ${list.length} នាក់`)};
@@ -2521,7 +2529,7 @@ function openEmp(no,keep){
   ${kv(tt('資料來源','Source'),esc(e.org_src||'—'))}${kv(tt('BEST 部門／職稱（參考）','BEST dept / title (ref.)'),'<span class="muted">'+esc((e.best_dept||'—')+' / '+(e.best_title||'—'))+'</span>')}
   ${K('BEST 組別','BEST group','ក្រុម BEST',tv(d.group))}${K('BEST 職位','BEST position','មុខតំណែង BEST',tv(d.position))}</div>`;
   h+=H3('📅','到職與年資','Dates & seniority','កាលបរិច្ឆេទ និងអតីតភាព');
-  h+=`<div class="kv">${kv(t('join_date'),dv(e.join_date))}${kv(t('leave_date'),dv(e.leave_date||d.leave_date))}${kv(t('seniority'),esc(seniority(e.join_date,e.leave_date)||'—'))}${K('加保日（NSSF）','Insured from (NSSF)','ថ្ងៃចុះ ប.ស.ស',dv(d.ins_date))}
+  h+=`<div class="kv">${kv(t('join_date'),dv(e.join_date))}${kv(t('leave_date'),dv(e.leave_date||d.leave_date))}${kv(t('seniority'),esc(e.leave_unknown?tt('— 離職日不明','— leave date unknown'):(seniority(e.join_date,e.leave_date)||'—')+(e.leave_est?tt('（推定到 ','(est. to ')+e.leave_est+tt('）',')'):'')))}${K('加保日（NSSF）','Insured from (NSSF)','ថ្ងៃចុះ ប.ស.ស',dv(d.ins_date))}
   ${K('退保日','Insurance ended','ថ្ងៃឈប់ ប.ស.ស',dv(d.ins_end))}${K('累計年資（BEST）','Accumulated seniority (BEST)','អតីតភាពសរុប (BEST)',d.sen_acc!=null&&d.sen_acc!==''?esc(d.sen_acc)+' '+tt('年','yrs','ឆ្នាំ'):'—')}
   ${K('實際年資（BEST）','Actual seniority (BEST)','អតីតភាពពិត (BEST)',d.sen_act!=null&&d.sen_act!==''?esc(d.sen_act)+' '+tt('年','yrs','ឆ្នាំ'):'—')}${K('扣抵年資','Deducted seniority','អតីតភាពកាត់',d.sen_deduct!=null&&d.sen_deduct!==''?esc(d.sen_deduct):'—')}</div>`;
   h+=H3('⚙️','上班與計薪設定','Shift & pay settings','វេន និងការកំណត់ប្រាក់ខែ');
@@ -3054,9 +3062,12 @@ function orgTitleOf(pos,dept,sec){const p=String(pos||'').replace(/\s+/g,' ').tr
  const lv=/leader|supervisor|manager|captain|director/,as=/assist/;
  for(const [re,c] of ORG_RULES)if(re.test(p)){const t=orgFindTitle(c);if(!t)return null;const en=String(t.en).toLowerCase();if(lv.test(p)!==lv.test(en)||as.test(p)!==as.test(en))return null;return t}return null}
 const ORG_TDEPT={'生產':'production','行政支援':'admin center','行政':'admin center','行政中心':'admin center','HRA':'admin center','GAS':'admin center'};
-function orgOf(e){const H=HPD();const no=String(e.emp_no);const r=H.org&&H.org.rows&&H.org.rows[no];const ov=((DB.config||{}).org||{})[no];
+/* v0.4.0 部門／職位一律以 HRA-PAY／HRA Portal 為準（Paul 2026-11-12）：
+   ① 本月 HRA-PAY 員工資料；② 不在本月名單（已離職等）→ 用 HRA-PAY 歷年員工資料裡這個人「最後一次」的部門／組／職位；③ 都沒有才用 BEST。
+   BEST／HRA-PAY 的部門常因伙食費（辦公室 5000 riel）把生產的人掛在 Admin；職位屬於生產的（IE、大組長…照職稱表）一律歸生產。 */
+function orgOf(e){const H=HPD();const no=String(e.emp_no);let r=H.org&&H.org.rows&&H.org.rows[no];let rSrc=r?'HRA-PAY '+H.org.ym:'';if(!r){const h=((H.orgHist||{}).rows||{})[no];if(h&&(h[1]||h[3])){r={d:String(h[1]||''),s:/^[—\-]$/.test(String(h[2]||'').trim())?'':h[2],p:h[3]||h[2]||''};rSrc=tt('HRA-PAY 最後一次 ','HRA-PAY last seen ')+h[0]}}const ov=((DB.config||{}).org||{})[no];
  const dl=k=>{const x=ORG_DEPT[k];return x?tt(x[0],x[1]):k};let o=null;
- if(r){let dk=String(r.d||'').trim().toLowerCase();if(/^production/.test(dk))dk='production';else if(/^admin/.test(dk))dk='admin center';else if(/^accounting/.test(dk))dk='accounting';else if(/^shipping/.test(dk))dk='shipping';const t=orgTitleOf(r.p,dk,r.s);o={dept:dl(dk)||e.dept,section:orgSec(r.s),title:t?tt(t.zh,t.en):String(r.p||'').trim(),grade:t?t.grade:'',src:'HRA-PAY '+H.org.ym,pos:String(r.p||'').trim(),miss:!t}}
+ if(r){let dk=String(r.d||'').trim().toLowerCase();if(/^production/.test(dk))dk='production';else if(/^admin/.test(dk))dk='admin center';else if(/^accounting/.test(dk))dk='accounting';else if(/^shipping/.test(dk))dk='shipping';const t=orgTitleOf(r.p,dk,r.s);if(t&&t.dept==='生產')dk='production';o={dept:dl(dk)||e.dept,section:orgSec(r.s),title:t?tt(t.zh,t.en):String(r.p||'').trim(),grade:t?t.grade:'',src:rSrc,pos:String(r.p||'').trim(),miss:!t}}
  else{const t=orgTitleOf(e.title,'');if(t){const k=t.zh==='會計助理'?'accounting':t.zh==='船務助理'?'shipping':ORG_TDEPT[t.dept]||'';o={dept:k?dl(k):e.dept,section:'',title:tt(t.zh,t.en),grade:t.grade,src:tt('依 BEST 職稱對照','mapped from BEST title'),pos:e.title,miss:false,best:true}}else o={dept:e.dept,section:'',title:e.title,grade:'',src:'BEST',pos:e.title,miss:true,best:true}}
  if(ov){Object.assign(o,Object.fromEntries(Object.entries(ov).filter(([k,v])=>['dept','section','title','grade'].includes(k)&&v)));if(ov.dept&&ORG_DEPT[String(ov.dept).toLowerCase()])o.dept=dl(String(ov.dept).toLowerCase());if(ov.titleEn){const t=orgFindTitle([ov.titleEn]);o.title=t?tt(t.zh,t.en):ov.titleEn;o.grade=t?t.grade:'';o.pos=ov.titleEn}o.src=tt('手動設定','manual');o.miss=false}
  return o}
