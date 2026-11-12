@@ -3467,7 +3467,7 @@ async function xrLoad(SRC){let changed=0;const X=XRD();const tasks=[];
    t.T0.b[t.k]=out;t.T0.h[t.k]=t.h;changed++;done++;if(done%60===0){HP_DIRTY=true;persist();GC.clear()}}catch(e){}}};
  await Promise.all(Array.from({length:10},w));SRC.forEach(([tool])=>{if(X[tool])X[tool].at=nowStamp()});
  if(changed){HP_DIRTY=true;persist();GC.clear();if(PROF_NO&&!$('#drawer').hidden&&PROF_TAB==='hr')openEmp(PROF_NO,true);else if(XR_PAGE[CUR]||XR_OWN[CUR])rerender()}return changed}
-const XR_OWN={union:['welfare'],trans:['welfare'],'sen-hist':['hrpay_seniority'],severance:['hrpay_seniority']};
+const XR_OWN={union:['welfare'],trans:['welfare'],'sen-hist':['hrpay_seniority'],severance:['hrpay_seniority'],hrcal:['calendar']};
 function xrEnsure(force){if(XR_P&&!force)return XR_P;XR_P=(async()=>{XR_BUSY=true;try{return await xrLoad(XR_SRC)}finally{XR_BUSY=false;if(XR_OWN[CUR])rerender()}})();return XR_P}
 const XR_NEED={};function xrNeed(tools){const key=tools.join(',');const X=XRD();const have=tools.every(t=>X[t]&&X[t].at);if(XR_NEED[key])return XR_NEED[key];
  XR_NEED[key]=(async()=>{try{await xrLoad(XR_SRC.filter(x=>tools.includes(x[0])))}finally{delete XR_NEED[key];XR_NEED['done|'+key]=1;if(XR_OWN[CUR])rerender()}})();if(have)XR_NEED['done|'+key]=1;return XR_NEED[key]}
@@ -4051,22 +4051,25 @@ function renderSeverance(){const k='severance';const st=S(k);if(!st._i){st._i=1;
  h+=`<div class="panel mt"><h2>📌 ${tt('關廠程序要記得的事','Closure steps to remember')}</h2><ul class="small" style="margin:0;padding-left:18px;line-height:1.8"><li>${tt('集體資遣（第 95 條）：先書面通知工人代表徵詢意見，並告知勞動督察；勞工部長特殊情況可暫停資遣最多 30 天（可再延一次）。','Collective layoff (Art. 95): written notice to workers’ representatives and inform the labour inspector; the Minister may suspend layoffs up to 30 days (extendable once).')}</li><li>${tt('工會幹部、發起人、工人代表受特別保護：解僱前要勞動督察核准。','Union officers, founders and shop stewards are protected: dismissal needs labour-inspector approval.')}</li><li>${tt('每筆終止要在 15 天內向勞工部申報；被資遣的人 2 年內同職位有優先回聘權。','Each termination is declared to the Ministry within 15 days; laid-off workers have rehire priority for 2 years.')}</li><li>${tt('年資補償免稅；員工自己辭職或重大過失不付年資補償。','Seniority indemnity is tax-exempt; none is due on resignation or serious misconduct.')}</li></ul></div>`;
  return h}
 /* 人資行事曆：每月固定要付／要做的事，都是預估；發放日遇週六日、假日提前 */
+/* 假日：BEST 國定假日＋HRA Portal 行事曆（legal，含連假起迄）；發放日 HRA Portal 已經排好的（adv-／pay-）就照它 */
+function hrHolMap(){return cached('hrHol|'+xrAll('cal').length+'|'+(DB.holiday||[]).length,()=>{const M={};(DB.holiday||[]).forEach(r=>{if(r.date&&!/sunday/i.test(r.name||''))M[r.date]=r.name||''});xrAll('cal').forEach(c=>{if(!/legal|holiday|factory/i.test(String(c.type||'')))return;let d=parseD(c.date);const e=parseD(c.enddate)||d;if(!d)return;for(let i=0;i<15&&d<=e;i++){M[ymd(d)]=tt(c.zh||c.en||'',c.en||c.zh||'',c.km||c.en||'');d=addD(d,1)}});return M})}
+function hrPayday(y,m,day,id){const c=id&&xrAll('cal').find(x=>x.id===id&&parseD(x.date));if(c)return parseD(c.date);const H=hrHolMap();let d=new Date(y,m,day);while(d.getDay()===0||d.getDay()===6||H[ymd(d)]!=null)d=addD(d,-1);return d}
 function hrCalEvents(y,m){const ym=y+'-'+pad(m+1),prev=monthKey(new Date(y,m-1,1));const ev=[];const add=(d,ic,what,note,est)=>ev.push({d,ic,what,note:note||'',est:est||0});
- const early=(day)=>{const d=rcPayday(y,m,day);return [d,d.getDate()!==day?tt(`原訂 ${day} 日，遇假日／週末提前`,`Normally the ${day}th; moved earlier`):'']};
+ const early=(day)=>{const d=hrPayday(y,m,day,day===10?'pay-'+ym:day===25?'adv-'+ym:'');return [d,d.getDate()!==day?tt(`原訂 ${day} 日，遇假日／週末提前`,`Normally the ${day}th; moved earlier`):'']};
  let [d,n]=early(10);add(d,'💰',tt(`發 ${prev} 月薪`,`Pay ${prev} salary`),n);add(d,'🍚',tt(`發 ${prev} 下半月伙食費（16 日–月底）`,`Pay ${prev} 2nd-half meal fee (16th–end)`),tt('預估跟月薪同一天，待確認','Estimated same day as salary; to confirm'),1);
  [d,n]=early(25);add(d,'💵',tt(`發 ${ym} 預支`,`Pay ${ym} advance`),n);add(d,'🍚',tt(`發 ${ym} 上半月伙食費（1–15 日）`,`Pay ${ym} 1st-half meal fee (1st–15th)`),tt('預估跟預支同一天，待確認','Estimated same day as advance; to confirm'),1);
  [d,n]=early(15);add(d,'🏥',tt(`NSSF：申報並繳 ${prev} 的保費`,`NSSF: declare and pay ${prev} contributions`),tt('預估，以 NSSF 通知的期限為準','Estimate; follow the NSSF deadline'),1);
  [d,n]=early(20);add(d,'🧾',tt(`薪資稅：申報 ${prev}`,`Salary tax return for ${prev}`),tt('預估，以稅務局期限為準','Estimate; follow the tax deadline'),1);
  add(new Date(y,m,6),'📥',tt(`HR 給 ${prev} 薪資表（HRA-PAY）`,`HR sends ${prev} payroll (HRA-PAY)`),'',1);add(new Date(y,m,21),'📥',tt(`HR 給 ${ym} 預支表`,`HR sends ${ym} advance list`),'',1);
- if(m===5||m===11){const e=rcPayday(y,m,m===5?30:31);add(e,'🎖️',tt(`發半年年資補償（UDC，7.5 天，${m===5?'1–6':'7–12'} 月）`,`Pay half-year seniority indemnity (UDC, 7.5 days, ${m===5?'Jan–Jun':'Jul–Dec'})`),tt('預估月底前','Estimated by month-end'),1)}
- if(m===0)add(rcPayday(y,m,10),'🌴',tt(`${y-1} 沒休完的特休折現（併 12 月薪資）`,`${y-1} unused annual leave paid out (with December pay)`),'',1);
+ if(m===5||m===11){const e=hrPayday(y,m,m===5?30:31);add(e,'🎖️',tt(`發半年年資補償（UDC，7.5 天，${m===5?'1–6':'7–12'} 月）`,`Pay half-year seniority indemnity (UDC, 7.5 days, ${m===5?'Jan–Jun':'Jul–Dec'})`),tt('預估月底前','Estimated by month-end'),1)}
+ if(m===0)add(hrPayday(y,m,10,'pay-'+ym),'🌴',tt(`${y-1} 沒休完的特休折現（併 12 月薪資）`,`${y-1} unused annual leave paid out (with December pay)`),'',1);
  if(m===0)add(new Date(y,m,1),'📈',tt(`新年度最低工資 $${minWageAt(ym)||'?'} 開始適用`,`New minimum wage $${minWageAt(ym)||'?'} applies`),'');
- (DB.holiday||[]).filter(r=>String(r.date).slice(0,7)===ym&&!/sunday/i.test(r.name||'')).forEach(r=>add(parseD(r.date),'🎌',tt('國定假日：','Public holiday: ')+(r.name||''),''));
+ const HM=hrHolMap();Object.keys(HM).filter(d=>d.slice(0,7)===ym).sort().forEach(d=>add(parseD(d),'🎌',tt('假日：','Holiday: ')+HM[d],''));
  try{expList().filter(x=>x.c==='visa'&&x.d.slice(0,7)===ym).forEach(x=>add(parseD(x.d),'🛂',x.who+' '+x.what+tt(' 到期',' expires'),''))}catch(_){}
  return ev.sort((a,b)=>a.d-b.d)}
 function renderHrcal(){const k='hrcal';const st=S(k);const off=+st.off||0;const WD=[tt('日','Sun'),tt('一','Mon'),tt('二','Tue'),tt('三','Wed'),tt('四','Thu'),tt('五','Fri'),tt('六','Sat')];const today=ymd(TODAY);
  let h=pageHead(k,`<button class="btn sm" onclick="S('hrcal').off=${off-3};saveNav('hrcal');rerender()">◀ ${tt('前 3 個月','Prev 3')}</button> <button class="btn sm" onclick="S('hrcal').off=0;saveNav('hrcal');rerender()">${tt('本月','This month')}</button> <button class="btn sm" onclick="S('hrcal').off=${off+3};saveNav('hrcal');rerender()">${tt('後 3 個月','Next 3')} ▶</button>`);
- h+=`<div class="note">${tt('每月固定要付、要做的事。<b>都是預估日期</b>：發放日遇到週六、週日或國定假日就往前提。標「待確認」的是我推估的，告訴我實際日子我再改。','Fixed monthly payments and tasks. <b>All dates are estimates</b>: pay dates move earlier on Saturdays, Sundays and public holidays. Items marked “to confirm” are my guesses.')}</div>`;
+ h+=xrLoadingHTML(['calendar'],tt('假日行事曆','holiday calendar'));h+=`<div class="note">${tt('每月固定要付、要做的事。<b>都是預估日期</b>：發放日遇到週六、週日或國定假日就往前提。標「待確認」的是我推估的，告訴我實際日子我再改。','Fixed monthly payments and tasks. <b>All dates are estimates</b>: pay dates move earlier on Saturdays, Sundays and public holidays. Items marked “to confirm” are my guesses.')}</div>`;
  for(let i=0;i<3;i++){const b=new Date(TODAY.getFullYear(),TODAY.getMonth()+off+i,1);const ev=hrCalEvents(b.getFullYear(),b.getMonth());
   h+=`<div class="panel mt"><h2>🗓️ ${b.getFullYear()}-${pad(b.getMonth()+1)}</h2><div class="tbl-wrap"><table class="t"><thead><tr><th>${tt('日期','Date')}</th><th>${tt('事項','Item')}</th><th>${tt('備註','Note')}</th></tr></thead><tbody>${ev.map(e=>{const ds=ymd(e.d);const past=ds<today;return `<tr style="${ds===today?'background:rgba(250,204,21,.18)':past?'opacity:.55':''}"><td class="mono" style="white-space:nowrap">${ds.slice(5)}（${WD[e.d.getDay()]}）</td><td>${e.ic} ${esc(e.what)}</td><td class="small muted">${esc(e.note)}${e.est&&!e.note?esc(tt('預估','Estimate')):''}</td></tr>`}).join('')}</tbody></table></div></div>`}
  return h}
