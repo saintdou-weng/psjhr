@@ -704,7 +704,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.5.2';
+const APPV='0.5.3';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -4014,8 +4014,8 @@ function renderSenHist(){const k='sen-hist';const st=S(k);if(!st._i2){st.status=
 /* ===== v0.5.0 遣散費試算（萬一關廠）＋ 人資行事曆 ===== */
 /* 依柬埔寨勞動法（第 73、75、89 條）、Prakas 443/18、指示 057/19・058/19、勞工部 2024-03-21「終止勞動合同補償」通知。全部是預估，不是法律意見。 */
 function sevDaily(no){const H=HPD();const s=xrAll('sen').filter(o=>String(o.empId||'').replace(/^0+/,'')===String(no).replace(/^0+/,'')&&+o.averageSalary>0).sort((a,b)=>String(b.period).localeCompare(String(a.period)))[0];
- const ms=Object.keys(H.pay||{}).sort().slice(-12);const g=ms.map(m=>{const x=(H.pay[m]||{})[no];return x&&x.AG!=null?(+x.AG)+(+x.AE||0)+(+x.S||0):null}).filter(v=>v!=null&&v>0);
- if(g.length)return {mon:g.reduce((a,b)=>a+b,0)/g.length,src:tt('HRA-PAY 近 '+g.length+' 個月平均','HRA-PAY last '+g.length+'-month average')};
+ const c12=monthKey(new Date(TODAY.getFullYear(),TODAY.getMonth()-12,1));const ms=Object.keys(H.pay||{}).filter(m=>m>=c12).sort().slice(-12);const g=ms.map(m=>{const x=(H.pay[m]||{})[no];return x&&x.AG!=null?(+x.AG)+(+x.AE||0)+(+x.S||0):null}).filter(v=>v!=null&&v>0);
+ if(g.length)return {mon:g.reduce((a,b)=>a+b,0)/g.length,src:tt('HRA-PAY 近 12 個月內 '+g.length+' 個月平均','HRA-PAY '+g.length+'-month average (last 12 months)')};
  if(s)return {mon:+s.averageSalary,src:tt('年資補償表 ','Seniority list ')+s.period};
  const mw=minWageAt(monthKey(TODAY));return {mon:mw||0,src:tt('最低工資（查無薪資）','Minimum wage (no pay data)'),weak:1}}
 function sevRows(D){const out=[];const y0=parseD('2019-01-01');
@@ -4076,12 +4076,12 @@ function hrCalEvents(y,m){const ym=y+'-'+pad(m+1),prev=monthKey(new Date(y,m-1,1
  return ev.sort((a,b)=>a.d-b.d)}
 /* 全年預算：用 HRA-PAY 已載入的最近幾個月平均去估每一筆 */
 function hrBudget(){const H=HPD();return cached('hrBud|'+Object.keys(H.pay||{}).length+'|'+Object.keys(H.meal||{}).length+'|'+Object.keys(H.mealIdx||{}).length+'|'+xrAll('sen').length,()=>{const B={src:{}};const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
- const tot=(o,f)=>Object.values(o||{}).reduce((a,x)=>a+(+f(x)||0),0);const big=o=>Object.keys(o||{}).length>=50;
- const pm=Object.keys(H.pay||{}).filter(m=>big(H.pay[m])).sort().slice(-6);B.sal=avg(pm.map(m=>tot(H.pay[m],x=>x.AK!=null?x.AK:(+x.AG||0)+(+x.AH||0)+(+x.AJ||0)-(+x.S||0))));B.src.sal=pm;B.n=pm.length?Object.keys(H.pay[pm[pm.length-1]]).length:0;
+ const c12=monthKey(new Date(TODAY.getFullYear(),TODAY.getMonth()-12,1));const tot=(o,f)=>Object.values(o||{}).reduce((a,x)=>a+(+f(x)||0),0);const big=o=>Object.keys(o||{}).length>=50;
+ const pm=Object.keys(H.pay||{}).filter(m=>m>=c12&&big(H.pay[m])).sort().slice(-6);B.sal=avg(pm.map(m=>tot(H.pay[m],x=>x.AK!=null?x.AK:(+x.AG||0)+(+x.AH||0)+(+x.AJ||0)-(+x.S||0))));B.src.sal=pm;B.n=pm.length?Object.keys(H.pay[pm[pm.length-1]]).length:0;
  B.nssfW=avg(pm.map(m=>tot(H.pay[m],x=>Math.abs(+x.AH||0))));B.nssf=B.nssfW*3.7;
- const am=Object.keys(H.adv||{}).filter(m=>big(H.adv[m])).sort().slice(-6);B.adv=avg(am.map(m=>tot(H.adv[m],x=>x.AK!=null?x.AK:x.AG!=null?x.AG:x.S)));B.src.adv=am;
+ const am=Object.keys(H.adv||{}).filter(m=>m>=c12&&big(H.adv[m])).sort().slice(-6);B.adv=avg(am.map(m=>tot(H.adv[m],x=>x.AK!=null?x.AK:x.AG!=null?x.AG:x.S)));B.src.adv=am;
  const mk={};Object.keys(H.meal||{}).forEach(k=>mk[k]=tot(H.meal[k],x=>x.usd));Object.keys(H.mealIdx||{}).forEach(k=>{if(mk[k]==null)mk[k]=tot(H.mealIdx[k],x=>x[0])});
- for(const b of ['1','2']){const ks=Object.keys(mk).filter(k=>k.split(':')[1]===b&&mk[k]>0).sort().slice(-6);B['meal'+b]=avg(ks.map(k=>mk[k]));B.src['meal'+b]=ks}
+ for(const b of ['1','2']){const ks=Object.keys(mk).filter(k=>k.split(':')[1]===b&&k>=c12&&mk[k]>0).sort().slice(-6);B['meal'+b]=avg(ks.map(k=>mk[k]));B.src['meal'+b]=ks}
  const sp={};xrAll('sen').forEach(o=>{const p=String(o.period||'');sp[p]=(sp[p]||0)+(+o.sourceAmount||0)});const lp=Object.keys(sp).filter(p=>sp[p]>0).sort().pop();B.sen=lp?sp[lp]:0;B.src.sen=lp?[lp]:[];
  const y=TODAY.getFullYear();B.mw0=minWageAt(y+'-01');return B})}
 function hrYearHTML(Y){const B=hrBudget();const WD=[tt('日','Sun'),tt('一','Mon'),tt('二','Tue'),tt('三','Wed'),tt('四','Thu'),tt('五','Fri'),tt('六','Sat')];const $m=v=>v?'$'+fmt(Math.round(v)):'—';
