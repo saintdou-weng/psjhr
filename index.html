@@ -704,7 +704,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.5.4';
+const APPV='0.5.5';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -3880,7 +3880,39 @@ ${'.psj-dz'}{padding:6px 12px!important;min-height:0!important;height:auto!impor
 .psj-empty{display:none!important}
 a.back,.back-btn,.btn-back,a[href="./index.html"].back,a[href="index.html"].back,a[href="hra_portal_v2.html"].back{display:none!important}
 @media (max-width:760px){${H}{padding:4px 8px!important;gap:4px!important}${H} .hstats,${H} .h-stats,${H} .hstat,${H} .hsub,${H} .h-sub,${H} .sub,${H} .brand-sub,${H} p{display:none!important}${H} button,${H} .hbtn{padding:4px 8px!important;font-size:12px!important}}
+${COMPACT}
 ${isDark()?'img,video,picture,canvas{filter:invert(1) hue-rotate(180deg)}':''}` }
+ /* v0.5.5（Paul 11/18）：平台頁在 VRT HR 裡要精簡——按鈕、輸入框、表格、卡片、頁籤都縮小，手機一排滑動 */
+ const COMPACT=`body{font-size:14px!important}
+.page,.wrap,.container,main{padding-top:8px!important}
+.panel,.card,.box,.section,section.card{padding:10px 12px!important;margin-bottom:10px!important;border-radius:10px!important}
+.panel-head,.card-head{padding:0 0 8px!important;margin:0!important;gap:6px!important;min-height:0!important}
+.panel-body{padding:0!important}
+h2,.panel-title,.card-title{font-size:15px!important;line-height:1.3!important;margin:0 0 6px!important}
+h3{font-size:14px!important;margin:6px 0!important}
+.panel-note,.hint,.notice{font-size:12px!important}
+button,.btn,a.btn,.icon-btn{padding:5px 10px!important;font-size:13px!important;min-height:30px!important;line-height:1.2!important;border-radius:8px!important}
+input:not([type=checkbox]):not([type=radio]):not([type=file]),select,.input,.select,.control{padding:5px 8px!important;font-size:13.5px!important;min-height:32px!important;height:auto!important;line-height:1.25!important;border-radius:8px!important}
+.toolbar,.filters,.filter-bar,.controls{gap:6px!important;margin-bottom:8px!important}
+.field label,.label{font-size:12px!important;margin-bottom:2px!important}
+table{font-size:13px!important}
+table th,table td{padding:6px 8px!important;line-height:1.35!important}
+.tab,.tabs>*,.tab-bar>*,.tabbar>*,.subtabs>*,[role=tablist]>*{padding:7px 10px!important;font-size:13px!important;white-space:nowrap!important}
+.tabs,.tab-bar,.tabbar,.subtabs,.sub-tabs,[role=tablist]{flex-wrap:nowrap!important;overflow-x:auto!important;scrollbar-width:none!important;gap:2px!important}
+.kpis,.kpi-grid,.stats{gap:8px!important;margin-bottom:10px!important}
+.kpi,.stat,.kpi-card,.summary-chip{padding:8px 10px!important;min-height:0!important}
+.kpi .value,.kpi .v,.kpi-value,.stat .v,.kpi b,.kpi strong{font-size:20px!important;line-height:1.2!important}
+.kpi .label,.kpi .k,.kpi-label,.kpi small{font-size:12px!important}
+tbody tr.psj-kn{cursor:pointer}
+tbody tr.psj-kn:hover>td,tbody tr.psj-kn-on>td{background:var(--psj-accent-soft)!important}
+@media (max-width:760px){
+ .page,.wrap,.container,main{padding-left:6px!important;padding-right:6px!important}
+ .panel,.card,.box{padding:8px!important;margin-bottom:8px!important}
+ .kpis,.kpi-grid,.stats{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))!important}
+ .kpi .value,.kpi .v,.kpi-value,.stat .v,.kpi b,.kpi strong{font-size:18px!important}
+ .toolbar>*,.filters>*{flex:1 1 140px!important;min-width:0!important}
+ h1{font-size:17px!important}
+}`;
  const lum=c=>{ const a=hex2(c); return a?0.2126*a[0]+0.7152*a[1]+0.0722*a[2]:1 };
  function markHeaders(doc){ const w=doc.defaultView; if(!w||!doc.body)return 0; let n=0;
   const cand=[...doc.querySelectorAll('body > .header, body > .hdr, body > header, body > .topbar, body > .app-header, body > .top, body > .hd, body > .wrap > header, body > .container > header, body > .app > header, body > div > header.hdr')];
@@ -3904,7 +3936,7 @@ ${isDark()?'img,video,picture,canvas{filter:invert(1) hue-rotate(180deg)}':''}` 
  function themeFrame(fr){ let doc=null; try{ doc=fr.contentDocument }catch(e){ doc=null } if(!doc||!doc.head||!doc.body)return false;
   try{ markHeaders(doc); let st=doc.getElementById('psj-theme'); if(!st){ st=doc.createElement('style'); st.id='psj-theme' } st.textContent=css(tokens()); doc.head.appendChild(st);
    if(!doc.getElementById('psj-font')){ const lk=document.querySelector('link[href*="fonts.googleapis.com/css2"]'); if(lk){ const l2=doc.createElement('link'); l2.id='psj-font'; l2.rel='stylesheet'; l2.href=lk.href; doc.head.appendChild(l2) } }
-   markHeaders(doc); compactImport(doc); hookLinks(doc,fr); fr.classList.add('psj-themed'); const ld=fr.parentElement&&fr.parentElement.querySelector('.fr-load'); if(ld)ld.remove();
+   markHeaders(doc); compactImport(doc); hookLinks(doc,fr); try{hookKeynote(doc,fr)}catch(e){console.warn('keynote',e)} fr.classList.add('psj-themed'); const ld=fr.parentElement&&fr.parentElement.querySelector('.fr-load'); if(ld)ld.remove();
    [700,2500,6000].forEach(ms=>setTimeout(()=>{ try{ if(fr.contentDocument===doc){ markHeaders(doc); compactImport(doc); if(!doc.getElementById('psj-theme'))doc.head.appendChild(st) } }catch(e){} },ms));
    sizeFrames(); return true }catch(e){ console.warn('frame theme',e); return false } }
  window.themeFrame=themeFrame;
@@ -3915,6 +3947,46 @@ ${isDark()?'img,video,picture,canvas{filter:invert(1) hue-rotate(180deg)}':''}` 
   dz.forEach(e=>{ e.classList.add('psj-dz'); let kept=false; [...e.children].forEach(c=>{ if(c.tagName==='INPUT')return; const tx=(c.textContent||'').trim(); if(!kept&&tx.length>=4){ kept=true; c.classList.add('psj-dz-t'); return } c.classList.add('psj-dz-x') }); e.title=e.title||'點選或拖放檔案 / Tap or drop files' });
   doc.querySelectorAll('#import-report,#importReport,#import-log,#importLog,.import-report,.import-log,#impLog,#siLog,#dz-report').forEach(e=>{ const tx=(e.textContent||'').trim(); const empty=!e.querySelector('table,li,.row,tr')&&tx.length<260&&/尚未匯入|還沒匯入|No file|no files|មិនទាន់/i.test(tx); e.classList.toggle('psj-empty',empty) }) }
  window.compactImport=compactImport;
+ /* v0.5.5 平台頁每一列都可以點 → 右邊跳出「重點卡」（欄位＋員工資料），往下捲自動接下一筆；◀ ▶、左右滑、鍵盤左右鍵也可以換 */
+ let KN={rows:[],i:0,fr:null,own:[]};
+ const KN_SKIP='button,a[href],input,select,textarea,label,summary,[contenteditable],.psj-hdr';
+ function knRows(tr){const tb=tr.closest('tbody');if(!tb)return [tr];return [...tb.children].filter(x=>x.tagName==='TR'&&x.offsetParent!==null&&x.cells.length>1)}
+ function knHeads(tr){const tbl=tr.closest('table');const th=tbl&&tbl.tHead?[...tbl.tHead.rows].pop():null;const out=[];if(!th)return out;let c=0;[...th.cells].forEach(x=>{const tx=(x.innerText||x.textContent||'').replace(/\s+/g,' ').trim();for(let j=0;j<(x.colSpan||1);j++)out[c++]=tx});return out}
+ const knTxt=td=>{if(td.querySelector('button,input,select')){const c=td.cloneNode(true);c.querySelectorAll('button,input,select,.no-print').forEach(x=>x.remove());return String(c.textContent||'').replace(/\s+/g,' ').trim()}return knTxt0(td)};
+ const knTxt0=td=>String(td.innerText||td.textContent||'').replace(/[ \t]+/g,' ').replace(/\n\s*\n+/g,'\n').trim();
+ function knEmp(tr,heads){const cells=[...tr.cells];const hit=v=>{const d=String(v||'').replace(/\D/g,'');if(!d||d.length>6)return '';const n=String(+d);return emp(n)?n:(emp(d)?d:'')};
+  for(let j=0;j<cells.length;j++)if(/工號|員工代號|員工編號|emp|staff ?(#|no|id)|^id$|^no\.?$|លេខ|factory id|fid/i.test(heads[j]||'')){const r=hit(String(cells[j].innerText||'').trim().split(/\s/)[0]);if(r)return r}
+  return ''}
+ function knSec(tr,idx){const heads=knHeads(tr),cells=[...tr.cells];const no=knEmp(tr,heads);const kv=[];let title='';
+  cells.forEach((td,j)=>{const v=knTxt(td);if(!v&&td.querySelector('input,button'))return;const h=heads[j]||'';if(!h&&!v)return;if(!title&&v&&!/^[\d\-\/\s.:—]+$/.test(v))title=v.split('\n')[0];kv.push([h||'—',v||'—'])});
+  const e=no?emp(no):null;
+  const empBox=e?`<div class="kn-emp" onclick="openEmp('${esc(no)}')"><div class="ecph" data-cph="${esc(no)}">${esc((e.name||'?').slice(0,2))}</div><div style="min-width:0;flex:1"><b>${esc(e.name||'—')}</b> <span class="mono muted small">${esc(no)}</span> ${statusChip(e.status)} ${typeof unionChip==='function'?unionChip(no):''}<div class="small muted">${orgLine(e)}</div><div class="small muted">${esc(t('join_date'))} ${esc(e.join_date||'—')} · ${esc(t('seniority'))} ${esc(e.leave_unknown?'—':(seniority(e.join_date,e.leave_date)||'—'))}</div></div><span class="small" style="color:var(--accent);white-space:nowrap">👤 ${tt('完整資料','Full profile','ប្រវត្តិពេញ')} ›</span></div>`:'';
+  return `<section class="kn-sec" data-i="${idx}"><div class="kn-h"><b>${esc(e?(e.name||title):title||'—')}</b><span class="small muted">${idx+1} / ${KN.rows.length}</span></div>${empBox}<dl class="kn-kv">${kv.map(([k,v])=>`<div><dt>${esc(k)}</dt><dd>${esc(v).replace(/\n/g,'<br>')}</dd></div>`).join('')}</dl>${KN.own[idx]?`<button class="btn sm" onclick="knOwn(${idx})">✎ ${tt('在原頁打開／編輯','Open / edit in the page','បើក / កែ')}</button>`:''}</section>`}
+ function knPaint(){const db=$('#drawer .kn-db');if(!db)return;db.querySelectorAll('[data-cph]:not(.ph)').forEach(el=>{const no=el.dataset.cph;if(typeof hasPhoto==='function'&&hasPhoto(no)){el.classList.add('ph');photoGet(no).then(d=>{if(d)el.innerHTML=`<img src="${d}" alt="">`})}})}
+ const knHi=i=>{try{KN.rows.forEach(r=>r.classList.remove('psj-kn-on'));const r=KN.rows[i];if(r){r.classList.add('psj-kn-on');r.scrollIntoView({block:'nearest'})}}catch(e){}};
+ let KN_IO=null;
+ function knOpen(i){KN.i=Math.max(0,Math.min(KN.rows.length-1,i));const tr=KN.rows[KN.i];if(!tr)return;knHi(KN.i);
+  openDrawer(`<div class="dh kn-dh"><div style="flex:1;min-width:0"><b>🔎 ${tt('重點資訊','Key info','ព័ត៌មានសំខាន់')}</b> <span class="small muted">${esc(t(KN.fr&&KN.fr.dataset.k||CUR))}</span></div><div style="display:flex;gap:4px;align-items:center"><button class="btn sm" onclick="knStep(-1)">◀</button><button class="btn sm" onclick="knStep(1)">▶</button><button class="btn sm" onclick="closeDrawer()">✕</button></div></div><div class="db kn-db">${knSec(tr,KN.i)}<div class="kn-more small muted"></div></div>`);
+  const db=$('#drawer .kn-db'),more=db.querySelector('.kn-more');let last=KN.i;
+  const label=()=>{more.textContent=last<KN.rows.length-1?tt('⬇ 繼續往下捲：下一筆','⬇ Keep scrolling for the next','⬇ បន្តរំកិល'):tt('已經是最後一筆','That was the last one','ចុងក្រោយ')};
+  const add=()=>{if(last>=KN.rows.length-1)return false;last++;more.insertAdjacentHTML('beforebegin',knSec(KN.rows[last],last));knPaint();label();return true};
+  label();knPaint();if(KN_IO)KN_IO.disconnect();
+  if(window.IntersectionObserver){KN_IO=new IntersectionObserver(es=>{if(!document.body.contains(more)){KN_IO.disconnect();return}if(es.some(x=>x.isIntersecting))add()},{root:db,rootMargin:'0px 0px 300px 0px'});KN_IO.observe(more)}
+  let tk=0;db.addEventListener('scroll',()=>{if(tk)return;tk=setTimeout(()=>{tk=0;let cur=KN.i;for(const s2 of db.querySelectorAll('.kn-sec')){if(s2.offsetTop<=db.scrollTop+60)cur=+s2.dataset.i;else break}if(cur!==KN.cur){KN.cur=cur;knHi(cur)}},90)},{passive:true});
+  let sx=0,sy=0;db.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});db.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;if(Math.abs(dx)>70&&Math.abs(dx)>Math.abs(dy)*1.5)knStep(dx<0?1:-1)},{passive:true});
+  KN.cur=KN.i}
+ window.knStep=function(d){const j=(KN.cur!=null?KN.cur:KN.i)+d;if(j<0||j>=KN.rows.length){toast(d>0?tt('已經是最後一筆','Last one','ចុងក្រោយ'):tt('已經是第一筆','First one','ដំបូង'));return}knOpen(j)};
+ window.knOwn=function(i){const tr=KN.rows[i];if(!tr)return;closeDrawer();KN.bypass=true;try{const c=tr.hasAttribute('onclick')?tr:([...tr.cells].find(x=>x.hasAttribute('onclick'))||tr.cells[1]||tr);c.click()}finally{KN.bypass=false}};
+ document.addEventListener('keydown',e=>{if($('#drawer').hidden||!$('#drawer .kn-db')||/INPUT|TEXTAREA|SELECT/.test((e.target||{}).tagName||''))return;if(e.key==='ArrowRight'){knStep(1);e.preventDefault()}else if(e.key==='ArrowLeft'){knStep(-1);e.preventDefault()}});
+ function hookKeynote(doc,fr){if(doc.__psjKn)return;doc.__psjKn=1;const w=doc.defaultView;
+  const inModal=x=>!!x.closest('[class*="modal" i],[class*="dialog" i],dialog,[role="dialog"]');
+  const mark=()=>{try{doc.querySelectorAll('tbody tr:not(.psj-kn)').forEach(tr=>{if(tr.cells.length>1&&!inModal(tr))tr.classList.add('psj-kn')})}catch(e){}};
+  mark();try{new w.MutationObserver(()=>{clearTimeout(doc.__knT);doc.__knT=setTimeout(mark,250)}).observe(doc.body,{childList:true,subtree:true})}catch(e){}
+  doc.addEventListener('click',e=>{if(KN.bypass||e.button!==0)return;const tr=e.target.closest&&e.target.closest('tbody tr');if(!tr||tr.cells.length<2||e.target.closest(KN_SKIP)||inModal(tr))return;
+   const ownOf=r=>r.hasAttribute('onclick')||[...r.cells].some(c=>c.hasAttribute('onclick'));const own=ownOf(tr);
+   e.stopPropagation();e.preventDefault();
+   KN.fr=fr;KN.rows=knRows(tr);KN.own=KN.rows.map(r=>r===tr?own:ownOf(r));knOpen(Math.max(0,KN.rows.indexOf(tr)))},true)}
+ window.hookKeynote=hookKeynote;
  function hookFrame(fr){ if(fr.dataset.psjHook)return; fr.dataset.psjHook=1;
   fr.addEventListener('load',()=>{ themeFrame(fr); /* 框裡自己換頁（例：平台的返回鈕）→ VRT HR 的分頁跟著換 */ try{ const k=keyOfUrl(fr.contentWindow.location.href); if(k&&k!==fr.dataset.k&&k!==CUR){ fr.dataset.k=k; history.replaceState(null,'','#'+k); CUR=k; rerender() } }catch(e){} });
   try{ if(fr.contentDocument&&fr.contentDocument.readyState!=='loading'&&fr.contentDocument.URL!=='about:blank')themeFrame(fr) }catch(e){} }
@@ -3939,6 +4011,16 @@ ${isDark()?'img,video,picture,canvas{filter:invert(1) hue-rotate(180deg)}':''}` 
  .hub-tabs .ptag,.nav .ptag{font-style:normal;font-size:10px;color:var(--muted);border:1px solid var(--line-2,var(--line));border-radius:4px;padding:0 4px;font-weight:500}
  .hub-tabs a.hub-ext{margin-left:auto;color:var(--muted);font-weight:500}
  .fr-chip{font-size:11px;vertical-align:middle;margin-left:4px}
+ .kn-dh{align-items:center!important;padding:10px 14px!important}
+ .kn-sec{padding:4px 0 14px;border-bottom:1px dashed var(--line);margin-bottom:12px}
+ .kn-h{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:8px;font-size:15px}
+ .kn-emp{display:flex;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface-2);margin-bottom:10px;cursor:pointer}
+ .kn-emp .ecph{width:42px;height:42px;flex:none}
+ .kn-kv{display:grid;grid-template-columns:minmax(90px,38%) 1fr;margin:0 0 8px;font-size:13.5px}
+ .kn-kv>div{display:contents}
+ .kn-kv dt{color:var(--muted);padding:5px 8px 5px 0;border-bottom:1px solid var(--line)}
+ .kn-kv dd{margin:0;padding:5px 0;border-bottom:1px solid var(--line);word-break:break-word}
+ .kn-more{text-align:center;padding:10px 0 30px}
  .pframe-wrap{position:relative;display:block}
  .pframe{width:100%;height:calc(100vh - 190px);min-height:420px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);display:block}
  .fr-load{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:13px;pointer-events:none}
