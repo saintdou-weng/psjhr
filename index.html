@@ -3892,7 +3892,9 @@ window.addEventListener('hashchange',()=>{const m=location.hash.match(/^#salstru
  const ORG=(location.origin&&location.origin!=='null'&&!/^file:/.test(location.href))?location.origin+'/':'../';
  const SITES={pay:{base:ORG+'ac-hra-pay/',name:'HRA-PAY',tag:'HRA-PAY'},hra:{base:ORG+'ac-hra-portal/',name:'HRA Portal',tag:'Portal'},
   /* v0.6.0：AC Audit 的文件／培訓頁——同一頁、同一個雲端，三個平台（VRT HR／Audit／Admin OS）開的都是它，頁面自己會自動同步；raw＝保留原樣不換外觀 */
-  aud:{base:ORG+'ac-audit/',name:'AC Audit',tag:'Audit',raw:true}};
+  aud:{base:ORG+'ac-audit/',name:'AC Audit',tag:'Audit',raw:true},
+  /* v0.6.1（2026-11-22）：直接／間接人工預算 vs 實際——Admin OS 的同一頁（同一份雲端），嵌進來時不問 Admin 密碼 */
+  adm:{base:ORG+'ac-admin/',name:'Admin OS',tag:'Admin',raw:true}};
  window.HR_SITES=SITES;
  /* 平台頁：[平台, 檔名, 分頁名稱 中/EN/ខ្មែរ, 選單名稱（自己是一個選單項時）] */
  const FR={
@@ -3923,6 +3925,7 @@ window.addEventListener('hashchange',()=>{const m=location.hash.match(/^#salstru
   'x-aud-dcc':['aud','VRT_DCC_v2.html',['文件管控 DCC','Document control (DCC)','គ្រប់គ្រងឯកសារ DCC']],
   'x-aud-ext':['aud','MSG_Processor.html',['外來文件管制表','External documents','ឯកសារពីខាងក្រៅ']],
   'x-aud-law':['aud','cambodia_law_v1.html',['柬埔寨法律','Cambodia law','ច្បាប់កម្ពុជា']],
+  'x-adm-labor':['adm','apps/admin/budget_history.html?view=labor&embed=hr',['直接／間接人工預算 vs 實際','DL / IDL labour budget vs actual','ថវិកាកម្លាំងពលកម្ម'],['人工預算 vs 實際','Labour budget vs actual','ថវិកាកម្លាំងពលកម្ម']],
   'x-aud-train':['aud','vrt_training_v1.html',['培訓計劃','Training plan','ផែនការបណ្តុះបណ្តាល'],['培訓計劃','Training plan','ផែនការបណ្តុះបណ្តាល']],
  };
  /* 平台裡別的網址 → 同一頁（預支已併進 Payroll；HRA Portal 的薪資架構已搬到 HRA-PAY） */
@@ -3959,6 +3962,7 @@ window.addEventListener('hashchange',()=>{const m=location.hash.match(/^#salstru
   ['salstruct','📐','g_pay',['salstruct','x-pay-salary']],
   ['payroll','💰','g_pay',['payroll','x-pay-payroll']],
   ['recon','🧮','g_pay',['recon']],
+  ['x-adm-labor','📊','g_pay',['x-adm-labor']],
   ['meal','🍚','g_pay',['meal','x-pay-meal']],
   ['trans','🚌','g_pay',['trans']],
   ['hrcal','🗓️','g_pay',['hrcal']],
@@ -3969,7 +3973,7 @@ window.addEventListener('hashchange',()=>{const m=location.hash.match(/^#salstru
   ['sync','🔄','g_hub',['sync']],['reports','📑','g_hub',['reports']],['jobcode','🏷️','g_hub',['jobcode']],
   ['settings','⚙️','g_sys',['settings']],
  ];
- const ICO={'x-pay-sum':'💼','x-hra-bi':'📈','x-hra-home':'🏥','x-pay-home':'💼','x-pay-emp':'🗂️','x-pay-transfer':'🔄','x-hra-onb':'🚪','x-hra-contract':'📋','x-hra-att':'🕐','x-hra-leave':'🧾','x-hra-cal':'🇰🇭','x-pay-salary':'📐','x-pay-payroll':'💵','x-pay-meal':'🍱','x-pay-sen':'🌿','x-pay-nssf':'🛡️','x-hra-welfare':'🤝','attexc':'⚠️','x-aud-rules':'📕','x-aud-dcc':'🗄','x-aud-ext':'📧','x-aud-law':'⚖️','x-aud-train':'🎓','salstruct':'📐'};
+ const ICO={'x-pay-sum':'💼','x-hra-bi':'📈','x-hra-home':'🏥','x-pay-home':'💼','x-pay-emp':'🗂️','x-pay-transfer':'🔄','x-hra-onb':'🚪','x-hra-contract':'📋','x-hra-att':'🕐','x-hra-leave':'🧾','x-hra-cal':'🇰🇭','x-pay-salary':'📐','x-pay-payroll':'💵','x-pay-meal':'🍱','x-pay-sen':'🌿','x-pay-nssf':'🛡️','x-hra-welfare':'🤝','attexc':'⚠️','x-aud-rules':'📕','x-aud-dcc':'🗄','x-aud-ext':'📧','x-aud-law':'⚖️','x-aud-train':'🎓','salstruct':'📐','x-adm-labor':'📊'};
  const HUB_OF={};NAV.forEach(n=>n[3].forEach(k=>{if(!HUB_OF[k])HUB_OF[k]=n[0]}));
  /* MODS 留著全部頁（圖示查得到），選單改用 NAV */
  const icoOld={};MODS.forEach(m=>icoOld[m[0]]=m[1]);
