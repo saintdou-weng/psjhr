@@ -704,7 +704,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.6.0';
+const APPV='0.6.1';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -3795,8 +3795,12 @@ function salGrab(){const D=SALST.draft;if(!D)return;const g=id=>document.getElem
   const old=D.meta.notes||[];D.meta.notes=g('salNotes').value.split('\n').map(s=>s.trim()).filter(Boolean).map((s,i)=>{const o=old.find(n=>salL(n)===s)||old[i];if(!o)return [s,s];const n=Array.isArray(o)?o.slice():[o,o];n[L]=s;return n})}
  const tb=D.tables.find(t=>t.id===SALST.tab),el=g('salTbl');if(!tb||!el)return;
  if(g('salTn')){const v=g('salTn').value.trim();if(v){const n=Array.isArray(tb.n)?tb.n.slice():[tb.n,tb.n];n[L]=v;tb.n=n}}
- const ths=[...el.querySelectorAll('thead th')].slice(1);tb.c=ths.map((th,j)=>{const o=tb.c[j]?(Array.isArray(tb.c[j])?tb.c[j].slice():[tb.c[j],tb.c[j]]):['',''];const v=th.textContent.trim();o[L]=v;if(!o[1-L])o[1-L]=v;return o});
- tb.r=[...el.querySelectorAll('tbody tr')].map(tr=>[...tr.children].slice(1).map(td=>salVal(td.textContent)))}
+ /* 只讀「親手改過」的格子（data-t）；沒碰過的格子一律用資料原值——有些瀏覽器擴充功能（繁簡／用語轉換、翻譯）會偷改畫面上的字，不能整張表從畫面抄回來 */
+ [...el.querySelectorAll('thead th')].slice(1).forEach((th,j)=>{if(th.dataset.t!=='1'||!tb.c[j])return;const o=Array.isArray(tb.c[j])?tb.c[j].slice():[tb.c[j],tb.c[j]];const v=th.textContent.trim();o[L]=v;if(!o[1-L])o[1-L]=v;tb.c[j]=o});
+ [...el.querySelectorAll('tbody tr')].forEach((tr,i)=>{if(!tb.r[i])return;[...tr.children].slice(1).forEach((td,j)=>{if(td.dataset.t==='1')tb.r[i][j]=salVal(td.textContent)})})}
+/* 點進格子：先換回資料原值（把擴充功能改掉的字還原）再讓人改；有打字才算改過 */
+document.addEventListener('focusin',e=>{const c=e.target&&e.target.closest&&e.target.closest('#salTbl [contenteditable]');if(!c||c.dataset.t==='1'||c.dataset.f==='1'||!SALST.draft)return;c.dataset.f='1';const tb=SALST.draft.tables.find(t=>t.id===SALST.tab);if(!tb)return;const tr=c.parentElement,j=[...tr.children].indexOf(c)-1;let raw;if(c.tagName==='TH')raw=salL(tb.c[j]);else{const i=[...tr.parentElement.children].indexOf(tr);raw=(tb.r[i]||[])[j]}raw=String(raw==null?'':raw);if(c.textContent!==raw)c.textContent=raw});
+document.addEventListener('input',e=>{const c=e.target&&e.target.closest&&e.target.closest('#salTbl [contenteditable]');if(c)c.dataset.t='1'});
 function salRow(d,i){salGrab();const tb=SALST.draft.tables.find(t=>t.id===SALST.tab);if(!tb)return;if(d>0)tb.r.push(tb.c.map(()=>''));else tb.r.splice(i,1);salRe();if(d>0){const el=document.querySelector('#salTbl tbody tr:last-child td[contenteditable]');if(el){el.scrollIntoView({block:'center'});el.focus()}}}
 function salCol(d){salGrab();const tb=SALST.draft.tables.find(t=>t.id===SALST.tab);if(!tb)return;if(d>0){const nm=prompt(tt('新欄位名稱','New column name'),'');if(!nm)return;tb.c.push([nm,nm]);tb.r.forEach(r=>r.push(''))}else{if(tb.c.length<2)return;if(!confirm(tt('刪除最後一欄「','Delete the last column "')+salL(tb.c[tb.c.length-1])+tt('」？','"?')))return;tb.c.pop();tb.r.forEach(r=>{r.length=tb.c.length})}salRe()}
 function salAddTable(){salGrab();const nm=prompt(tt('新表的名稱','Name of the new table'),'');if(!nm)return;const id='t'+Date.now().toString(36);SALST.draft.tables.push({id,o:60+SALST.draft.tables.length,n:[nm,nm],c:[[tt('項目','Item'),'Item'],[tt('內容','Content'),'Content']],r:[['','']]});SALST.tab=id;salRe()}
