@@ -4424,10 +4424,25 @@ document.addEventListener('paste',e=>{const el=e.target;if(!el||el.tagName!=='IN
    2 員工卡模式（?card=1）：Admin OS 用小視窗開 PSJHR，只顯示這位員工的資料抽屜（同 PSJHR 員工頁：照片、各分頁）。 */
 const CARD=/[?&]card=1\b/.test(location.search)&&window.parent!==window;
 let EMPIDX_SIG='';
-function empIndexSave(){try{const m=empIdx(),sig=m.size+'|'+JSON.stringify(DB.asof||{}).length+'|'+(DB.emp||[]).length;if(sig===EMPIDX_SIG)return;EMPIDX_SIG=sig;
+function empIndexSave(){try{const m=empIdx(),sig=m.size+'|'+JSON.stringify(DB.asof||{}).length+'|'+(DB.emp||[]).length;if(sig===EMPIDX_SIG){setTimeout(empCardSave,3000);return;}EMPIDX_SIG=sig;
  const cut=ymd(new Date(TODAY.getTime()-400*86400000)),n=[];
  m.forEach((e,no)=>{if(!e.name)return;const left=e.status==='離職';if(left&&e.leave_date&&e.leave_date<cut)return;n.push([no,e.name,deptName(e.dept_code)||e.dept_name||'',e.status||'',/女|^f/i.test(e.sex||'')?'F':/男|^m/i.test(e.sex||'')?'M':'']);});
- localStorage.setItem('vrt_emp_idx_v1',JSON.stringify({at:new Date().toISOString(),n}));}catch(e){console.warn('empIndexSave',e)}}
+ localStorage.setItem('vrt_emp_idx_v1',JSON.stringify({at:new Date().toISOString(),n}));}catch(e){console.warn('empIndexSave',e)}setTimeout(empCardSave,3000)}
+/* 員工卡資料 empcard_v1（存在 PSJHR 自己的 IndexedDB，同網站的 Admin OS 直接讀，秒開）：基本、職務、特休、最近請假、最近出勤異常。不含薪資、身分證號。 */
+let EMPCARD_SIG='';
+async function empCardSave(){try{await SPLIT_READY;const m=empIdx(),sig=m.size+'|'+(DB.leave||[]).length+'|'+(DB.attexc||[]).length+'|'+(DB.annual||[]).length+'|'+(DB.emp||[]).length;if(sig===EMPCARD_SIG)return;EMPCARD_SIG=sig;
+ const y=String(TODAY.getFullYear()),LV={},EX={};
+ (DB.leave||[]).forEach(r=>{if(!r.emp_no)return;(LV[r.emp_no]=LV[r.emp_no]||[]).push(r)});
+ (DB.attexc||[]).forEach(r=>{if(!r.emp_no)return;(EX[r.emp_no]=EX[r.emp_no]||[]).push(r)});
+ const out={};m.forEach((e,no)=>{if(!e.name)return;const d=e.det||{};
+  const lv=(LV[no]||[]).slice().sort((a,b)=>String(b.start).localeCompare(String(a.start))),ex=(EX[no]||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  const al=(e.annual||[]).slice().sort((a,b)=>String(b.year).localeCompare(String(a.year)))[0];
+  out[no]={no,name:e.name,dept:deptName(e.dept_code)||e.dept_name||'',title:titleName(e.title_code)||e.title_name||'',sex:e.sex||'',status:e.status||'',join:e.join_date||'',birthday:e.birthday||e.birthday0||'',mobile:e.mobile||e.mobile0||'',phone:e.phone||'',address:e.address||'',emergency:e.emergency||'',relation:e.relation||'',nationality:e.nationality||'',
+   line:d.line||d.group||d.team||'',edu:d.education||d.edu||'',
+   al:al?{year:al.year,days:al.al_days,used:al.al_used_days,left:al.al_left}:null,
+   lvY:lv.filter(r=>String(r.start).slice(0,4)===y).reduce((s,r)=>s+(+r.days||0),0),lv:lv.slice(0,8).map(r=>[String(r.start||'').slice(0,10),String(r.end||'').slice(0,10),r.leave_type||'',+r.days||0]),
+   exY:ex.filter(r=>String(r.date).slice(0,4)===y).length,ex:ex.slice(0,8).map(r=>[String(r.date||'').slice(0,10),r.kind||'',r.leave_type||'',+r.lv_missing||0])}});
+ await IDB.set('empcard_v1',{at:new Date().toISOString(),m:out});}catch(e){console.warn('empCardSave',e)}}
 let CARD_READY=null;
 window.psjhrCard=async function(no){try{await CARD_READY;await SPLIT_READY;}catch(e){}if(!emp(String(no)))return false;openEmp(String(no));window.__cardUser=true;return true};   /* 只有使用者在員工卡上按關閉，才通知 Admin OS 收起 */
 if(CARD){document.documentElement.classList.add('card-mode');const st=document.createElement('style');st.textContent='html.card-mode .app,html.card-mode .rail,html.card-mode header.top,html.card-mode #scrim{display:none!important}html.card-mode body{background:var(--surface)}html.card-mode .drawer{width:100%!important;left:0!important;box-shadow:none!important}';document.head.appendChild(st);}
