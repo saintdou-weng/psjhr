@@ -4137,15 +4137,23 @@ tbody tr.psj-kn:hover>td,tbody tr.psj-kn-on>td{background:var(--psj-accent-soft)
  function knHeads(tr){const tbl=tr.closest('table');const th=tbl&&tbl.tHead?[...tbl.tHead.rows].pop():null;const out=[];if(!th)return out;let c=0;[...th.cells].forEach(x=>{const tx=(x.innerText||x.textContent||'').replace(/\s+/g,' ').trim();for(let j=0;j<(x.colSpan||1);j++)out[c++]=tx});return out}
  const knTxt=td=>{if(td.querySelector('button,input,select')){const c=td.cloneNode(true);c.querySelectorAll('button,input,select,.no-print').forEach(x=>x.remove());return String(c.textContent||'').replace(/\s+/g,' ').trim()}return knTxt0(td)};
  const knTxt0=td=>String(td.innerText||td.textContent||'').replace(/[ \t]+/g,' ').replace(/\n\s*\n+/g,'\n').trim();
+ /* 2026-11-22 Paul：培訓（Audit training）的「No.／編號」是培訓序號，被誤當成工號 → 跳出不相干員工（工號 2、7、10…）。
+    只認明確是「員工」的欄名（工號、員工編號、Emp ID、Staff No、Factory ID、អត្តលេខ…）；單純 No.／ID／編號／លេខ（序號、培訓號、單號）一律不當工號。 */
+ const KN_EMPCOL=/工號|員工代號|員工編號|員工號|emp(loyee)?[ ._-]*(no|id|#|code|number)|^emp$|staff[ ._-]*(#|no|id|code)|worker[ ._-]*(no|id)|factory[ ._-]*id|^fid$|អត្តលេខ|លេខ(កាត|បុគ្គលិក|សម្គាល់)/i;
+ const KN_NOTEMP=/培訓|課程|訓練|course|training|序號|項次|單號|訂單|order|po\b|style|款|批|lot|bundle|room|房/i;
  function knEmp(tr,heads){const cells=[...tr.cells];const hit=v=>{const d=String(v||'').replace(/\D/g,'');if(!d||d.length>6)return '';const n=String(+d);return emp(n)?n:(emp(d)?d:'')};
-  for(let j=0;j<cells.length;j++)if(/工號|員工代號|員工編號|emp|staff ?(#|no|id)|^id$|^no\.?$|លេខ|factory id|fid/i.test(heads[j]||'')){const r=hit(String(cells[j].innerText||cells[j].textContent||'').trim().split(/\s/)[0]);if(r)return r}
+  for(let j=0;j<cells.length;j++)if(KN_EMPCOL.test(heads[j]||'')&&!KN_NOTEMP.test(heads[j]||'')){const r=hit(String(cells[j].innerText||cells[j].textContent||'').trim().split(/\s/)[0]);if(r)return r}
+  /* 欄名只寫 ID／No.／編號／លេខ：要同一列也有這位員工的名字才算（避免序號、培訓號被當工號） */
+  const row=String(tr.innerText||tr.textContent||'').toLowerCase();
+  for(let j=0;j<cells.length;j++)if(/^(id|no\.?|編號|លេខ)$/i.test(String(heads[j]||'').trim())){const r=hit(String(cells[j].innerText||cells[j].textContent||'').trim().split(/\s/)[0]);if(!r)continue;const e=emp(r)||{},d=e.det||{};
+   const toks=[e.name,e.name_en,e.name_km,d.name_en,d.name_km].filter(Boolean).join(' ').toLowerCase().split(/[\s()（）\/]+/).filter(w=>w.length>=3);if(toks.some(w=>row.indexOf(w)>=0))return r}
   return ''}
  /* v0.6.2：找不到工號欄時，用「姓名」欄對員工（只認全廠唯一的姓名，同名同姓不猜） */
  let KN_NM=null,KN_NMN=-1;
  function knNameIdx(){const ix=empIdx();if(KN_NM&&KN_NMN===ix.size)return KN_NM;const m=new Map(),dup=new Set();const put=(k,no)=>{k=String(k||'').replace(/\s+/g,' ').trim().toLowerCase();if(k.length<2)return;if(m.has(k)&&m.get(k)!==no)dup.add(k);else m.set(k,no)};
   ix.forEach((e,no)=>{put(e.name,no);put(e.name_en,no);put(e.name_km,no);const d=e.det||{};put(d.name_en,no);put(d.name_km,no)});dup.forEach(k=>m.delete(k));KN_NM=m;KN_NMN=ix.size;return m}
  function knEmpAny(tr,heads){heads=heads||knHeads(tr);const no=knEmp(tr,heads);if(no)return no;const cells=[...tr.cells],ix=knNameIdx();
-  for(let j=0;j<cells.length;j++)if(/姓名|員工|name|ឈ្មោះ/i.test(heads[j]||'')){for(const part of String(cells[j].innerText||cells[j].textContent||'').split(/\n|\/|／|\(|（/)){const hit=ix.get(part.replace(/\s+/g,' ').trim().toLowerCase());if(hit)return hit}}
+  for(let j=0;j<cells.length;j++)if(/姓名|員工|name|ឈ្មោះ/i.test(heads[j]||'')&&!KN_NOTEMP.test(heads[j]||'')&&!/講師|老師|trainer|teacher|instructor|課程名|course|title|主題|topic|品名|item|customer|客戶|supplier|供應商|vendor/i.test(heads[j]||'')){for(const part of String(cells[j].innerText||cells[j].textContent||'').split(/\n|\/|／|\(|（/)){const hit=ix.get(part.replace(/\s+/g,' ').trim().toLowerCase());if(hit)return hit}}
   return ''}
  const KN_TABS=[['prof','👤',['基本資料','Profile','ប្រវត្តិរូប']],['hr','📂',['HR 紀錄','HR records','កំណត់ត្រា HR']],['pay','💵',['薪資','Pay','ប្រាក់ខែ']],['mat','🤱',['產假／哺乳','Maternity','មាតុភាព']]];
  window.psjEmpGo=function(no,tab){PROF_TAB=tab||'prof';openEmp(String(no))};
