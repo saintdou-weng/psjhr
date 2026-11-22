@@ -4110,7 +4110,7 @@ tbody tr.psj-kn:hover>td,tbody tr.psj-kn-on>td{background:var(--psj-accent-soft)
    const k=keyOfUrl(a.href); if(!k||k===fr.dataset.k)return; e.preventDefault(); location.hash=k },true) }
  function themeFrame(fr){ let doc=null; try{ doc=fr.contentDocument }catch(e){ doc=null } if(!doc||!doc.head||!doc.body)return false;
   { const fk=fr.dataset.k; if(fk&&FR[fk]&&SITES[FR[fk][0]].raw){ /* AC Audit 的頁保留原樣，只把它自己的「← AC Audit」返回鈕收起來 */
-    try{ if(!doc.getElementById('psj-raw')){ const s0=doc.createElement('style'); s0.id='psj-raw'; s0.textContent='.ac-audit-back-btn{display:none!important}'; doc.head.appendChild(s0) } fr.classList.add('psj-themed'); const ld=fr.parentElement&&fr.parentElement.querySelector('.fr-load'); if(ld)ld.remove(); sizeFrames() }catch(e){} return true } }
+    try{ if(!doc.getElementById('psj-raw')){ const s0=doc.createElement('style'); s0.id='psj-raw'; s0.textContent='.ac-audit-back-btn{display:none!important}tbody tr.psj-kn{cursor:pointer}'; doc.head.appendChild(s0) } try{hookKeynote(doc,fr)}catch(e){} fr.classList.add('psj-themed'); const ld=fr.parentElement&&fr.parentElement.querySelector('.fr-load'); if(ld)ld.remove(); sizeFrames() }catch(e){} return true } }
   try{ markHeaders(doc); let st=doc.getElementById('psj-theme'); if(!st){ st=doc.createElement('style'); st.id='psj-theme' } st.textContent=css(tokens()); doc.head.appendChild(st);
    if(!doc.getElementById('psj-font')){ const lk=document.querySelector('link[href*="fonts.googleapis.com/css2"]'); if(lk){ const l2=doc.createElement('link'); l2.id='psj-font'; l2.rel='stylesheet'; l2.href=lk.href; doc.head.appendChild(l2) } }
    markHeaders(doc); compactImport(doc); hookLinks(doc,fr); try{hookKeynote(doc,fr)}catch(e){console.warn('keynote',e)} fr.classList.add('psj-themed'); const ld=fr.parentElement&&fr.parentElement.querySelector('.fr-load'); if(ld)ld.remove();
@@ -4153,13 +4153,14 @@ tbody tr.psj-kn:hover>td,tbody tr.psj-kn-on>td{background:var(--psj-accent-soft)
   let sx=0,sy=0;db.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});db.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;if(Math.abs(dx)>70&&Math.abs(dx)>Math.abs(dy)*1.5)knStep(dx<0?1:-1)},{passive:true});
   KN.cur=KN.i}
  window.knStep=function(d){const j=(KN.cur!=null?KN.cur:KN.i)+d;if(j<0||j>=KN.rows.length){toast(d>0?tt('已經是最後一筆','Last one','ចុងក្រោយ'):tt('已經是第一筆','First one','ដំបូង'));return}knOpen(j)};
+ window.psjKnOpenRows=function(tr){KN.fr=null;KN.rows=knRows(tr);KN.own=KN.rows.map(()=>false);knOpen(Math.max(0,KN.rows.indexOf(tr)))}; /* 2026-11-22 psj-keynote.js：本頁原本點了沒反應的列 → 用同一張重點卡 */
  window.knOwn=function(i){const tr=KN.rows[i];if(!tr)return;closeDrawer();KN.bypass=true;try{const c=tr.hasAttribute('onclick')?tr:([...tr.cells].find(x=>x.hasAttribute('onclick'))||tr.cells[1]||tr);c.click()}finally{KN.bypass=false}};
  document.addEventListener('keydown',e=>{if($('#drawer').hidden||!$('#drawer .kn-db')||/INPUT|TEXTAREA|SELECT/.test((e.target||{}).tagName||''))return;if(e.key==='ArrowRight'){knStep(1);e.preventDefault()}else if(e.key==='ArrowLeft'){knStep(-1);e.preventDefault()}});
  function hookKeynote(doc,fr){if(doc.__psjKn)return;doc.__psjKn=1;const w=doc.defaultView;
   const inModal=x=>!!x.closest('[class*="modal" i],[class*="dialog" i],dialog,[role="dialog"]');
   const mark=()=>{try{doc.querySelectorAll('tbody tr:not(.psj-kn)').forEach(tr=>{if(tr.cells.length>1&&!inModal(tr))tr.classList.add('psj-kn')})}catch(e){}};
   mark();try{new w.MutationObserver(()=>{clearTimeout(doc.__knT);doc.__knT=setTimeout(mark,250)}).observe(doc.body,{childList:true,subtree:true})}catch(e){}
-  doc.addEventListener('click',e=>{if(KN.bypass||e.button!==0)return;const tr=e.target.closest&&e.target.closest('tbody tr');if(!tr||tr.cells.length<2||e.target.closest(KN_SKIP)||inModal(tr))return;
+  doc.addEventListener('click',e=>{if(KN.bypass||e.button!==0)return;if(w.__acKeynote)return; /* 2026-11-22：分頁自己已有列表 Keynote（HRA Portal／HRA-PAY row-keynote）→ 交給它，避免兩張卡同時跳出 */const tr=e.target.closest&&e.target.closest('tbody tr');if(!tr||tr.cells.length<2||e.target.closest(KN_SKIP)||inModal(tr))return;
    const ownOf=r=>r.hasAttribute('onclick')||[...r.cells].some(c=>c.hasAttribute('onclick'));const own=ownOf(tr);
    e.stopPropagation();e.preventDefault();
    KN.fr=fr;KN.rows=knRows(tr);KN.own=KN.rows.map(r=>r===tr?own:ownOf(r));knOpen(Math.max(0,KN.rows.indexOf(tr)))},true)}
@@ -4406,4 +4407,5 @@ init();
 <script src="ux_motion.js?v=3" data-btn=".btn,.icon-btn" data-cards=".sal-y,button.kpi" data-grid=".sal-years,.kpis" data-nav=".top" data-skip=".seg,.sal-tabs,.hub-tabs,.rail,#nav,table,.pnav,.lang,.kn-dh,.dh" defer></script>
 <!-- 2026-11-22 主頁摘要輪播（同 Admin OS 首頁瀏覽方式：分類標籤、彩色卡、左右滑、每格可點進頁面） -->
 <script src="https://saintdou-weng.github.io/ac-admin/shared/home-deck.js" defer></script>
+<script src="https://saintdou-weng.github.io/ac-admin/shared/psj-keynote.js" defer></script>
 </body></html>
