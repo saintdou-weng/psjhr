@@ -2420,7 +2420,7 @@ function empCardsInit(){const box=$('#empCards'),more=$('#empMore');if(!box||!mo
  add();if(window.IntersectionObserver){const io=new IntersectionObserver(es=>{if(!document.body.contains(more)){io.disconnect();return}if(es.some(x=>x.isIntersecting)&&i<list.length)add()},{rootMargin:'800px 0px'});io.observe(more)}else{more.onclick=add}}
 function empStep(d){if(!PROF_NO||!EMP_LIST.length)return;const i=EMP_LIST.indexOf(String(PROF_NO));if(i<0)return;const j=i+d;if(j<0||j>=EMP_LIST.length){toast(d>0?tt('已經是最後一位','Last one'):tt('已經是第一位','First one'));return}openEmp(EMP_LIST[j])}
 function closeModal(){if(!$('#drawer').hidden){$('#modal').hidden=true}else closeDrawer()}
-function closeDrawer(){$('#drawer').hidden=true;$('#scrim').hidden=true;$('#modal').hidden=true}
+function closeDrawer(){const was=!$('#drawer').hidden;$('#drawer').hidden=true;$('#scrim').hidden=true;$('#modal').hidden=true;if(was&&typeof CARD!=='undefined'&&CARD&&window.__cardUser){try{parent.postMessage({vrt:'emp-close'},location.origin)}catch(e){}}}
 function showModal(html){$('#modal').innerHTML=html;$('#modal').hidden=false;$('#scrim').hidden=false}
 let PROF_NO=null;
 /* ---------- employee profile drawer: tabs like BEST "Staff data", history lists paged ---------- */
@@ -3424,7 +3424,7 @@ async function restoreJSON(file){try{const d=JSON.parse(await file.text());if(d.
 const RENDER={meal:renderMeal,payroll:renderPayroll,benefits:renderBenefits,dashboard:renderDashboard,'smart-import':renderImport,emp:renderEmp,basepay:renderBasePay,jobcode:renderJobcode,sync:renderSync,reports:renderReports,settings:renderSettings,
  att:()=>renderPeriod('att'),attexc:()=>renderPeriod('attexc'),leave:()=>renderPeriod('leave'),joinleave:()=>renderPeriod('joinleave'),holiday:()=>renderPeriod('holiday'),annual:()=>renderPeriod('annual')};
 let toastT; function toast(m){const el=$('#toast');el.textContent=m;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,2800)}
-function rerender(){
+function rerender(){clearTimeout(window.__eis);window.__eis=setTimeout(()=>{try{empIndexSave()}catch(e){}},2500);
  let html; try{html=(RENDER[CUR]||renderDashboard)()}catch(err){console.error(err);html=pageHead(CUR)+`<div class="note crit">${tt('此頁顯示發生錯誤。請按「本期」或換一個期間再試。','This page failed to render. Press Current or pick another period.')}<br><span class="mono small">${esc(err.message)}</span></div>`}
  $('#page').innerHTML=html; renderNav(); applyStatic(); bindPage();
 }
@@ -4418,9 +4418,23 @@ function renderDelok(){const k='delok';const info=delokParse();const M=delokMap(
  return h}
 RENDER.delok=renderDelok;T.delok=['雲端刪除核可','Cloud deletion approvals','ការអនុម័តលុបលើ Cloud'];T.sub_delok=['各平台要刪雲端資料都要你核可','Every platform needs your approval to delete cloud data'];
 document.addEventListener('paste',e=>{const el=e.target;if(!el||el.tagName!=='INPUT'||!/^(text|search)$/.test(el.type||'text'))return;if(!(el.id==='gsearch'||/^q_/.test(el.id||'')))return;const tx=(e.clipboardData||window.clipboardData).getData('text');if(!/[\r\n\t]/.test(tx))return;e.preventDefault();const v=tx.split(/[\r\n\t]+/).map(x=>x.trim()).filter(Boolean).join(', ');const a=el.selectionStart||0,b=el.selectionEnd||0;el.value=el.value.slice(0,a)+v+el.value.slice(b);el.dispatchEvent(new Event('input',{bubbles:true}))},true);
+/* 2026-11-22 Paul：在 Admin OS 裡，其他平台（PSJGA、PSJERP、Audit…）點到員工時也要看得到照片與分頁資料。
+   1 員工索引：把「工號、姓名、部門、狀態」存一份小索引到 localStorage（vrt_emp_idx_v1；同一個網站的頁面共用，不出這台裝置），
+     Admin OS 用它判斷點到的是不是員工。照片、薪資不放進索引。
+   2 員工卡模式（?card=1）：Admin OS 用小視窗開 PSJHR，只顯示這位員工的資料抽屜（同 PSJHR 員工頁：照片、各分頁）。 */
+const CARD=/[?&]card=1\b/.test(location.search)&&window.parent!==window;
+let EMPIDX_SIG='';
+function empIndexSave(){try{const m=empIdx(),sig=m.size+'|'+JSON.stringify(DB.asof||{}).length+'|'+(DB.emp||[]).length;if(sig===EMPIDX_SIG)return;EMPIDX_SIG=sig;
+ const cut=ymd(new Date(TODAY.getTime()-400*86400000)),n=[];
+ m.forEach((e,no)=>{if(!e.name)return;const left=e.status==='離職';if(left&&e.leave_date&&e.leave_date<cut)return;n.push([no,e.name,deptName(e.dept_code)||e.dept_name||'',e.status||'',/女|^f/i.test(e.sex||'')?'F':/男|^m/i.test(e.sex||'')?'M':'']);});
+ localStorage.setItem('vrt_emp_idx_v1',JSON.stringify({at:new Date().toISOString(),n}));}catch(e){console.warn('empIndexSave',e)}}
+let CARD_READY=null;
+window.psjhrCard=async function(no){try{await CARD_READY;await SPLIT_READY;}catch(e){}if(!emp(String(no)))return false;openEmp(String(no));window.__cardUser=true;return true};   /* 只有使用者在員工卡上按關閉，才通知 Admin OS 收起 */
+if(CARD){document.documentElement.classList.add('card-mode');const st=document.createElement('style');st.textContent='html.card-mode .app,html.card-mode .rail,html.card-mode header.top,html.card-mode #scrim{display:none!important}html.card-mode body{background:var(--surface)}html.card-mode .drawer{width:100%!important;left:0!important;box-shadow:none!important}';document.head.appendChild(st);}
 async function init(){
  $('#page').innerHTML=`<div class="note">${tt('載入資料中…','Loading data…')}</div>`;
- await IDB.open(); bgLoad(); await loadDB(); document.documentElement.dataset.theme='light'; document.body.classList.toggle('show-pii',SHOW_PII); $('#piiBtn').textContent=SHOW_PII?'👁️':'🙈';
+ let cardDone;CARD_READY=new Promise(r=>cardDone=r);
+ await IDB.open(); bgLoad(); await loadDB(); cardDone(); setTimeout(empIndexSave,1200); document.documentElement.dataset.theme='light'; document.body.classList.toggle('show-pii',SHOW_PII); $('#piiBtn').textContent=SHOW_PII?'👁️':'🙈';
  $$('#langSw button').forEach(b=>b.onclick=()=>setLang(+b.dataset.l)); $('#piiBtn').onclick=()=>togglePii(!SHOW_PII);
  $('#menuBtn').onclick=()=>$('#rail').classList.toggle('open'); $('#scrim').onclick=closeDrawer; document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();else if(!$('#drawer').hidden&&PROF_NO&&!/INPUT|TEXTAREA|SELECT/.test((document.activeElement||{}).tagName||'')){if(e.key==='ArrowRight')empStep(1);else if(e.key==='ArrowLeft')empStep(-1)}});
  $('#gsearch').oninput=e=>gsearch(e.target.value); document.addEventListener('click',e=>{if(!e.target.closest('.search'))$('#sres').hidden=true});
