@@ -232,6 +232,10 @@ table.t{width:100%;border-collapse:collapse;font-size:13px}
   .app{grid-template-columns:minmax(0,1fr)}
   .rail{position:fixed;left:0;top:0;bottom:0;z-index:55;width:min(280px,86vw);transform:translateX(-102%);transition:transform .2s;height:auto;padding-top:calc(14px + env(safe-area-inset-top,0px))}
   .rail.open{transform:none;box-shadow:var(--shadow)}
+  /* 2026-11-22：手機選單要能上下滑（像 PSJGA／Admin OS）：選單在遮罩上面、自己捲、捲到底不帶動後面的頁面 */
+  .rail{z-index:1001;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y}
+  .vs-scrim{z-index:1000!important}
+  body:has(.rail.open){overflow:hidden}
   .menu-btn{display:grid}
   .top{padding:8px 16px;flex-wrap:wrap}
   .search{order:5;flex-basis:100%;max-width:none}
@@ -702,7 +706,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.6.2';
+const APPV='0.6.3';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -4132,14 +4136,14 @@ tbody tr.psj-kn:hover>td,tbody tr.psj-kn-on>td{background:var(--psj-accent-soft)
  const knTxt=td=>{if(td.querySelector('button,input,select')){const c=td.cloneNode(true);c.querySelectorAll('button,input,select,.no-print').forEach(x=>x.remove());return String(c.textContent||'').replace(/\s+/g,' ').trim()}return knTxt0(td)};
  const knTxt0=td=>String(td.innerText||td.textContent||'').replace(/[ \t]+/g,' ').replace(/\n\s*\n+/g,'\n').trim();
  function knEmp(tr,heads){const cells=[...tr.cells];const hit=v=>{const d=String(v||'').replace(/\D/g,'');if(!d||d.length>6)return '';const n=String(+d);return emp(n)?n:(emp(d)?d:'')};
-  for(let j=0;j<cells.length;j++)if(/工號|員工代號|員工編號|emp|staff ?(#|no|id)|^id$|^no\.?$|លេខ|factory id|fid/i.test(heads[j]||'')){const r=hit(String(cells[j].innerText||'').trim().split(/\s/)[0]);if(r)return r}
+  for(let j=0;j<cells.length;j++)if(/工號|員工代號|員工編號|emp|staff ?(#|no|id)|^id$|^no\.?$|លេខ|factory id|fid/i.test(heads[j]||'')){const r=hit(String(cells[j].innerText||cells[j].textContent||'').trim().split(/\s/)[0]);if(r)return r}
   return ''}
  /* v0.6.2：找不到工號欄時，用「姓名」欄對員工（只認全廠唯一的姓名，同名同姓不猜） */
  let KN_NM=null,KN_NMN=-1;
  function knNameIdx(){const ix=empIdx();if(KN_NM&&KN_NMN===ix.size)return KN_NM;const m=new Map(),dup=new Set();const put=(k,no)=>{k=String(k||'').replace(/\s+/g,' ').trim().toLowerCase();if(k.length<2)return;if(m.has(k)&&m.get(k)!==no)dup.add(k);else m.set(k,no)};
   ix.forEach((e,no)=>{put(e.name,no);put(e.name_en,no);put(e.name_km,no);const d=e.det||{};put(d.name_en,no);put(d.name_km,no)});dup.forEach(k=>m.delete(k));KN_NM=m;KN_NMN=ix.size;return m}
  function knEmpAny(tr,heads){heads=heads||knHeads(tr);const no=knEmp(tr,heads);if(no)return no;const cells=[...tr.cells],ix=knNameIdx();
-  for(let j=0;j<cells.length;j++)if(/姓名|員工|name|ឈ្មោះ/i.test(heads[j]||'')){for(const part of String(cells[j].innerText||'').split(/\n|\/|／|\(|（/)){const hit=ix.get(part.replace(/\s+/g,' ').trim().toLowerCase());if(hit)return hit}}
+  for(let j=0;j<cells.length;j++)if(/姓名|員工|name|ឈ្មោះ/i.test(heads[j]||'')){for(const part of String(cells[j].innerText||cells[j].textContent||'').split(/\n|\/|／|\(|（/)){const hit=ix.get(part.replace(/\s+/g,' ').trim().toLowerCase());if(hit)return hit}}
   return ''}
  const KN_TABS=[['prof','👤',['基本資料','Profile','ប្រវត្តិរូប']],['hr','📂',['HR 紀錄','HR records','កំណត់ត្រា HR']],['pay','💵',['薪資','Pay','ប្រាក់ខែ']],['mat','🤱',['產假／哺乳','Maternity','មាតុភាព']]];
  window.psjEmpGo=function(no,tab){PROF_TAB=tab||'prof';openEmp(String(no))};
