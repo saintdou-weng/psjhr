@@ -1,3 +1,10 @@
+## v0.6.2 (2026-11-22) HRA-PAY／HRA Portal 分頁裡點到員工 → 直接看到照片與資料
+- 那兩個平台自己沒有員工照片與個人資料；它們的列表卡（ac-hra-portal `shared/row-keynote.js`）留了 `acKeynoteTop` 掛點，VRT HR 在嵌入時（`hookEmpTop`）把「照片＋重點資料＋四個分頁鈕（基本資料／HR 紀錄／薪資／產假）」放進卡片最上面。分頁鈕＝`psjEmpGo(工號, 分頁)`，打開員工完整資料的那一頁。
+- 找員工：先看工號欄；沒有工號欄時用姓名欄（只認全廠唯一的姓名）。不是員工的列不顯示這一塊。
+- 不是表格列的卡也能用：`parent.psjEmpHTML(工號, 姓名, document)`（人力規劃的人員卡已接上）。
+- VRT HR 自己的重點卡：照片放大、同樣加四個分頁鈕。
+- 兩個平台單獨開（不在 VRT HR 裡）時完全不變。
+
 ## 介面動效 (2026-11-22)
 - `ux_motion.js`（外掛，四個平台同一支：psjhr 根目錄、ac-hra-portal/shared、ac-admin/shared、ac-audit/assets）。拿掉 `<script>` 那一行就恢復原樣。
 - PSJHR 套用：`.btn`／`.icon-btn` 懸停回饋；年度卡片與可點的 KPI 卡 3D 傾斜；`.top` 捲動後加毛玻璃與陰影；回到頂部鈕。

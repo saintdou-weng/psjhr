@@ -702,7 +702,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.6.1';
+const APPV='0.6.2';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -4134,10 +4134,37 @@ tbody tr.psj-kn:hover>td,tbody tr.psj-kn-on>td{background:var(--psj-accent-soft)
  function knEmp(tr,heads){const cells=[...tr.cells];const hit=v=>{const d=String(v||'').replace(/\D/g,'');if(!d||d.length>6)return '';const n=String(+d);return emp(n)?n:(emp(d)?d:'')};
   for(let j=0;j<cells.length;j++)if(/工號|員工代號|員工編號|emp|staff ?(#|no|id)|^id$|^no\.?$|លេខ|factory id|fid/i.test(heads[j]||'')){const r=hit(String(cells[j].innerText||'').trim().split(/\s/)[0]);if(r)return r}
   return ''}
- function knSec(tr,idx){const heads=knHeads(tr),cells=[...tr.cells];const no=knEmp(tr,heads);const kv=[];let title='';
+ /* v0.6.2：找不到工號欄時，用「姓名」欄對員工（只認全廠唯一的姓名，同名同姓不猜） */
+ let KN_NM=null,KN_NMN=-1;
+ function knNameIdx(){const ix=empIdx();if(KN_NM&&KN_NMN===ix.size)return KN_NM;const m=new Map(),dup=new Set();const put=(k,no)=>{k=String(k||'').replace(/\s+/g,' ').trim().toLowerCase();if(k.length<2)return;if(m.has(k)&&m.get(k)!==no)dup.add(k);else m.set(k,no)};
+  ix.forEach((e,no)=>{put(e.name,no);put(e.name_en,no);put(e.name_km,no);const d=e.det||{};put(d.name_en,no);put(d.name_km,no)});dup.forEach(k=>m.delete(k));KN_NM=m;KN_NMN=ix.size;return m}
+ function knEmpAny(tr,heads){heads=heads||knHeads(tr);const no=knEmp(tr,heads);if(no)return no;const cells=[...tr.cells],ix=knNameIdx();
+  for(let j=0;j<cells.length;j++)if(/姓名|員工|name|ឈ្មោះ/i.test(heads[j]||'')){for(const part of String(cells[j].innerText||'').split(/\n|\/|／|\(|（/)){const hit=ix.get(part.replace(/\s+/g,' ').trim().toLowerCase());if(hit)return hit}}
+  return ''}
+ const KN_TABS=[['prof','👤',['基本資料','Profile','ប្រវត្តិរូប']],['hr','📂',['HR 紀錄','HR records','កំណត់ត្រា HR']],['pay','💵',['薪資','Pay','ប្រាក់ខែ']],['mat','🤱',['產假／哺乳','Maternity','មាតុភាព']]];
+ window.psjEmpGo=function(no,tab){PROF_TAB=tab||'prof';openEmp(String(no))};
+ /* HRA-PAY／HRA Portal 的分頁自己有列表卡（row-keynote.js），但那兩個平台沒有員工照片與個人資料。
+    它留了 acKeynoteTop 這個掛點 → VRT HR 把「照片＋重點資料＋四個分頁鈕」塞進那張卡的最上面（樣式寫在行內，因為是畫在分頁的頁面裡） */
+ function psjEmpBlock(no){const e=emp(no);if(!e)return '';const d=e.det||{},x=v=>esc(v==null?'':v),st=e.status==='在職'?['#dcfce7','#166534',tt('在職','Active','កំពុងធ្វើការ')]:e.status==='離職'?['#fee2e2','#991b1b',tt('離職','Left','បានលាឈប់')]:['#fef3c7','#92400e',x(e.status||'—')];
+  const age=(()=>{const b=parseD(e.birthday||d.birthday);if(!b)return '';let a=TODAY.getFullYear()-b.getFullYear();if(TODAY.getMonth()<b.getMonth()||(TODAY.getMonth()===b.getMonth()&&TODAY.getDate()<b.getDate()))a--;return a>0&&a<100?a:''})();
+  const facts=[[tt('部門','Dept','ផ្នែក'),[e.dept,e.section].filter(Boolean).join(' · ')],[tt('職稱','Title','តួនាទី'),[e.title,e.grade].filter(Boolean).join(' ')],[tt('到職日','Joined','ថ្ងៃចូល'),e.join_date],[tt('年資','Seniority','អតីតភាព'),e.leave_unknown?'':seniority(e.join_date,e.leave_date)],[tt('性別／年齡','Sex / age','ភេទ / អាយុ'),[e.sex||d.sex,age?age+tt(' 歲',' y','ឆ្នាំ'):''].filter(Boolean).join(' · ')],[tt('合約','Contract','កិច្ចសន្យា'),String(d.staff_type||'').toUpperCase()],[tt('班別','Shift','វេន'),d.shift],e.status==='離職'?[tt('離職日','Left on','ថ្ងៃឈប់'),e.leave_date]:null].filter(f=>f&&f[1]);
+  const B='border:1px solid #cbd5e1;background:#fff;color:#0f172a;border-radius:9px;padding:7px 10px;font:600 12.5px/1.2 inherit;cursor:pointer;white-space:nowrap';
+  return `<div class="psj-emp-top" style="margin:12px 16px 2px;border:1px solid #e2e8f0;border-radius:14px;padding:12px;background:#f8fafc;color:#0f172a;font-size:13px;line-height:1.5">
+   <div style="display:flex;gap:12px;align-items:center"><div data-psj-ph="${x(no)}" onclick="parent.psjEmpGo('${x(no)}','prof')" title="${x(tt('開啟完整員工資料','Open full profile'))}" style="width:84px;height:84px;border-radius:14px;background:#e2e8f0;display:grid;place-items:center;font-weight:700;font-size:24px;color:#475569;overflow:hidden;flex:none;cursor:pointer">${x((e.name||'?').slice(0,2))}</div>
+   <div style="min-width:0;flex:1"><div style="font-size:17px;font-weight:700;word-break:break-word">${x(e.name||'—')} <span style="font:12px ui-monospace,monospace;color:#64748b">${x(no)}</span></div>${(e.name_km||d.name_km||e.name_en||d.name_en)?`<div style="color:#475569;font-size:12.5px">${x([e.name_km||d.name_km,e.name_en||d.name_en].filter(Boolean).join(' · '))}</div>`:''}<span style="display:inline-block;margin-top:3px;background:${st[0]};color:${st[1]};border-radius:999px;padding:1px 9px;font-size:11.5px;font-weight:700">${st[2]}</span></div></div>
+   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:4px 14px;margin-top:10px">${facts.map(f=>`<div style="min-width:0"><span style="color:#64748b;font-size:11px">${x(f[0])}</span><br><b style="font-weight:600;word-break:break-word">${x(f[1])}</b></div>`).join('')}</div>
+   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${KN_TABS.map(t=>`<button type="button" style="${B}" onclick="event.stopPropagation();parent.psjEmpGo('${x(no)}','${t[0]}')">${t[1]} ${x(tt.apply(null,t[2]))}</button>`).join('')}</div>
+   <div style="color:#94a3b8;font-size:10.5px;margin-top:6px">${x(tt('員工照片與資料來自 VRT HR','Photo and details from VRT HR','រូបថត និងព័ត៌មានពី VRT HR'))}</div></div>`}
+ function psjEmpPhoto(doc,no){try{if(typeof hasPhoto!=='function'||!hasPhoto(no))return;photoGet(no).then(dd=>{if(!dd)return;doc.querySelectorAll('[data-psj-ph]').forEach(el=>{if(el.getAttribute('data-psj-ph')===String(no)&&!el.firstElementChild)el.innerHTML='<img src="'+dd+'" alt="" style="width:100%;height:100%;object-fit:cover">'})})}catch(e){}}
+ function hookEmpTop(doc){const w=doc.defaultView;if(!w||w.__psjEmpTop)return;w.__psjEmpTop=1;const own=typeof w.acKeynoteTop==='function'?w.acKeynoteTop:null;
+  w.acKeynoteTop=function(row,table){let h='',o='';try{const tr=row&&row.closest?(row.closest('tr')||row):row;const no=tr&&tr.cells?knEmpAny(tr):'';if(no){h=psjEmpBlock(no);if(h)[0,150,600].forEach(ms=>setTimeout(()=>psjEmpPhoto(doc,no),ms))}}catch(e){}try{o=own?(own.call(w,row,table)||''):''}catch(e){}return h+o}}
+ window.hookEmpTop=hookEmpTop;
+ /* 分頁裡不是表格列的員工卡（例：人力規劃的人員卡）也能要這一塊：parent.psjEmpHTML(工號, 姓名, document) */
+ window.psjEmpHTML=function(id,name,doc){try{let no='';const dg=String(id||'').replace(/\D/g,'');if(dg&&dg.length<=6)no=emp(String(+dg))?String(+dg):(emp(dg)?dg:'');if(!no&&name)no=knNameIdx().get(String(name).replace(/\s+/g,' ').trim().toLowerCase())||'';if(!no)return '';const h=psjEmpBlock(no);if(h&&doc)[0,150,600].forEach(ms=>setTimeout(()=>psjEmpPhoto(doc,no),ms));return h}catch(e){return ''}};
+ function knSec(tr,idx){const heads=knHeads(tr),cells=[...tr.cells];const no=knEmpAny(tr,heads);const kv=[];let title='';
   cells.forEach((td,j)=>{const v=knTxt(td);if(!v&&td.querySelector('input,button'))return;const h=heads[j]||'';if(!h&&!v)return;if(!title&&v&&!/^[\d\-\/\s.:—]+$/.test(v))title=v.split('\n')[0];kv.push([h||'—',v||'—'])});
   const e=no?emp(no):null;
-  const empBox=e?`<div class="kn-emp" onclick="openEmp('${esc(no)}')"><div class="ecph" data-cph="${esc(no)}">${esc((e.name||'?').slice(0,2))}</div><div style="min-width:0;flex:1"><b>${esc(e.name||'—')}</b> <span class="mono muted small">${esc(no)}</span> ${statusChip(e.status)} ${typeof unionChip==='function'?unionChip(no):''}<div class="small muted">${orgLine(e)}</div><div class="small muted">${esc(t('join_date'))} ${esc(e.join_date||'—')} · ${esc(t('seniority'))} ${esc(e.leave_unknown?'—':(seniority(e.join_date,e.leave_date)||'—'))}</div></div><span class="small" style="color:var(--accent);white-space:nowrap">👤 ${tt('完整資料','Full profile','ប្រវត្តិពេញ')} ›</span></div>`:'';
+  const empBox=e?`<div class="kn-emp" onclick="openEmp('${esc(no)}')"><div class="ecph" data-cph="${esc(no)}">${esc((e.name||'?').slice(0,2))}</div><div style="min-width:0;flex:1"><b>${esc(e.name||'—')}</b> <span class="mono muted small">${esc(no)}</span> ${statusChip(e.status)} ${typeof unionChip==='function'?unionChip(no):''}<div class="small muted">${orgLine(e)}</div><div class="small muted">${esc(t('join_date'))} ${esc(e.join_date||'—')} · ${esc(t('seniority'))} ${esc(e.leave_unknown?'—':(seniority(e.join_date,e.leave_date)||'—'))}</div></div><span class="small" style="color:var(--accent);white-space:nowrap">👤 ${tt('完整資料','Full profile','ប្រវត្តិពេញ')} ›</span></div><div class="kn-etabs">${KN_TABS.map(x=>`<button class="btn sm" onclick="psjEmpGo('${esc(no)}','${x[0]}')">${x[1]} ${esc(tt.apply(null,x[2]))}</button>`).join('')}</div>`:'';
   return `<section class="kn-sec" data-i="${idx}"><div class="kn-h"><b>${esc(e?(e.name||title):title||'—')}</b><span class="small muted">${idx+1} / ${KN.rows.length}</span></div>${empBox}<dl class="kn-kv">${kv.map(([k,v])=>`<div><dt>${esc(k)}</dt><dd>${esc(v).replace(/\n/g,'<br>')}</dd></div>`).join('')}</dl>${KN.own[idx]?`<button class="btn sm" onclick="knOwn(${idx})">✎ ${tt('在原頁打開／編輯','Open / edit in the page','បើក / កែ')}</button>`:''}</section>`}
  function knPaint(){const db=$('#drawer .kn-db');if(!db)return;db.querySelectorAll('[data-cph]:not(.ph)').forEach(el=>{const no=el.dataset.cph;if(typeof hasPhoto==='function'&&hasPhoto(no)){el.classList.add('ph');photoGet(no).then(d=>{if(d)el.innerHTML=`<img src="${d}" alt="">`})}})}
  const knHi=i=>{try{KN.rows.forEach(r=>r.classList.remove('psj-kn-on'));const r=KN.rows[i];if(r){r.classList.add('psj-kn-on');r.scrollIntoView({block:'nearest'})}}catch(e){}};
@@ -4160,6 +4187,7 @@ tbody tr.psj-kn:hover>td,tbody tr.psj-kn-on>td{background:var(--psj-accent-soft)
   const inModal=x=>!!x.closest('[class*="modal" i],[class*="dialog" i],dialog,[role="dialog"]');
   const mark=()=>{try{doc.querySelectorAll('tbody tr:not(.psj-kn)').forEach(tr=>{if(tr.cells.length>1&&!inModal(tr))tr.classList.add('psj-kn')})}catch(e){}};
   mark();try{new w.MutationObserver(()=>{clearTimeout(doc.__knT);doc.__knT=setTimeout(mark,250)}).observe(doc.body,{childList:true,subtree:true})}catch(e){}
+  hookEmpTop(doc);
   doc.addEventListener('click',e=>{if(KN.bypass||e.button!==0)return;if(w.__acKeynote)return; /* 2026-11-22：分頁自己已有列表 Keynote（HRA Portal／HRA-PAY row-keynote）→ 交給它，避免兩張卡同時跳出 */const tr=e.target.closest&&e.target.closest('tbody tr');if(!tr||tr.cells.length<2||e.target.closest(KN_SKIP)||inModal(tr))return;
    const ownOf=r=>r.hasAttribute('onclick')||[...r.cells].some(c=>c.hasAttribute('onclick'));const own=ownOf(tr);
    e.stopPropagation();e.preventDefault();
@@ -4193,7 +4221,8 @@ tbody tr.psj-kn:hover>td,tbody tr.psj-kn-on>td{background:var(--psj-accent-soft)
  .kn-sec{padding:4px 0 14px;border-bottom:1px dashed var(--line);margin-bottom:12px}
  .kn-h{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:8px;font-size:15px}
  .kn-emp{display:flex;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface-2);margin-bottom:10px;cursor:pointer}
- .kn-emp .ecph{width:42px;height:42px;flex:none}
+ .kn-emp .ecph{width:64px;height:64px;flex:none;border-radius:12px;font-size:18px}
+ .kn-etabs{display:flex;gap:6px;flex-wrap:wrap;margin:-4px 0 10px}
  .kn-kv{display:grid;grid-template-columns:minmax(90px,38%) 1fr;margin:0 0 8px;font-size:13.5px}
  .kn-kv>div{display:contents}
  .kn-kv dt{color:var(--muted);padding:5px 8px 5px 0;border-bottom:1px solid var(--line)}
