@@ -234,7 +234,9 @@ table.t{width:100%;border-collapse:collapse;font-size:13px}
   .rail.open{transform:none;box-shadow:var(--shadow)}
   /* 2026-11-22：手機選單要能上下滑（像 PSJGA／Admin OS）：選單在遮罩上面、自己捲、捲到底不帶動後面的頁面 */
   .rail{z-index:1001;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y}
-  .vs-scrim{z-index:1000!important}
+  /* 2026-11-22 v0.6.4：不用另外一層遮罩（某些手機瀏覽器會把它疊在選單上面 → 選單變灰、點不到）；改由選單自己的陰影把外面變暗，點外面由程式關 */
+  .vs-scrim{display:none!important}
+  .rail.open{box-shadow:0 0 0 100vmax rgba(10,16,22,.38)!important}
   body:has(.rail.open){overflow:hidden}
   .menu-btn{display:grid}
   .top{padding:8px 16px;flex-wrap:wrap}
@@ -706,7 +708,7 @@ table.cover td.ok{background:#E2F0D9}table.cover td.part{background:#FFF2CC}tabl
    drag any export file → auto-detect the report → check against the report totals → store locally
    (IndexedDB) → sync to Google Sheets through PSJHR.gs so phone and PC see the same data. */
 'use strict';
-const APPV='0.6.3';
+const APPV='0.6.4';
 const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';   // PSJHR.gs Web App /exec URL — filled in once the Apps Script is deployed (can also be set in Settings)
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -4076,7 +4078,7 @@ input:not([type=checkbox]):not([type=radio]):not([type=file]),select,.input,.sel
 .field label,.label{font-size:12px!important;margin-bottom:2px!important}
 table{font-size:13px!important}
 table th,table td{padding:6px 8px!important;line-height:1.35!important}
-.tab,.tabs>*,.tab-bar>*,.tabbar>*,.subtabs>*,[role=tablist]>*{padding:7px 10px!important;font-size:13px!important;white-space:nowrap!important}
+.tab,.tabs>*,.tab-bar>*,.tabbar>*,.subtabs>*,[role=tablist]>*{padding:7px 10px!important;font-size:13px!important;white-space:nowrap!important;flex-shrink:0!important;min-width:max-content!important}
 .tabs,.tab-bar,.tabbar,.subtabs,.sub-tabs,[role=tablist]{flex-wrap:nowrap!important;overflow-x:auto!important;scrollbar-width:none!important;gap:2px!important}
 .kpis,.kpi-grid,.stats{gap:8px!important;margin-bottom:10px!important}
 .kpi,.stat,.kpi-card,.summary-chip{padding:8px 10px!important;min-height:0!important}
@@ -4455,7 +4457,7 @@ async function init(){
  let cardDone;CARD_READY=new Promise(r=>cardDone=r);
  await IDB.open(); bgLoad(); await loadDB(); cardDone(); setTimeout(empIndexSave,1200); document.documentElement.dataset.theme='light'; document.body.classList.toggle('show-pii',SHOW_PII); $('#piiBtn').textContent=SHOW_PII?'👁️':'🙈';
  $$('#langSw button').forEach(b=>b.onclick=()=>setLang(+b.dataset.l)); $('#piiBtn').onclick=()=>togglePii(!SHOW_PII);
- $('#menuBtn').onclick=()=>$('#rail').classList.toggle('open'); $('#scrim').onclick=closeDrawer; document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();else if(!$('#drawer').hidden&&PROF_NO&&!/INPUT|TEXTAREA|SELECT/.test((document.activeElement||{}).tagName||'')){if(e.key==='ArrowRight')empStep(1);else if(e.key==='ArrowLeft')empStep(-1)}});
+ $('#menuBtn').onclick=()=>$('#rail').classList.toggle('open'); (()=>{let at=0;new MutationObserver(()=>{if($('#rail').classList.contains('open'))at=Date.now()}).observe($('#rail'),{attributes:true,attributeFilter:['class']});document.addEventListener('click',e=>{const r=$('#rail');if(innerWidth>860||!r.classList.contains('open')||Date.now()-at<450)return;if(e.target.closest&&e.target.closest('#rail,#menuBtn'))return;e.preventDefault();e.stopPropagation();r.classList.remove('open')},true)})(); /* v0.6.4：手機點選單外面就關（取代遮罩） */ $('#scrim').onclick=closeDrawer; document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();else if(!$('#drawer').hidden&&PROF_NO&&!/INPUT|TEXTAREA|SELECT/.test((document.activeElement||{}).tagName||'')){if(e.key==='ArrowRight')empStep(1);else if(e.key==='ArrowLeft')empStep(-1)}});
  $('#gsearch').oninput=e=>gsearch(e.target.value); document.addEventListener('click',e=>{if(!e.target.closest('.search'))$('#sres').hidden=true});
  $('#fileIn').onchange=e=>{const fs=[...e.target.files];if(fs.length)handleFiles(fs);e.target.value=''};
  if(CARD){$('#page').innerHTML='';return}   /* 員工卡模式（Admin OS 小視窗）：只要員工資料，不畫首頁、不跑同步，開得快、不卡畫面 */
