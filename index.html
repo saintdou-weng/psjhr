@@ -1989,13 +1989,17 @@ function groupedBars(series,labels,o={}){   // series: [{name,vals,color}]
 const kpi=(l,v,unit,d,cls)=>`<div class="kpi ${cls||''}"><div class="l">${l}</div><div class="v num">${v}${unit?`<small>${unit}</small>`:''}</div>${d?`<div class="d">${d}</div>`:''}</div>`;
 function kpisHTML(k,R){const A=agg(k,R);return `<div class="kpis">${PM[k].map(m=>kpi(esc(ML(m)),fmtM(A[m[0]],m[3]))).join('')}</div>`}
 function bucketTable(k,R){
- const B=buckets(R); if(B.length<2)return '';
+ /* 2026-11-23 Paul：選「月」不要列出每一天——改成列出各個月份（新的在上，◀＝目前這個月），每月一列是那個月的總和；選「年」就列各年。點一列跳到那一期。週／日照舊列每天。 */
+ let B=buckets(R),cur='',plist=false; const span=Math.round((R.to-R.from)/864e5)+1;
+ try{ if(!R.all&&span>=27&&span<=400){ const isY=span>62, pk=[...periodKeys(k)].filter(x=>x.length===(isY?4:7)); cur=isY?String(R.from.getFullYear()):monthKey(R.from); if(!pk.includes(cur))pk.push(cur);
+   const ks=pk.sort().slice(isY?-12:-36); if(ks.length>=1){ B=ks.map(x=>{const y=+x.slice(0,4),m=isY?0:+x.slice(5,7)-1;return {key:x,label:x,from:new Date(y,m,1),to:isY?new Date(y,11,31):new Date(y,m+1,0)}}); plist=true; } } }catch(e){B=buckets(R);plist=false}
+ if(B.length<2&&!plist)return '';
  const rows=B.map(b=>({b,A:agg(k,b)})); const M=PM[k]; const first=M[0][0];
  let h=`<div class="panel mt"><h2>${tt('分期間','By period')} · ${esc(ML(M[0]))}</h2>`+barChart(rows.map(r=>r.A[first]),rows.map(r=>r.b.label),{full:1,dec:M[0][3]==='n1'?1:0,onclick:i=>`drill('${k}','${B[i].key.length===4?'Y':B[i].key.length===7?'M':'D'}','${B[i].key.length===4?B[i].key+'-01-01':B[i].key.length===7?B[i].key+'-01':B[i].key}','summary')`});
  h+=`<div class="tbl-wrap" style="margin-top:10px"><table class="t list"><thead><tr><th>${tt('期間','Period')}</th>${M.map(m=>`<th class="r">${esc(ML(m))}</th>`).join('')}</tr></thead><tbody>`;
- rows.forEach(({b,A})=>{const key=b.key;const pt=key.length===4?'Y':key.length===7?'M':'D';const anchor=key.length===4?key+'-01-01':key.length===7?key+'-01':key;
-  h+=`<tr class="click" onclick="drill('${k}','${pt}','${anchor}','summary')"><td class="per">${esc(labelL(b.label))}</td>${M.map(m=>`<td class="r">${fmtM(A[m[0]],m[3])}</td>`).join('')}</tr>`});
- const T2=agg(k,R); h+=`<tr style="font-weight:600"><td>${esc(t('total'))}</td>${M.map(m=>`<td class="r">${fmtM(T2[m[0]],m[3])}</td>`).join('')}</tr>`;
+ (plist?rows.slice().reverse():rows).forEach(({b,A})=>{const key=b.key;const pt=key.length===4?'Y':key.length===7?'M':'D';const anchor=key.length===4?key+'-01-01':key.length===7?key+'-01':key;
+  h+=`<tr class="click" onclick="drill('${k}','${pt}','${anchor}','summary')"${plist&&key===cur?' style="background:rgba(30,64,175,.08)"':''}><td class="per" style="white-space:nowrap">${plist&&key===cur?'◀ ':''}${esc(plist?b.label:labelL(b.label))}</td>${M.map(m=>`<td class="r">${fmtM(A[m[0]],m[3])}</td>`).join('')}</tr>`});
+ if(!plist){const T2=agg(k,R); h+=`<tr style="font-weight:600"><td>${esc(t('total'))}</td>${M.map(m=>`<td class="r">${fmtM(T2[m[0]],m[3])}</td>`).join('')}</tr>`;}
  return h+'</tbody></table></div></div>';
 }
 
