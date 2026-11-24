@@ -3929,6 +3929,7 @@ window.addEventListener('hashchange',()=>{const m=location.hash.match(/^#salstru
   'x-pay-sen':['pay','seniority.html',['半年年資補償','Seniority indemnity','ប្រាក់អតីតភាព']],
   'x-pay-nssf':['pay','nssf.html',['NSSF 社保','NSSF','ប.ស.ស.']],
   'x-hra-welfare':['hra','ac_hra_welfare_suggestion_v1.html',['福利／意見箱','Welfare / suggestions','សុខុមាលភាព / យោបល់']],
+  'x-hra-safety':['hra','ac_hra_safety_v1.html',['職安衛／員工關係','Safety & employee relations','សុវត្ថិភាព / ទំនាក់ទំនងបុគ្គលិក'],['消防・工傷・急救・委員會・離職面談','Fire drill · injury · first aid · committees · exit interview','សមយុទ្ធ · គ្រោះថ្នាក់ · សង្គ្រោះបឋម · គណៈកម្មាធិការ · សម្ភាសន៍']],
   'x-aud-rules':['aud','VRT_Factory_Rules_2027.html',['廠規手冊 2027','Factory rules 2027','បទបញ្ជាផ្ទៃក្នុង ២០២៧'],['廠規・文件・法律','Rules / DCC / law','បទបញ្ជា / ឯកសារ / ច្បាប់']],
   'x-aud-dcc':['aud','VRT_DCC_v2.html',['文件管控 DCC','Document control (DCC)','គ្រប់គ្រងឯកសារ DCC']],
   'x-aud-ext':['aud','MSG_Processor.html',['外來文件管制表','External documents','ឯកសារពីខាងក្រៅ']],
@@ -3960,6 +3961,7 @@ window.addEventListener('hashchange',()=>{const m=location.hash.match(/^#salstru
   ['x-hra-mat','🤱','g_people',['x-hra-mat']],
   ['x-hra-man','👷','g_people',['x-hra-man']],
   ['x-hra-cert','🛂','g_people',['x-hra-cert']],
+  ['x-hra-safety','🦺','g_people',['x-hra-safety']],
   ['x-pay-warn','📛','g_people',['x-pay-warn']],
   ['att','🕒','g_time',['att','attexc','x-hra-att']],
   ['leave','📝','g_time',['leave','x-hra-leave']],
@@ -3981,7 +3983,7 @@ window.addEventListener('hashchange',()=>{const m=location.hash.match(/^#salstru
   ['sync','🔄','g_hub',['sync']],['reports','📑','g_hub',['reports']],['jobcode','🏷️','g_hub',['jobcode']],
   ['settings','⚙️','g_sys',['settings']],
  ];
- const ICO={'x-pay-sum':'💼','x-hra-bi':'📈','x-hra-home':'🏥','x-pay-home':'💼','x-pay-emp':'🗂️','x-pay-transfer':'🔄','x-hra-onb':'🚪','x-hra-contract':'📋','x-hra-att':'🕐','x-hra-leave':'🧾','x-hra-cal':'🇰🇭','x-pay-salary':'📐','x-pay-payroll':'💵','x-pay-meal':'🍱','x-pay-sen':'🌿','x-pay-nssf':'🛡️','x-hra-welfare':'🤝','attexc':'⚠️','x-aud-rules':'📕','x-aud-dcc':'🗄','x-aud-ext':'📧','x-aud-law':'⚖️','x-aud-train':'🎓','salstruct':'📐','x-adm-labor':'📊'};
+ const ICO={'x-pay-sum':'💼','x-hra-bi':'📈','x-hra-home':'🏥','x-pay-home':'💼','x-pay-emp':'🗂️','x-pay-transfer':'🔄','x-hra-onb':'🚪','x-hra-contract':'📋','x-hra-att':'🕐','x-hra-leave':'🧾','x-hra-cal':'🇰🇭','x-hra-safety':'🦺','x-pay-salary':'📐','x-pay-payroll':'💵','x-pay-meal':'🍱','x-pay-sen':'🌿','x-pay-nssf':'🛡️','x-hra-welfare':'🤝','attexc':'⚠️','x-aud-rules':'📕','x-aud-dcc':'🗄','x-aud-ext':'📧','x-aud-law':'⚖️','x-aud-train':'🎓','salstruct':'📐','x-adm-labor':'📊'};
  const HUB_OF={};NAV.forEach(n=>n[3].forEach(k=>{if(!HUB_OF[k])HUB_OF[k]=n[0]}));
  /* MODS 留著全部頁（圖示查得到），選單改用 NAV */
  const icoOld={};MODS.forEach(m=>icoOld[m[0]]=m[1]);
