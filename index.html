@@ -2258,6 +2258,21 @@ function raiseLogHTML(){const H=HPD();const ms=[...new Set([...Object.keys(H.pay
    有 HRA-PAY 實發就照實發欄位（K 底薪類、Y 全勤、X 住宿交通、N $12、AE 加班、S 預支、AH NSSF、AJ 薪資稅、AK 實發）；沒有的欄位不硬算 */
 /* v0.2.21 護理費：讀 AC HRA Portal 產假模組（tool 'maternity'，type 'nursing'）的核可紀錄 */
 let NUR_P=null;
+/* 離職面談（2026-11-24 Paul）：HRA Portal 入離職頁填的離職面談（VRT-F-HR02），在員工頁「到職與年資」下面顯示離職原因。
+   資料：HRA 雲端 tool safety 的 _kind:'exit'（和護理費一樣用 smartManifest／smartBucket 讀），本機有 HRA Portal 資料時用比較新的那一份。 */
+let EXIT_P=null;
+function exitRec(no){const id=String(no).trim();let best=null;const pick=r=>{if(!r||r._kind!=='exit'||String(r.empId||'').trim()!==id)return;if(!best||String(r.updatedAt||'')>String(best.updatedAt||''))best=r};
+ ((HPD().exit||{}).rows||[]).forEach(pick);try{(JSON.parse(localStorage.getItem('ac_hra_safety_v1')||'{}').recs||[]).forEach(pick)}catch(e){}return best&&!best.deleted&&!best._deleted?best:null}
+function hraExitEnsure(force){if(EXIT_P&&!force)return EXIT_P;EXIT_P=(async()=>{try{const H=HPD();const m=await fetch(SAL_URL+'?action=smartManifest&tool=safety').then(r=>r.json());const d=m.data||m;const ks=Object.keys(d.hashes||{});const sig=ks.sort().map(k=>d.hashes[k]).join(',');if(H.exit&&H.exit.sig===sig)return 0;
+  const rows=[];let i=0;async function w(){while(i<ks.length){const k=ks[i++];try{const j=await fetch(SAL_URL+'?action=smartBucket&tool=safety&bucket='+encodeURIComponent(k)).then(r=>r.json());for(const r of (((j.data||j).records)||[])){if(String(r._kind||'')!=='exit')continue;rows.push({_kind:'exit',_k:r._k,empId:String(r.empId||'').trim(),name:r.name||'',date:r.date||'',lastDay:r.lastDay||'',reasons:Array.isArray(r.reasons)?r.reasons:String(r.reasons||'').split(/[;,]\s*/).filter(Boolean),other:r.other||'',suggestion:r.suggestion||'',mgmt:r.mgmt||'',rehire:r.rehire||'',interviewer:r.interviewer||'',updatedAt:r.updatedAt||'',deleted:!!(r.deleted||r._deleted)})}}catch(e){}}}
+  await Promise.all([w(),w(),w()]);H.exit={sig,rows,at:nowStamp()};HP_DIRTY=true;persist();if(PROF_NO&&!$('#drawer').hidden)openEmp(PROF_NO,true);return 1}catch(e){console.warn('exit',e);return 0}})();return EXIT_P}
+function exitBlock(no,ld,H3,K,dv){let h='';const xr=exitRec(no);hraExitEnsure();if(xr||ld){const XU='https://saintdou-weng.github.io/ac-hra-portal/ac_hra_onboarding_v3.html#exit='+encodeURIComponent(no);
+   h+=H3('🚪','離職面談／離職原因','Exit interview / reasons','សម្ភាសន៍លាលែង / មូលហេតុ',xr?esc(xr.date||''):'');
+   if(xr){const chips=(xr.reasons||[]).map(c=>`<span style="display:inline-block;background:#f3e8ff;color:#6b21a8;border-radius:999px;padding:2px 9px;margin:2px;font-size:12px">${esc(exitReason(c))}</span>`).join('')||'—';
+    h+=`<div class="kv">${K('離職原因','Reasons','មូលហេតុ',chips)}${xr.other?K('其他說明','Other reason','មូលហេតុផ្សេង',esc(xr.other)):''}${K('最後上班日','Last day','ថ្ងៃចុងក្រោយ',dv(xr.lastDay))}${K('面談人','Interviewer','អ្នកសម្ភាសន៍',esc(xr.interviewer||'—'))}${xr.suggestion?K('對公司的建議','Suggestion','សំណើ',esc(xr.suggestion)):''}${xr.mgmt?K('主管意見','Management comments','យោបល់អ្នកគ្រប់គ្រង',esc(xr.mgmt)):''}${K('可再僱用','Rehire?','ជ្រើសរើសម្តងទៀត?',xr.rehire==='yes'?tt('✅ 可以','✅ Yes','✅ បាន'):xr.rehire==='no'?tt('⛔ 不建議','⛔ No','⛔ មិនបាន'):'—')}</div>`}
+   else h+=`<div class="small muted" style="margin:2px 0 6px">${tt('還沒有離職面談紀錄','No exit interview yet','មិនទាន់មានសម្ភាសន៍')}</div>`;
+   h+=`<a class="btn sm" href="${XU}" target="_blank" rel="noopener">📝 ${xr?tt('修改離職面談','Edit exit interview','កែ'):tt('填離職面談','Fill exit interview','បំពេញ')}</a>`}return h}
+function exitReason(c){const R=window.VRTExit&&VRTExit.RG;if(R)for(const g of R)for(const x of g[2])if(x[0]===c)return c+' '+tt(x[1],x[2],x[3]);return c}
 function nurRows(no){const N=(HPD().nur||{}).rows||{};return (N[String(no)]||[]).slice().sort((a,b)=>String(b.payMonth).localeCompare(String(a.payMonth)))}
 function hraNurEnsure(force){if(NUR_P&&!force)return NUR_P;NUR_P=(async()=>{try{const H=HPD();const m=await fetch(SAL_URL+'?action=smartManifest&tool=maternity').then(r=>r.json());const d=m.data||m;const ks=Object.keys(d.hashes||{});const sig=ks.sort().map(k=>d.hashes[k]).join(',');if(H.nur&&H.nur.sig===sig)return 0;
   const rows={};let i=0;async function w(){while(i<ks.length){const k=ks[i++];try{const j=await fetch(SAL_URL+'?action=smartBucket&tool=maternity&bucket='+encodeURIComponent(k)).then(r=>r.json());for(const r of (((j.data||j).records)||[])){if(String(r.type||'')!=='nursing'||r._deleted)continue;const id=String(r.cardId||r.empId||r.id||'').trim();if(!id)continue;(rows[id]=rows[id]||[]).push({payMonth:String(r.payMonth||'').slice(0,7),amount:+r.amount||0,monthNo:r.monthNo||'',babyDob:r.babyDob||'',startMonth:r.startMonth||''})}}catch(e){}}}
@@ -2541,6 +2556,7 @@ function openEmp(no,keep){
   h+=`<div class="kv">${kv(t('join_date'),dv(e.join_date))}${kv(t('leave_date'),dv(e.leave_date||d.leave_date))}${kv(t('seniority'),esc(e.leave_unknown?tt('— 離職日不明','— leave date unknown'):(seniority(e.join_date,e.leave_date)||'—')+(e.leave_est?tt('（推定到 ','(est. to ')+e.leave_est+tt('）',')'):'')))}${K('加保日（NSSF）','Insured from (NSSF)','ថ្ងៃចុះ ប.ស.ស',dv(d.ins_date))}
   ${K('退保日','Insurance ended','ថ្ងៃឈប់ ប.ស.ស',dv(d.ins_end))}${K('累計年資（BEST）','Accumulated seniority (BEST)','អតីតភាពសរុប (BEST)',d.sen_acc!=null&&d.sen_acc!==''?esc(d.sen_acc)+' '+tt('年','yrs','ឆ្នាំ'):'—')}
   ${K('實際年資（BEST）','Actual seniority (BEST)','អតីតភាពពិត (BEST)',d.sen_act!=null&&d.sen_act!==''?esc(d.sen_act)+' '+tt('年','yrs','ឆ្នាំ'):'—')}${K('扣抵年資','Deducted seniority','អតីតភាពកាត់',d.sen_deduct!=null&&d.sen_deduct!==''?esc(d.sen_deduct):'—')}</div>`;
+  h+=exitBlock(no,e.leave_date||d.leave_date,H3,K,dv);
   h+=H3('⚙️','上班與計薪設定','Shift & pay settings','វេន និងការកំណត់ប្រាក់ខែ');
   h+=`<div class="kv">${K('上班班別','Shift','វេនការងារ',tv(d.shift))}${K('週休類別','Rest days','ថ្ងៃឈប់ប្រចាំសប្ដាហ៍',tv(d.rest_type))}${K('薪資類別','Wage type','ប្រភេទប្រាក់ខែ',tv(d.wage_type))}${K('費用類別','Labour cost','ប្រភេទចំណាយពលកម្ម',tv(d.cost_type))}
   ${K('核算加班工時','Calculate OT','គណនាម៉ោងថែម',yn(d.cal_ot))}${K('平日加班費另記','Record OT pay separately','កត់ប្រាក់ថែមម៉ោងដាច់ដោយឡែក',yn(d.ot_record))}${K('請領各項津貼','Claims allowances','ទទួលប្រាក់បន្ថែម',yn(d.allow_claim))}${K('接送津貼','Pick-up allowance','ប្រាក់ដឹកជញ្ជូន',yn(d.pickup))}
@@ -2597,7 +2613,7 @@ function openEmp(no,keep){
   h+=H3('📘','訓練紀錄','Training','ការបណ្ដុះបណ្ដាល')+(tr.length?pagedHTML('tr',tr,10,part=>`<div class="tbl-wrap"><table class="t"><tbody>${part.map(x=>`<tr><td class="mono small">${dv(x.from)}</td><td class="mono small">${dv(x.to)}</td><td>${esc(x.name||'')}</td><td>${esc(x.note||'')}</td></tr>`).join('')}</tbody></table></div>`):`<p class="small muted">${tt('還沒匯入（BEST Staff data 的這一頁要逐人讀取，尚未做）。','Not imported yet (this BEST Staff data page has to be read person by person).','មិនទាន់នាំចូល (ទំព័រនេះក្នុង BEST ត្រូវអានម្នាក់ៗ)។')}</p>`);
   h+=H3('💼','工作經歷','Work experience','បទពិសោធន៍ការងារ')+(xp.length?pagedHTML('xp',xp,10,part=>`<div class="tbl-wrap"><table class="t"><tbody>${part.map(x=>`<tr><td class="mono small">${dv(x.from)}</td><td class="mono small">${dv(x.to)}</td><td>${esc(x.company||'')}</td><td>${esc(x.position||'')}</td></tr>`).join('')}</tbody></table></div>`):`<p class="small muted">${tt('還沒匯入（BEST Staff data 的這一頁要逐人讀取，尚未做）。','Not imported yet (this BEST Staff data page has to be read person by person).','មិនទាន់នាំចូល (ទំព័រនេះក្នុង BEST ត្រូវអានម្នាក់ៗ)។')}</p>`);
  }
- if(T0==='hr'){h+=xrProfHTML(no)}
+ if(T0==='hr'){h+=exitBlock(no,e.leave_date||d.leave_date,H3,K,dv);h+=xrProfHTML(no)}
  if(T0==='note'){
   h+=H3('🗒️','備註（雲端同步）','Notes (synced)','កំណត់ចំណាំ (សមកាលកម្ម)')+`<textarea class="inp" id="empNote" rows="5" style="width:100%">${esc(note)}</textarea><div style="display:flex;gap:8px;margin-top:8px"><button class="btn pri sm" onclick="cloudNote('${esc(no)}',$('#empNote').value);toast('${esc(tt('已儲存','Saved'))}')">${tt('儲存備註','Save note')}</button><a class="btn sm" href="#emp" onclick="S('emp').q='${esc(no)}';S('emp').status='';closeDrawer()">${tt('在員工頁開啟','Open in Employees')}</a></div>`;
  }
@@ -4482,6 +4498,7 @@ async function init(){
 init();
 </script><!-- VRT swipe-tabs：左右滑動（手指／滑鼠拖曳）切換分頁，只聽手勢、不改資料 -->
 <script src="https://saintdou-weng.github.io/ac-admin/shared/swipe-tabs.js" defer></script>
+<script src="https://saintdou-weng.github.io/ac-hra-portal/shared/exit-interview.js?v=2" defer></script>
 <!-- 2026-11-22 介面動效（外掛；拿掉這一行就恢復原樣）：懸停回饋／聚光燈／3D 傾斜／導覽列毛玻璃／回到頂部 -->
 <script src="ux_motion.js?v=3" data-btn=".btn,.icon-btn" data-cards=".sal-y,button.kpi" data-grid=".sal-years,.kpis" data-nav=".top" data-skip=".seg,.sal-tabs,.hub-tabs,.rail,#nav,table,.pnav,.lang,.kn-dh,.dh" defer></script>
 <!-- 2026-11-22 主頁摘要輪播（同 Admin OS 首頁瀏覽方式：分類標籤、彩色卡、左右滑、每格可點進頁面） -->
