@@ -4243,8 +4243,12 @@ tbody tr.psj-kn:hover>td,tbody tr.psj-kn-on>td{background:var(--psj-accent-soft)
  const knHi=i=>{try{KN.rows.forEach(r=>r.classList.remove('psj-kn-on'));const r=KN.rows[i];if(r){r.classList.add('psj-kn-on');r.scrollIntoView({block:'nearest'})}}catch(e){}};
  let KN_IO=null;
  function knOpen(i){KN.i=Math.max(0,Math.min(KN.rows.length-1,i));const tr=KN.rows[KN.i];if(!tr)return;knHi(KN.i);
-  openDrawer(`<div class="dh kn-dh"><div style="flex:1;min-width:0"><b>🔎 ${tt('重點資訊','Key info','ព័ត៌មានសំខាន់')}</b> <span class="small muted">${esc(t(KN.fr&&KN.fr.dataset.k||CUR))}</span></div><div style="display:flex;gap:4px;align-items:center"><button class="btn sm" onclick="knStep(-1)">◀</button><button class="btn sm" onclick="knStep(1)">▶</button><button class="btn sm" onclick="closeDrawer()">✕</button></div></div><div class="db kn-db">${knSec(tr,KN.i)}<div class="kn-more small muted"></div></div>`);
+  openDrawer(`<div class="dh kn-dh"><div style="flex:1;min-width:0"><b>🔎 ${tt('重點資訊','Key info','ព័ត៌មានសំខាន់')}</b> <span class="small muted">${esc(t(KN.fr&&KN.fr.dataset.k||CUR))}</span></div><div style="display:flex;gap:4px;align-items:center"><button class="btn sm" onclick="knStep(-1)" title="上一筆">▲</button><button class="btn sm" onclick="knStep(1)" title="下一筆">▼</button><button class="btn sm" onclick="closeDrawer()">✕</button></div></div><div class="db kn-db">${knSec(tr,KN.i)}<div class="kn-more small muted"></div></div>`);
   const db=$('#drawer .kn-db'),more=db.querySelector('.kn-more');let last=KN.i;
+  /* 2026-11-25 Paul：往上滑也能回到前面幾筆 */
+  let first=KN.i;const upH=()=>{let u=db.querySelector('.kn-up');if(first>0){if(!u){u=document.createElement('div');u.className='kn-up';db.insertBefore(u,db.firstChild)}u.textContent=tt('▲ 往上滑看前面 ','▲ Scroll up for ','▲ ')+first+tt(' 筆',' earlier','')}else if(u)u.remove()};
+  const pre=()=>{if(first<=0)return false;const s0=db.querySelector('.kn-sec');if(!s0)return false;const h0=db.scrollHeight;first--;s0.insertAdjacentHTML('beforebegin',knSec(KN.rows[first],first));knPaint();db.scrollTop+=db.scrollHeight-h0;upH();return true};upH();
+  db.addEventListener('scroll',()=>{if(db.scrollTop<200&&first>0)pre()},{passive:true});
   const label=()=>{more.textContent=last<KN.rows.length-1?tt('⬇ 繼續往下捲：下一筆','⬇ Keep scrolling for the next','⬇ បន្តរំកិល'):tt('已經是最後一筆','That was the last one','ចុងក្រោយ')};
   const add=()=>{if(last>=KN.rows.length-1)return false;last++;more.insertAdjacentHTML('beforebegin',knSec(KN.rows[last],last));knPaint();label();return true};
   label();knPaint();if(KN_IO)KN_IO.disconnect();
@@ -4291,7 +4295,7 @@ tbody tr.psj-kn:hover>td,tbody tr.psj-kn-on>td{background:var(--psj-accent-soft)
  .hub-tabs a.hub-ext{margin-left:auto;color:var(--muted);font-weight:500}
  .fr-chip{font-size:11px;vertical-align:middle;margin-left:4px}
  .kn-dh{align-items:center!important;padding:10px 14px!important}
- .kn-sec{padding:4px 0 14px;border-bottom:1px dashed var(--line);margin-bottom:12px}
+ .kn-sec{padding:4px 0 14px;border-bottom:3px dashed #94a3b8;margin-bottom:14px}.kn-up{text-align:center;font-size:12px;color:var(--muted);padding:4px 0 10px;border-bottom:2px dashed var(--line);margin-bottom:10px}
  .kn-h{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:8px;font-size:15px}
  .kn-emp{display:flex;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface-2);margin-bottom:10px;cursor:pointer}
  .kn-emp .ecph{width:64px;height:64px;flex:none;border-radius:12px;font-size:18px}
