@@ -62,6 +62,7 @@ a{color:var(--accent)}
 
 .main{min-width:0;display:flex;flex-direction:column}
 .top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:10px 24px}
+/* 2026-11-25 Paul：手機上還是有點閃 → 手機的頂端列不用毛玻璃（捲動時每一格都要重算模糊），改成實色 */@media (max-width:900px),(pointer:coarse){.top{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--bg)}}
 .menu-btn{display:none}
 .search{position:relative;flex:1;max-width:520px;min-width:0}
 .search input{width:100%;padding:8px 12px 8px 34px;border:1px solid var(--line);border-radius:7px;background:var(--surface)}
@@ -2860,9 +2861,22 @@ function renderSettings(){
  h+=`<div class="panel mt"><h2>${tt('關於','About')}</h2><div class="kv"><div><dt>${tt('系統','System')}</dt><dd>VRT HR · PSJHR v${APPV}</dd></div><div><dt>${tt('來源系統','Source system')}</dt><dd>${tt('BEST 人事管理系統','BEST HR system','ប្រព័ន្ធ HR BEST')}（D:\\per\\per.exe）· ${tt('唯讀','read-only')}</dd></div><div><dt>${tt('相關平台','Related')}</dt><dd><a href="https://saintdou-weng.github.io/ac-hra-portal/" target="_blank" rel="noopener">AC HRA Portal</a></dd></div><div><dt>${tt('操作手冊','Manual')}</dt><dd><a href="https://claude.ai/code/artifact/ce562c4b-4a32-4a67-9e46-20917a9321c0" target="_blank" rel="noopener">${tt('人事管理系統操作手冊','HR system manual')} ↗</a></dd></div></div></div>`;
  return h;
 }
-const TINTS=[['white','#F0F2F5','白色','White','ពណ៌ស'],['green','#D3EADB','淡綠','Light green','បៃតងខ្ចី'],['yellow','#F0E4BC','淡黃','Light yellow','លឿងខ្ចី'],['blue','#CFE0F2','淡藍','Light blue','ខៀវខ្ចី'],['pink','#F0D4DF','粉紅','Pink','ផ្កាឈូក'],['beige','#E6DACA','米色','Beige','ពណ៌ក្រែម'],['navy','#13274A','深藍','Navy','ខៀវចាស់'],['purple','#2B1A4A','深紫','Purple','ស្វាយចាស់']];
-const DARK_TINTS={navy:1,purple:1};
-function applyTint(k){const d=document.documentElement;if(!k||k==='white')delete d.dataset.tint;else d.dataset.tint=k;if(DARK_TINTS[k])d.dataset.dark='1';else delete d.dataset.dark}
+/* 2026-11-25 Paul：PSJHR 的調色盤顏色太少（只有 8 色）、卡片要比背景深一點 →
+   顏色跟其他平台的共用調色盤一樣多（20 色）；每個顏色的卡片底（--surface）都算成「比頁面底色深一點」：
+   淺色系＝底色再深 5%，深色系＝底色再深 28%（字是淺色）。舊的 navy／purple 存檔照樣認得。 */
+const TINTS=[['white','#EDF0F3','白色','White','ពណ៌ស'],['ivory','#F5EFDC','象牙','Ivory','ភ្លុក'],['beige','#E6DACA','米色','Beige','ពណ៌ក្រែម'],['yellow','#F0E4BC','淡黃','Light yellow','លឿងខ្ចី'],['orange','#F7D9B5','淡橘','Light orange','ទឹកក្រូចខ្ចី'],
+ ['pink','#F0D4DF','粉紅','Pink','ផ្កាឈូក'],['lpurple','#DCD3F2','淡紫','Light purple','ស្វាយខ្ចី'],['blue','#CFE0F2','淡藍','Light blue','ខៀវខ្ចី'],['green','#D3EADB','淡綠','Light green','បៃតងខ្ចី'],['grey','#E1E5EA','淺灰','Light grey','ប្រផេះខ្ចី'],
+ ['dark','#1B1F27','黑色','Black','ខ្មៅ'],['navy','#13274A','深藍','Navy','ខៀវចាស់'],['purple','#2B1A4A','深紫','Purple','ស្វាយចាស់'],['dgreen','#143026','墨綠','Dark green','បៃតងចាស់'],['wine','#3A1820','酒紅','Wine','ក្រហមស្រា'],
+ ['brown','#33251C','深咖啡','Brown','ត្នោតចាស់'],['slate','#262E38','石板灰','Slate','ប្រផេះថ្ម'],['teal','#123437','深青','Teal','ខៀវបៃតងចាស់'],['olive','#2C301A','橄欖','Olive','អូលីវ'],['midnight','#101830','午夜藍','Midnight','ខៀវពាក់កណ្ដាលអធ្រាត្រ']];
+const DARK_TINTS={dark:1,navy:1,purple:1,dgreen:1,wine:1,brown:1,slate:1,teal:1,olive:1,midnight:1};
+function tintCSS(){if(document.getElementById('tintGen'))return;const hx=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)),mx=(a,b,t)=>'#'+a.map((v,i)=>Math.round(v+(b[i]-v)*t).toString(16).padStart(2,'0')).join(''),K=[0,0,0],W=[255,255,255];
+ let c='';TINTS.forEach(([k,h])=>{const b=hx(h);if(DARK_TINTS[k])c+=`:root[data-tint="${k}"]{--bg:${h}!important;--surface:${mx(b,K,.28)}!important;--surface-2:${mx(b,K,.18)}!important;--sunk:${mx(b,K,.40)}!important;--line:${mx(b,W,.20)}!important;--line-2:${mx(b,W,.13)}!important}`;
+  else c+=`:root[data-tint="${k}"]{--bg:${h}!important;--surface:${mx(b,K,.05)}!important;--surface-2:${mx(b,K,.08)}!important;--sunk:${mx(b,K,.12)}!important;--line-2:${mx(b,K,.15)}!important}`;});
+ /* 沒選顏色（白色）：淺色模式卡片比底色深一點；系統深色模式也一樣（卡片比底色深） */
+ c+='@media (prefers-color-scheme: light){:root:not([data-tint]):not([data-theme="dark"]){--surface:#E2E6EA;--surface-2:#DCE1E6;--sunk:#D2D8DE}}:root[data-theme="light"]:not([data-tint]){--surface:#E2E6EA;--surface-2:#DCE1E6;--sunk:#D2D8DE}';
+ c+='@media (prefers-color-scheme: dark){:root:not([data-theme="light"]):not([data-tint]){--bg:#151E27;--surface:#0E141A;--surface-2:#121A22;--sunk:#0A0F14}}:root[data-theme="dark"]:not([data-tint]){--bg:#151E27;--surface:#0E141A;--surface-2:#121A22;--sunk:#0A0F14}';
+ const st=document.createElement('style');st.id='tintGen';st.textContent=c;document.head.appendChild(st)}
+function applyTint(k){tintCSS();const d=document.documentElement;if(!k||k==='white')delete d.dataset.tint;else d.dataset.tint=k;if(DARK_TINTS[k])d.dataset.dark='1';else delete d.dataset.dark}
 function setTint(k){LS.set('tint',k);applyTint(k);const p=$('#tintPop');if(p)p.remove();if(CUR==='settings')rerender();toast(tt('背景顏色已記住','Background colour saved','បានរក្សាទុកពណ៌ផ្ទៃខាងក្រោយ'))}
 function tintSwHTML(){const cur=LS.get('tint','white');return `<div class="tint-row">${TINTS.map(([k,c,z,en,km])=>`<div><div class="tint-sw ${cur===k?'on':''}" style="background:${c}${DARK_TINTS[k]?';color:#fff':''}" onclick="setTint('${k}')" title="${esc(tt(z,en,km))}">${cur===k?'✓':''}</div><div class="tint-lbl">${esc(tt(z,en,km))}</div></div>`).join('')}</div>`+bgCtlHTML()}
 function tintPop(ev){ev&&ev.stopPropagation();const old=$('#tintPop');if(old){old.remove();return}const d=document.createElement('div');d.id='tintPop';d.className='tint-pop';d.innerHTML=`<div style="width:100%;font-weight:600;font-size:13px">🎨 ${tt('背景顏色','Background colour','ពណ៌ផ្ទៃខាងក្រោយ')}</div>`+tintSwHTML();d.onclick=e=>e.stopPropagation();document.body.appendChild(d);setTimeout(()=>document.addEventListener('click',()=>{const p=$('#tintPop');if(p)p.remove()},{once:true}),0)}
@@ -4529,5 +4543,5 @@ init();
 <script src="https://saintdou-weng.github.io/ac-admin/shared/psj-keynote.js" defer></script>
 <script src="https://saintdou-weng.github.io/ac-admin/shared/vrt-shell.js" defer></script>
 <!-- 🎵 放鬆音樂 ON/OFF 小開關（各平台共用 PSJERP/music.js，預設關） -->
-<script src="https://saintdou-weng.github.io/PSJERP/music.js?v=2.16.0" defer></script>
+<script src="https://saintdou-weng.github.io/PSJERP/music.js?v=2.18.0" defer></script>
 </body></html>
