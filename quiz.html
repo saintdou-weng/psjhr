@@ -39,7 +39,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 <header><a href="index.html">◀ VRT HR</a><h1 id="ttl">🧠 測驗中心</h1>
 <div class="lang" id="lang"><button data-l="0">中</button><button data-l="1">EN</button><button data-l="2">ខ្មែរ</button></div></header>
 <main id="app"></main>
-<script src="quiz-data.js"></script><script src="quiz-type16.js"></script><script src="quiz-gk1.js"></script><script>
+<script src="quiz-data.js"></script><script src="quiz-type16.js"></script><script src="quiz-know1.js"></script><script>
 /* 測驗中心 v2（2026-11-26）
    · 中／英／柬三語切換；每份正式測驗約 60 分鐘、有倒數計時，時間到自動交卷。
    · 練習模式：交卷看分數與每題詳解。考試模式：不顯示成績，下載答案檔（JSON）交給 HR，由「HR 批次閱卷」統一改。
@@ -76,10 +76,19 @@ const U={
  axes:["四個面向比例","Four axes","សមាមាត្រ ៤ ផ្នែក"],typeNote:["類型是傾向不是標籤；比例接近 50% 代表兩邊都常用。","A type is a preference, not a label; ratios near 50% mean you use both sides.","ប្រភេទគឺជាទំនោរ មិនមែនស្លាកទេ សមាមាត្រជិត ៥០% មានន័យថាអ្នកប្រើទាំងពីរខាង។"],
  lk1:["很不像我","Not like me","មិនដូចខ្ញុំ"],lk5:["很像我","Very like me","ដូចខ្ញុំណាស់"],T:["對","True","ត្រូវ"],F:["錯","False","ខុស"],
  review:["看解答","Review","មើលចម្លើយ"],del:["刪除","Delete","លុប"],delAsk:["刪除這筆紀錄？","Delete this record?","លុបកំណត់ត្រានេះ?"],
+ building:["題庫建置中，每晚增加","Being built – new items every night","កំពុងរៀបចំ បន្ថែមរៀងរាល់យប់"],growing:["題庫增加中","More items coming","កំពុងបន្ថែម"],allCats:["◀ 全部分類","◀ All categories","◀ ប្រភេទទាំងអស់"],
  old:["（中文版）","(Chinese only)","(ភាសាចិនប៉ុណ្ណោះ)"],tests:["份測驗","tests","តេស្ត"],quizAt:["測驗中心","Quiz Center","មជ្ឈមណ្ឌលតេស្ត"]
 };
 const u=k=>L(U[k]);
-const CATN={personality:["🧠 人格特質","🧠 Personality","🧠 បុគ្គលិកលក្ខណៈ"],general:["🌏 綜合常識","🌏 General knowledge","🌏 ចំណេះដឹងទូទៅ"],hr:["👥 人資知識","👥 HR knowledge","👥 ចំណេះដឹង HR"],safety:["⛑️ 安全衛生","⛑️ Safety & health","⛑️ សុវត្ថិភាព"],lean:["🏭 精實生產","🏭 Lean production","🏭 ផលិតកម្មស្លីម"],mgmt:["🧭 管理領導","🧭 Management","🧭 ការគ្រប់គ្រង"],compliance:["🛡️ 合規 CTPAT","🛡️ Compliance / CTPAT","🛡️ អនុលោមភាព"],finance:["💰 財務薪資","💰 Finance & payroll","💰 ហិរញ្ញវត្ថុ"],fun:["🎲 趣味","🎲 Fun","🎲 កម្សាន្ត"]};
+const CATN={personality:["🧠 人格特質","🧠 Personality","🧠 បុគ្គលិកលក្ខណៈ"],
+ geo:["🌏 地理","🌏 Geography","🌏 ភូមិវិទ្យា"],bio:["🧬 人體與生物","🧬 Human body & biology","🧬 រាងកាយ និងជីវវិទ្យា"],nature:["🐾 動物與植物","🐾 Animals & plants","🐾 សត្វ និងរុក្ខជាតិ"],
+ history:["📜 歷史","📜 History","📜 ប្រវត្តិសាស្ត្រ"],astro:["🔭 天文與自然科學","🔭 Astronomy & science","🔭 តារាសាស្ត្រ"],culture:["🎎 各國文化風情","🎎 World cultures","🎎 វប្បធម៌ពិភពលោក"],
+ brand:["🏷️ 品牌","🏷️ Brands","🏷️ ម៉ាកយីហោ"],riddle:["🤔 腦筋急轉彎","🤔 Riddles","🤔 ពាក្យបណ្តៅ"],logic:["🧮 邏輯與數理","🧮 Logic & numbers","🧮 តក្កវិជ្ជា និងលេខ"],visual:["🖼️ 圖形推理","🖼️ Visual reasoning","🖼️ ការវែកញែករូបភាព"],
+ home:["🛋️ 居家與家具","🛋️ Home & furniture","🛋️ ផ្ទះ និងគ្រឿងសង្ហារិម"],food:["🍜 食品與飲食","🍜 Food","🍜 អាហារ"],lang:["🔤 語言（英文 TOEFL／GRE、日文…）","🔤 Languages (English TOEFL/GRE, Japanese…)","🔤 ភាសា (អង់គ្លេស ជប៉ុន…)"],
+ audit:["🏭 驗廠","🏭 Factory audits","🏭 សវនកម្មរោងចក្រ"],compliance:["🛡️ 合規 CTPAT","🛡️ Compliance / CTPAT","🛡️ អនុលោមភាព"],
+ hr:["👥 人資知識","👥 HR knowledge","👥 ចំណេះដឹង HR"],safety:["⛑️ 安全衛生","⛑️ Safety & health","⛑️ សុវត្ថិភាព"],lean:["🏭 精實生產","🏭 Lean production","🏭 ផលិតកម្មស្លីម"],
+ mgmt:["🧭 管理領導","🧭 Management","🧭 ការគ្រប់គ្រង"],finance:["💰 財務薪資","💰 Finance & payroll","💰 ហិរញ្ញវត្ថុ"],fun:["🎲 趣味","🎲 Fun","🎲 កម្សាន្ត"]};
+const READY=t=>t.q.length>=5;
 /* 統一格式：舊題庫（只有中文）轉成新格式 */
 const BANK=[];
 (window.QUIZ_V2||[]).forEach(t=>BANK.push(Object.assign({v:2},t)));
@@ -100,11 +109,15 @@ const loc=a=>{if(!a)return '';const d=new Date(a),z=n=>String(n).padStart(2,'0')
 const minTxt=s=>Math.round(s/60)+' '+u('min');
 /* ───── 首頁 ───── */
 function home(){stopTick();VIEW=home;T=null;const h=HIST(),cur=LS.get('quiz_cur',null);
-  const cats=[['all',U.all]].concat(Object.keys(CATN).filter(k=>BANK.some(t=>t.cat===k)).map(k=>[k,CATN[k]]));
-  let x='<div class="cats">'+cats.map(([k,v])=>'<button data-c="'+k+'" class="'+(k===CAT?'on':'')+'">'+esc(L(v))+'</button>').join('')+'</div>';
+  let x='';
   if(cur&&byId(cur.id))x+='<button class="btn ok" id="resume" style="width:100%;margin-bottom:10px">'+u('resume')+'：'+esc(L(byId(cur.id).title))+'</button>';
-  x+='<div class="grid">'+BANK.filter(t=>CAT==='all'||t.cat===CAT).map(t=>{const l=h.find(r=>r.id===t.id);
-    return '<div class="card" data-t="'+t.id+'">'+(t.min>=60?'<span class="tag">⏱ '+t.min+' '+u('min')+'</span>':'')+'<div class="ic">'+t.icon+'</div><b>'+esc(L(t.title))+'</b><small>'+t.q.length+' '+u('items')+' · '+t.min+' '+u('min')+(t.pass?' · '+u('pass')+' '+t.pass:'')+(t.old&&LI?' '+u('old'):'')+'</small>'+(l?'<div class="last">✅ '+u('last')+'：'+esc(l.mode==='exam'?u('examRec'):l.sum)+'（'+loc(l.at).slice(0,10)+'）</div>':'')+'</div>'}).join('')+'</div>';
+  if(CAT==='all'){/* 像電子書：先選分類 */
+    x+='<div class="grid">'+Object.keys(CATN).map(k=>{const ts=BANK.filter(t=>t.cat===k&&READY(t)),n=ts.reduce((a,t)=>a+t.q.length,0);const nm=L(CATN[k]),ic=nm.split(' ')[0];
+      return '<div class="card" data-c="'+k+'"'+(ts.length?'':' style="opacity:.6"')+'><div class="ic">'+ic+'</div><b>'+esc(nm.slice(ic.length).trim())+'</b><small>'+(ts.length?ts.length+' '+u('tests')+' · '+n+' '+u('items'):u('building'))+'</small></div>'}).join('')+'</div>'}
+  else{x+='<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><button class="btn g" data-c="all">'+u('allCats')+'</button><b style="font-size:17px">'+esc(L(CATN[CAT]||[CAT]))+'</b></div>';
+    const ts=BANK.filter(t=>t.cat===CAT&&READY(t));
+    x+=ts.length?'<div class="grid">'+ts.map(t=>{const l=h.find(r=>r.id===t.id);
+    return '<div class="card" data-t="'+t.id+'">'+(t.min>=60?'<span class="tag">⏱ '+t.min+' '+u('min')+'</span>':'')+'<div class="ic">'+t.icon+'</div><b>'+esc(L(t.title))+'</b><small>'+t.q.length+(t.target&&t.q.length<t.target?' / '+t.target:'')+' '+u('items')+' · '+t.min+' '+u('min')+(t.pass?' · '+u('pass')+' '+t.pass:'')+(t.old&&LI?' '+u('old'):'')+'</small>'+(t.target&&t.q.length<t.target?'<small style="color:#d97706">🛠 '+u('growing')+'</small>':'')+(l?'<div class="last">✅ '+u('last')+'：'+esc(l.mode==='exam'?u('examRec'):l.sum)+'（'+loc(l.at).slice(0,10)+'）</div>':'')+'</div>'}).join('')+'</div>':'<p class="note">🛠 '+u('building')+'</p>'}
   x+='<h3 style="margin-top:18px">'+u('hist')+'</h3><div class="hist">'+(h.length?h.slice(0,40).map((r,i)=>{const t=byId(r.id);return '<div class="row" data-h="'+i+'"><span>'+(t?t.icon:'📄')+'</span><b>'+esc(t?L(t.title):r.id)+'<br><small style="color:var(--sub);font-weight:400">'+loc(r.at)+' · '+esc(r.who||'—')+(r.secs?' · '+minTxt(r.secs):'')+'</small></b><span class="s" style="color:'+(r.mode==='exam'?'var(--sub)':r.pass===false?'var(--bad)':'var(--ok)')+'">'+esc(r.mode==='exam'?'📝':r.sum)+'</span></div>'}).join(''):'<div class="note">'+u('noHist')+'</div>')+'</div>';
   x+='<div style="margin-top:18px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn g" id="adm">'+u('admin')+'</button></div>';
   $('app').innerHTML=x;

@@ -1,4 +1,4 @@
-/* 綜合常識挑戰 第 1 回（60 題／60 分鐘，中英柬）：地理、生物、急轉彎、各國文化、品牌、邏輯、圖形題、是非題。
+/* 常識類題庫 第 1 回（中英柬）：每一類各自成為一份測驗（地理、人體生物、動植物、急轉彎、各國文化、品牌、邏輯、圖形推理、歷史、天文）。
    題目格式：t 題型（mc 單選／tf 是非／img 圖形單選）、q 題目 [中, 英, 柬]、o 選項（字串或 [中,英,柬]）、a 正確選項序號（從 0 起）、ex 詳解、svg 圖。 */
 window.QUIZ_V2 = window.QUIZ_V2 || [];
 (function () {
@@ -192,12 +192,35 @@ window.QUIZ_V2 = window.QUIZ_V2 || [];
     tf('fact', T3("香蕉是長在「樹」上的。", "Bananas grow on trees.", "ចេកដុះនៅលើដើមឈើ។"), false,
       T3("錯。香蕉「樹」其實是大型草本植物，莖是由葉鞘層層包住的假莖，不是木頭。", "False. The banana 'tree' is actually a giant herb; its trunk is a pseudostem made of tightly rolled leaf bases, not wood.", "ខុស។ ដើមចេកតាមពិតជារុក្ខជាតិស្មៅធំ ដើមរបស់វាជាដើមក្លែងក្លាយ ដែលធ្វើពីគល់ស្លឹករុំគ្នា មិនមែនឈើទេ។"))
   ];
-  window.QUIZ_V2.push({
-    id: 'gk1', cat: 'general', kind: 'score', icon: '🌏', min: 60, pass: 60,
-    title: ["綜合常識挑戰 第 1 回（60 題）", "General Knowledge Challenge #1 (60 items)", "ការប្រកួតចំណេះដឹងទូទៅ លើកទី ១ (៦០ សំណួរ)"],
-    intro: ["地理、生物、急轉彎、各國文化、品牌、邏輯、看圖題、是非題，共 60 題、60 分鐘，60 分及格。交卷後每題都有詳細解答。",
-            "Geography, biology, riddles, world cultures, brands, logic, picture questions and true/false: 60 items, 60 minutes, pass mark 60. Every item has a detailed explanation after you submit.",
-            "ភូមិវិទ្យា ជីវវិទ្យា ពាក្យបណ្តៅ វប្បធម៌ពិភពលោក ម៉ាកយីហោ តក្កវិជ្ជា សំណួររូបភាព និងត្រូវ/ខុស៖ ៦០ សំណួរ ៦០ នាទី ពិន្ទុជាប់ ៦០។ ក្រោយប្រគល់ក្រដាស សំណួរនីមួយៗមានការពន្យល់លម្អិត។"],
-    q: Q
+  /* 11/26 Paul：各類分開設計（像電子書分類），不要全部混在一份。這一批先拆成各類的「第 1 回」，之後每晚補到每份約 60 題。 */
+  const catOf = q => {
+    if (q.tag === 'img') return /flag/i.test(q.q[1]) ? 'geo' : 'visual';
+    if (q.tag === 'fact') { const e = q.q[1]; return /Light travels/.test(e) ? 'astro' : /Great Wall/.test(e) ? 'history' : /goldfish|Bananas/.test(e) ? 'nature' : /Lightning/.test(e) ? 'geo' : /flag/.test(e) ? 'culture' : 'geo'; }
+    if (q.tag === 'bio' && /bee|mosquito|whale|plants mainly/i.test(q.q[1])) return 'nature';
+    return q.tag;
+  };
+  const META = {
+    geo: ['🌏', ["地理 第 1 回", "Geography #1", "ភូមិវិទ្យា លើកទី ១"]],
+    bio: ['🧬', ["人體與生物 第 1 回", "Human body & biology #1", "រាងកាយ និងជីវវិទ្យា លើកទី ១"]],
+    nature: ['🐾', ["動物與植物 第 1 回", "Animals & plants #1", "សត្វ និងរុក្ខជាតិ លើកទី ១"]],
+    riddle: ['🤔', ["腦筋急轉彎 第 1 回", "Riddles #1", "ពាក្យបណ្តៅ លើកទី ១"]],
+    culture: ['🎎', ["各國文化風情 第 1 回", "World cultures #1", "វប្បធម៌ពិភពលោក លើកទី ១"]],
+    brand: ['🏷️', ["品牌常識 第 1 回", "Brands #1", "ម៉ាកយីហោ លើកទី ១"]],
+    logic: ['🧮', ["邏輯與數理 第 1 回", "Logic & numbers #1", "តក្កវិជ្ជា និងលេខ លើកទី ១"]],
+    visual: ['🖼️', ["圖形推理 第 1 回", "Visual reasoning #1", "ការវែកញែករូបភាព លើកទី ១"]],
+    history: ['📜', ["歷史 第 1 回", "History #1", "ប្រវត្តិសាស្ត្រ លើកទី ១"]],
+    astro: ['🔭', ["天文與自然科學 第 1 回", "Astronomy & science #1", "តារាសាស្ត្រ និងវិទ្យាសាស្ត្រ លើកទី ១"]]
+  };
+  const by = {};
+  Q.forEach(q => { const c = catOf(q); (by[c] = by[c] || []).push(q); });
+  Object.keys(by).forEach(c => {
+    const m = META[c] || ['📘', [c, c, c]];
+    window.QUIZ_V2.push({
+      id: c + '1', cat: c, kind: 'score', icon: m[0], min: 60, pass: 60, target: 60, title: m[1],
+      intro: ["本類第 1 回，題庫建置中（每晚增加，目標 60 題、60 分鐘）。60 分及格，交卷後每題都有詳細解答。",
+              "Round 1 of this category; more items are added every night (target 60 items, 60 minutes). Pass mark 60; every item has a detailed explanation.",
+              "លើកទី ១ នៃប្រភេទនេះ កំពុងបន្ថែមសំណួររៀងរាល់យប់ (គោលដៅ ៦០ សំណួរ ៦០ នាទី)។ ពិន្ទុជាប់ ៦០ សំណួរនីមួយៗមានការពន្យល់លម្អិត។"],
+      q: by[c]
+    });
   });
 })();
