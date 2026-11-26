@@ -1,68 +1,220 @@
 <!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>測驗中心 · VRT HR</title>
 <style>
-:root{--bg:#f4f6fb;--card:#fff;--ink:#1e293b;--sub:#64748b;--acc:#2563eb;--line:#e2e8f0}
+:root{--bg:#f4f6fb;--card:#fff;--ink:#1e293b;--sub:#64748b;--acc:#2563eb;--line:#e2e8f0;--ok:#16a34a;--bad:#dc2626}
 @media(prefers-color-scheme:dark){:root{--bg:#0b1020;--card:#131a30;--ink:#e5e7eb;--sub:#94a3b8;--line:#253050}}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif}
-header{position:sticky;top:0;z-index:2;background:var(--card);border-bottom:1px solid var(--line);padding:10px 14px;display:flex;align-items:center;gap:10px}
-header a{color:var(--acc);text-decoration:none;font-weight:700}header h1{margin:0;font-size:18px;flex:1}
-main{max-width:860px;margin:0 auto;padding:14px}
-.cats{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px}.cats button{white-space:nowrap;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}.cats button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans TC","Noto Sans Khmer","Khmer OS",sans-serif}
+header{position:sticky;top:0;z-index:3;background:var(--card);border-bottom:1px solid var(--line);padding:8px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+header a{color:var(--acc);text-decoration:none;font-weight:700}header h1{margin:0;font-size:17px;flex:1;white-space:nowrap}
+.lang{display:flex;border:1px solid var(--line);border-radius:99px;overflow:hidden}.lang button{border:0;background:transparent;color:var(--ink);padding:6px 10px;font:inherit;font-size:13px;cursor:pointer}.lang button.on{background:var(--acc);color:#fff}
+input,select,textarea{font:inherit;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--card);color:var(--ink)}
+main{max-width:860px;margin:0 auto;padding:12px 14px 30px}
+.cats{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px}.cats button{white-space:nowrap;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}.cats button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;cursor:pointer;transition:transform .12s}.card:active,.card:hover{transform:translateY(-2px);border-color:var(--acc)}
-.card .ic{font-size:28px}.card b{display:block;margin-top:4px}.card small{color:var(--sub)}.card .last{margin-top:6px;font-size:12px;color:#16a34a}
-.q{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px}.q h3{margin:0 0 10px;font-size:15px;line-height:1.5}
-.opts{display:grid;gap:6px}.opts button{text-align:left;border:2px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;padding:10px 12px;font:inherit;cursor:pointer}.opts button.on{border-color:var(--acc);background:rgba(37,99,235,.12)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;cursor:pointer;transition:transform .12s;position:relative}.card:active,.card:hover{transform:translateY(-2px);border-color:var(--acc)}
+.card .ic{font-size:28px}.card b{display:block;margin-top:4px;line-height:1.35}.card small{color:var(--sub);display:block;margin-top:3px}.card .last{margin-top:6px;font-size:12px;color:var(--ok)}
+.tag{position:absolute;top:10px;right:10px;font-size:11px;background:#fef3c7;color:#92400e;border-radius:99px;padding:2px 8px;font-weight:700}
+.q{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px}.q h3{margin:0 0 10px;font-size:15px;line-height:1.55}.q .svg{text-align:center;margin:0 0 10px}
+.opts{display:grid;gap:6px}.opts button{text-align:left;border:2px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;padding:10px 12px;font:inherit;cursor:pointer;line-height:1.45}.opts button.on{border-color:var(--acc);background:rgba(37,99,235,.12)}
+.opts.tf{grid-template-columns:1fr 1fr}.opts.tf button{text-align:center;font-weight:800}
 .lk{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}.lk button{padding:10px 0;text-align:center;border:2px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;font:inherit;font-weight:800;cursor:pointer}.lk button.on{border-color:var(--acc);background:var(--acc);color:#fff}
 .lkl{display:flex;justify-content:space-between;font-size:11px;color:var(--sub);margin-top:4px}
-.bar{position:sticky;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px 14px;display:flex;gap:10px;align-items:center;margin:0 -14px}
-.btn{border:0;background:var(--acc);color:#fff;border-radius:10px;padding:10px 16px;font:inherit;font-weight:800;cursor:pointer}.btn.g{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.bar{position:sticky;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px 14px;display:flex;gap:8px;align-items:center;margin:0 -14px;z-index:2}
+.timer{font-weight:900;font-variant-numeric:tabular-nums;min-width:62px;text-align:center}.timer.low{color:var(--bad)}
+.btn{border:0;background:var(--acc);color:#fff;border-radius:10px;padding:10px 16px;font:inherit;font-weight:800;cursor:pointer}.btn.g{background:transparent;color:var(--ink);border:1px solid var(--line)}.btn.ok{background:var(--ok)}.btn:disabled{opacity:.45;cursor:not-allowed}
 .prog{flex:1;height:8px;background:var(--line);border-radius:99px;overflow:hidden}.prog i{display:block;height:100%;background:var(--acc)}
 .res{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px}
-.dim{margin:10px 0}.dim .t{display:flex;justify-content:space-between;font-weight:800}.dim .b{height:14px;border-radius:99px;background:var(--line);overflow:hidden;margin:4px 0}.dim .b i{display:block;height:100%}.dim small{color:var(--sub)}
-.ans{font-size:13px;border-left:4px solid #16a34a;padding:6px 10px;margin:6px 0;background:rgba(22,163,74,.08);border-radius:0 8px 8px 0}.ans.x{border-color:#dc2626;background:rgba(220,38,38,.08)}
-.hist{font-size:13px;color:var(--sub)}
+.res h4{margin:14px 0 4px}
+.dim{margin:10px 0}.dim .t{display:flex;justify-content:space-between;font-weight:800;gap:8px}.dim .b{height:14px;border-radius:99px;background:var(--line);overflow:hidden;margin:4px 0;display:flex}.dim .b i{display:block;height:100%}.dim small{color:var(--sub)}
+.ans{font-size:13px;border-left:4px solid var(--ok);padding:8px 10px;margin:8px 0;background:rgba(22,163,74,.08);border-radius:0 8px 8px 0;line-height:1.55}.ans.x{border-color:var(--bad);background:rgba(220,38,38,.08)}.ans .ex{color:var(--sub);display:block;margin-top:3px}
+.hist{font-size:13px}.hist .row{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line);cursor:pointer}.hist .row b{flex:1}.hist .row .s{font-weight:900}
+.mode{display:grid;gap:8px;margin:12px 0}.mode label{display:flex;gap:10px;align-items:flex-start;border:2px solid var(--line);border-radius:12px;padding:10px;cursor:pointer}.mode label.on{border-color:var(--acc);background:rgba(37,99,235,.08)}.mode input{margin-top:3px}
+.kv{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}.kv div{background:var(--bg);border-radius:10px;padding:8px;text-align:center}.kv b{display:block;font-size:18px}.kv small{color:var(--sub)}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px solid var(--line);padding:6px;text-align:left}th{color:var(--sub);font-weight:700}
+.note{font-size:12px;color:var(--sub);line-height:1.5}
+.big{font-size:34px;font-weight:900;margin:8px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chips span{background:var(--bg);border-radius:99px;padding:4px 10px;font-size:12px}
 </style></head><body>
-<header><a href="index.html">◀ VRT HR</a><h1>🧠 測驗中心</h1><input id="who" placeholder="姓名（選填）" style="width:120px;border:1px solid var(--line);border-radius:8px;padding:6px;background:var(--card);color:var(--ink)"></header>
+<header><a href="index.html">◀ VRT HR</a><h1 id="ttl">🧠 測驗中心</h1>
+<div class="lang" id="lang"><button data-l="0">中</button><button data-l="1">EN</button><button data-l="2">ខ្មែរ</button></div></header>
 <main id="app"></main>
-<script src="quiz-data.js"></script><script>
-/* 測驗中心：人格特質、人資知識、安全、精實…分類選測驗；作答→結果（圖表＋解說）；結果存在這台裝置。之後可接到 HRA Portal 培訓給員工測驗。 */
-const $=id=>document.getElementById(id),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const LS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-let CAT='all',T=null,ANS=[];$('who').value=LS.get('quiz_who','');$('who').onchange=e=>LS.set('quiz_who',e.target.value.trim());
-const HIST=()=>LS.get('quiz_hist',[]);
-function home(){T=null;const h=HIST();
-  $('app').innerHTML='<div class="cats">'+[['all','全部']].concat(Object.entries(QUIZ_CATS)).map(([k,v])=>'<button data-c="'+k+'" class="'+(k===CAT?'on':'')+'">'+v+'</button>').join('')+'</div><div class="grid">'+
-   QUIZ_BANK.filter(q=>CAT==='all'||q.cat===CAT).map(q=>{const l=h.filter(x=>x.id===q.id)[0];return '<div class="card" data-t="'+q.id+'"><div class="ic">'+q.icon+'</div><b>'+esc(q.zh)+'</b><small>'+esc(q.en)+' · '+q.q.length+' 題 · 約 '+q.min+' 分鐘</small>'+(l?'<div class="last">✅ 上次：'+esc(l.sum)+'（'+l.at.slice(0,10)+'）</div>':'')+'</div>'}).join('')+'</div>'+
-   (h.length?'<h3 style="margin-top:18px">📜 作答紀錄（這台裝置）</h3><div class="hist">'+h.slice(0,20).map(x=>'• '+x.at.slice(0,16).replace('T',' ')+'　'+esc(x.who||'—')+'　'+esc(x.title)+'：'+esc(x.sum)).join('<br>')+'</div>':'');
-  document.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{CAT=b.dataset.c;home()});document.querySelectorAll('[data-t]').forEach(c=>c.onclick=()=>start(c.dataset.t));scrollTo(0,0)}
-function start(id){T=QUIZ_BANK.find(q=>q.id===id);ANS=Array(T.q.length).fill(null);/* 選項每次打亂順序（正確答案不會固定在 A） */ORD=T.q.map(q=>{const n=T.type==='style'?q.length-1:T.type==='choice'?q[1].length:0,a=[...Array(n).keys()];for(let i=n-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a});paint()}
-let ORD=[];
-function paint(){const done=ANS.filter(a=>a!=null).length;
-  let h='<div class="res"><b style="font-size:17px">'+T.icon+' '+esc(T.zh)+'</b><p style="color:var(--sub);margin:6px 0 0">'+esc(T.intro)+'</p></div>';
-  T.q.forEach((q,i)=>{h+='<div class="q" id="q'+i+'"><h3>'+(i+1)+'. '+esc(q[0])+'</h3>';
-    if(T.type==='likert')h+='<div class="lk">'+[1,2,3,4,5].map(v=>'<button data-i="'+i+'" data-v="'+v+'" class="'+(ANS[i]===v?'on':'')+'">'+v+'</button>').join('')+'</div><div class="lkl"><span>很不像我</span><span>很像我</span></div>';
-    else{const opts=T.type==='style'?q.slice(1).map(o=>o[0]):q[1];h+='<div class="opts">'+ORD[i].map((j,n)=>'<button data-i="'+i+'" data-v="'+j+'" class="'+(ANS[i]===j?'on':'')+'">'+String.fromCharCode(65+n)+'. '+esc(opts[j])+'</button>').join('')+'</div>'}
-    h+='</div>'});
-  h+='<div class="bar"><button class="btn g" id="back">◀ 返回</button><div class="prog"><i style="width:'+(done/T.q.length*100)+'%"></i></div><span>'+done+'/'+T.q.length+'</span><button class="btn" id="sub"'+(done<T.q.length?' style="opacity:.5"':'')+'>交卷</button></div>';
+<script src="quiz-data.js"></script><script src="quiz-type16.js"></script><script src="quiz-gk1.js"></script><script>
+/* 測驗中心 v2（2026-11-26）
+   · 中／英／柬三語切換；每份正式測驗約 60 分鐘、有倒數計時，時間到自動交卷。
+   · 練習模式：交卷看分數與每題詳解。考試模式：不顯示成績，下載答案檔（JSON）交給 HR，由「HR 批次閱卷」統一改。
+   · 每次作答留在這台裝置的歷史紀錄（分數、用時、可再看解答）。
+   · 交卷後可選「發到群組」或「不發」：用這台裝置已連好的 PSJHR 雲端（同一個網站的設定），沒連就只能複製。
+   · 題庫：quiz-data.js（舊版短測驗）＋ quiz-*.js（QUIZ_V2 新格式）。新增測驗只要加一個 quiz-xxx.js 並在下面載入。 */
+const $=id=>document.getElementById(id),esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const LS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},del:k=>{try{localStorage.removeItem(k)}catch(e){}}};
+let LI=LS.get('quiz_lang',0);
+const L=x=>x==null?'':Array.isArray(x)?(x[LI]||x[1]||x[0]||''):typeof x==='object'?(x[['zh','en','km'][LI]]||x.en||x.zh||''):String(x);
+const U={
+ title:["🧠 測驗中心","🧠 Quiz Center","🧠 មជ្ឈមណ្ឌលតេស្ត"],all:["全部","All","ទាំងអស់"],
+ items:["題","items","សំណួរ"],min:["分鐘","min","នាទី"],pass:["及格","pass","ជាប់"],last:["上次","Last","លើកមុន"],
+ hist:["📜 作答紀錄（這台裝置）","📜 History (this device)","📜 ប្រវត្តិ (ឧបករណ៍នេះ)"],noHist:["還沒有紀錄","No records yet","មិនទាន់មានកំណត់ត្រា"],
+ admin:["🗂️ HR 批次閱卷","🗂️ HR batch grading","🗂️ HR កែក្រដាសជាបាច់"],resume:["⏯️ 繼續未完成的測驗","⏯️ Resume unfinished test","⏯️ បន្តតេស្តដែលមិនទាន់ចប់"],
+ name:["姓名","Name","ឈ្មោះ"],empNo:["工號（選填）","Staff no. (optional)","លេខបុគ្គលិក (ស្រេចចិត្ត)"],
+ practice:["📖 練習模式","📖 Practice mode","📖 របៀបហាត់"],practiceD:["交卷後馬上看分數和每題詳解。","See your score and every explanation right after you submit.","ឃើញពិន្ទុ និងការពន្យល់ភ្លាមៗក្រោយប្រគល់។"],
+ exam:["📝 考試模式","📝 Exam mode","📝 របៀបប្រឡង"],examD:["不顯示成績；交卷後下載答案檔交給 HR 統一批改。","No score shown; download the answer file and give it to HR for grading.","មិនបង្ហាញពិន្ទុ ទាញយកឯកសារចម្លើយ ហើយប្រគល់ឱ្យ HR កែ។"],
+ start:["▶ 開始作答","▶ Start","▶ ចាប់ផ្តើម"],back:["◀ 返回","◀ Back","◀ ត្រឡប់"],submit:["交卷","Submit","ប្រគល់"],
+ needName:["請先填姓名","Please enter your name","សូមបញ្ចូលឈ្មោះ"],missing:["還有題目沒作答，確定要交卷嗎？","Some items are unanswered. Submit anyway?","នៅមានសំណួរមិនទាន់ឆ្លើយ។ ប្រគល់ដែរឬទេ?"],
+ timeUp:["⏰ 時間到，已自動交卷","⏰ Time is up – submitted automatically","⏰ អស់ម៉ោង បានប្រគល់ដោយស្វ័យប្រវត្តិ"],
+ result:["結果","Result","លទ្ធផល"],score:["分數","Score","ពិន្ទុ"],used:["用時","Time used","ពេលប្រើ"],passed:["✅ 及格","✅ Passed","✅ ជាប់"],failed:["❌ 未及格","❌ Not passed","❌ មិនជាប់"],
+ correct:["正確答案","Correct answer","ចម្លើយត្រូវ"],yours:["你選","Your answer","ចម្លើយអ្នក"],none:["未作答","No answer","មិនបានឆ្លើយ"],
+ again:["🔁 再做一次","🔁 Try again","🔁 ធ្វើម្តងទៀត"],home:["🏠 回測驗列表","🏠 All tests","🏠 តេស្តទាំងអស់"],copy:["📋 複製結果","📋 Copy result","📋 ចម្លងលទ្ធផល"],copied:["✅ 已複製","✅ Copied","✅ បានចម្លង"],
+ send:["📤 發到群組","📤 Send to group","📤 ផ្ញើទៅក្រុម"],nosend:["🙅 不發","🙅 Don't send","🙅 មិនផ្ញើ"],sent:["✅ 已發到群組","✅ Sent to group","✅ បានផ្ញើទៅក្រុម"],sendFail:["發送失敗：","Send failed: ","ផ្ញើមិនបាន៖ "],
+ noCloud:["這台裝置還沒連 PSJHR 雲端（在 VRT HR 設定裡連），所以不能發群組，可以用「複製結果」貼到群組。","This device is not connected to PSJHR cloud (set it in VRT HR settings), so it cannot send; use Copy and paste it into the group.","ឧបករណ៍នេះមិនទាន់ភ្ជាប់ PSJHR cloud ទេ ដូច្នេះផ្ញើមិនបាន សូមចម្លង ហើយបិទភ្ជាប់ក្នុងក្រុម។"],
+ askSend:["要把這次成績發到群組嗎？","Send this result to the group?","ផ្ញើលទ្ធផលនេះទៅក្រុមឬទេ?"],
+ examDone:["✅ 已交卷","✅ Submitted","✅ បានប្រគល់"],examDoneD:["考試模式不顯示成績。請按下面按鈕下載答案檔，交給 HR（或傳到 HR 群組）。","Exam mode does not show the score. Download the answer file below and give it to HR.","របៀបប្រឡងមិនបង្ហាញពិន្ទុទេ។ សូមទាញយកឯកសារចម្លើយខាងក្រោម ហើយប្រគល់ឱ្យ HR។"],
+ dl:["⬇️ 下載答案檔","⬇️ Download answer file","⬇️ ទាញយកឯកសារចម្លើយ"],examRec:["考試模式（已交卷）","Exam mode (submitted)","របៀបប្រឡង (បានប្រគល់)"],
+ adminD:["把員工交回的答案檔（.json，可一次選很多個）放進來，系統自動批改、排名，可下載 CSV 或發群組摘要。","Add the answer files (.json, many at once). They are graded and ranked automatically; download CSV or send a summary to the group.","បញ្ចូលឯកសារចម្លើយ (.json ច្រើនក្នុងពេលតែមួយ)។ ប្រព័ន្ធកែ និងតម្រៀបដោយស្វ័យប្រវត្តិ អាចទាញយក CSV ឬផ្ញើសង្ខេបទៅក្រុម។"],
+ pick:["📂 選答案檔","📂 Choose answer files","📂 ជ្រើសឯកសារចម្លើយ"],csv:["⬇️ 下載 CSV","⬇️ Download CSV","⬇️ ទាញយក CSV"],sendSum:["📤 發摘要到群組","📤 Send summary to group","📤 ផ្ញើសង្ខេបទៅក្រុម"],clear:["🧹 清空","🧹 Clear","🧹 សម្អាត"],
+ test:["測驗","Test","តេស្ត"],date:["日期","Date","កាលបរិច្ឆេទ"],res:["結果","Result","លទ្ធផល"],bad:["無法讀取","Unreadable","អានមិនបាន"],
+ yourType:["你的工作性格類型","Your work personality type","ប្រភេទបុគ្គលិកលក្ខណៈការងាររបស់អ្នក"],str:["💪 優點","💪 Strengths","💪 ចំណុចខ្លាំង"],blind:["⚠️ 盲點","⚠️ Blind spots","⚠️ ចំណុចខ្វះខាត"],comm:["💬 怎麼和他溝通","💬 How to communicate","💬 របៀបទំនាក់ទំនង"],mgmt:["🧭 管理／帶人建議","🧭 Management tips","🧭 ការណែនាំការគ្រប់គ្រង"],
+ axes:["四個面向比例","Four axes","សមាមាត្រ ៤ ផ្នែក"],typeNote:["類型是傾向不是標籤；比例接近 50% 代表兩邊都常用。","A type is a preference, not a label; ratios near 50% mean you use both sides.","ប្រភេទគឺជាទំនោរ មិនមែនស្លាកទេ សមាមាត្រជិត ៥០% មានន័យថាអ្នកប្រើទាំងពីរខាង។"],
+ lk1:["很不像我","Not like me","មិនដូចខ្ញុំ"],lk5:["很像我","Very like me","ដូចខ្ញុំណាស់"],T:["對","True","ត្រូវ"],F:["錯","False","ខុស"],
+ review:["看解答","Review","មើលចម្លើយ"],del:["刪除","Delete","លុប"],delAsk:["刪除這筆紀錄？","Delete this record?","លុបកំណត់ត្រានេះ?"],
+ old:["（中文版）","(Chinese only)","(ភាសាចិនប៉ុណ្ណោះ)"],tests:["份測驗","tests","តេស្ត"],quizAt:["測驗中心","Quiz Center","មជ្ឈមណ្ឌលតេស្ត"]
+};
+const u=k=>L(U[k]);
+const CATN={personality:["🧠 人格特質","🧠 Personality","🧠 បុគ្គលិកលក្ខណៈ"],general:["🌏 綜合常識","🌏 General knowledge","🌏 ចំណេះដឹងទូទៅ"],hr:["👥 人資知識","👥 HR knowledge","👥 ចំណេះដឹង HR"],safety:["⛑️ 安全衛生","⛑️ Safety & health","⛑️ សុវត្ថិភាព"],lean:["🏭 精實生產","🏭 Lean production","🏭 ផលិតកម្មស្លីម"],mgmt:["🧭 管理領導","🧭 Management","🧭 ការគ្រប់គ្រង"],compliance:["🛡️ 合規 CTPAT","🛡️ Compliance / CTPAT","🛡️ អនុលោមភាព"],finance:["💰 財務薪資","💰 Finance & payroll","💰 ហិរញ្ញវត្ថុ"],fun:["🎲 趣味","🎲 Fun","🎲 កម្សាន្ត"]};
+/* 統一格式：舊題庫（只有中文）轉成新格式 */
+const BANK=[];
+(window.QUIZ_V2||[]).forEach(t=>BANK.push(Object.assign({v:2},t)));
+(window.QUIZ_BANK||[]).forEach(o=>{const t={id:o.id,cat:o.cat,icon:o.icon,min:o.min,title:[o.zh,o.en,o.zh],intro:[o.intro,o.intro,o.intro],old:1};
+  if(o.type==='choice'){t.kind='score';t.pass=o.pass||60;t.q=o.q.map(q=>({t:'mc',q:q[0],o:q[1],a:q[2],ex:q[3]||''}))}
+  else if(o.type==='likert'){t.kind='likert';t.dims=o.dims;t.q=o.q.map(q=>({t:'likert',q:q[0],d:q[1],r:q[2]===-1}))}
+  else if(o.type==='style'){t.kind='style';t.types=o.types;t.q=o.q.map(q=>({t:'style',q:q[0],o:q.slice(1).map(x=>x[0]),k:q.slice(1).map(x=>x[1])}))}
+  BANK.push(t)});
+const byId=id=>BANK.find(t=>t.id===id);
+const HIST=()=>LS.get('quiz_hist2',[]);
+/* 舊版紀錄搬過來（只搬一次） */
+(function(){const o=LS.get('quiz_hist',null);if(o&&o.length&&!LS.get('quiz_hist_mig',0)){const h=HIST();o.forEach(x=>h.push({id:x.id,who:x.who,at:x.at,sum:x.sum,mode:'practice'}));h.sort((a,b)=>b.at<a.at?-1:1);LS.set('quiz_hist2',h.slice(0,300));LS.set('quiz_hist_mig',1)}})();
+let CAT='all',T=null,ANS=[],ORD=[],T0=0,MODE='practice',WHO='',EMP='',TICK=null,BATCH=[];
+function paintLang(){document.querySelectorAll('#lang button').forEach(b=>b.classList.toggle('on',+b.dataset.l===LI));$('ttl').textContent=u('title');document.documentElement.lang=['zh-Hant','en','km'][LI]}
+document.querySelectorAll('#lang button').forEach(b=>b.onclick=()=>{LI=+b.dataset.l;LS.set('quiz_lang',LI);paintLang();(VIEW||home)()});
+let VIEW=null;const fmtT=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+const loc=a=>{if(!a)return '';const d=new Date(a),z=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())+' '+z(d.getHours())+':'+z(d.getMinutes())};
+const minTxt=s=>Math.round(s/60)+' '+u('min');
+/* ───── 首頁 ───── */
+function home(){stopTick();VIEW=home;T=null;const h=HIST(),cur=LS.get('quiz_cur',null);
+  const cats=[['all',U.all]].concat(Object.keys(CATN).filter(k=>BANK.some(t=>t.cat===k)).map(k=>[k,CATN[k]]));
+  let x='<div class="cats">'+cats.map(([k,v])=>'<button data-c="'+k+'" class="'+(k===CAT?'on':'')+'">'+esc(L(v))+'</button>').join('')+'</div>';
+  if(cur&&byId(cur.id))x+='<button class="btn ok" id="resume" style="width:100%;margin-bottom:10px">'+u('resume')+'：'+esc(L(byId(cur.id).title))+'</button>';
+  x+='<div class="grid">'+BANK.filter(t=>CAT==='all'||t.cat===CAT).map(t=>{const l=h.find(r=>r.id===t.id);
+    return '<div class="card" data-t="'+t.id+'">'+(t.min>=60?'<span class="tag">⏱ '+t.min+' '+u('min')+'</span>':'')+'<div class="ic">'+t.icon+'</div><b>'+esc(L(t.title))+'</b><small>'+t.q.length+' '+u('items')+' · '+t.min+' '+u('min')+(t.pass?' · '+u('pass')+' '+t.pass:'')+(t.old&&LI?' '+u('old'):'')+'</small>'+(l?'<div class="last">✅ '+u('last')+'：'+esc(l.mode==='exam'?u('examRec'):l.sum)+'（'+loc(l.at).slice(0,10)+'）</div>':'')+'</div>'}).join('')+'</div>';
+  x+='<h3 style="margin-top:18px">'+u('hist')+'</h3><div class="hist">'+(h.length?h.slice(0,40).map((r,i)=>{const t=byId(r.id);return '<div class="row" data-h="'+i+'"><span>'+(t?t.icon:'📄')+'</span><b>'+esc(t?L(t.title):r.id)+'<br><small style="color:var(--sub);font-weight:400">'+loc(r.at)+' · '+esc(r.who||'—')+(r.secs?' · '+minTxt(r.secs):'')+'</small></b><span class="s" style="color:'+(r.mode==='exam'?'var(--sub)':r.pass===false?'var(--bad)':'var(--ok)')+'">'+esc(r.mode==='exam'?'📝':r.sum)+'</span></div>'}).join(''):'<div class="note">'+u('noHist')+'</div>')+'</div>';
+  x+='<div style="margin-top:18px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn g" id="adm">'+u('admin')+'</button></div>';
+  $('app').innerHTML=x;
+  document.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{CAT=b.dataset.c;home()});
+  document.querySelectorAll('[data-t]').forEach(c=>c.onclick=()=>intro(c.dataset.t));
+  document.querySelectorAll('[data-h]').forEach(r=>r.onclick=()=>{const rec=HIST()[+r.dataset.h];if(rec&&rec.ans&&rec.mode!=='exam'&&byId(rec.id))showResult(byId(rec.id),rec,true)});
+  if($('resume'))$('resume').onclick=()=>resume(cur);$('adm').onclick=admin;scrollTo(0,0)}
+/* ───── 開始前：姓名＋模式 ───── */
+function intro(id){stopTick();T=byId(id);VIEW=()=>intro(id);
+  let x='<div class="res"><div style="font-size:30px">'+T.icon+'</div><b style="font-size:18px">'+esc(L(T.title))+'</b><p style="line-height:1.6">'+esc(L(T.intro))+'</p>'+
+   '<div class="kv"><div><b>'+T.q.length+'</b><small>'+u('items')+'</small></div><div><b>'+T.min+'</b><small>'+u('min')+'</small></div><div><b>'+(T.pass||'—')+'</b><small>'+u('pass')+'</small></div></div>'+
+   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input id="nm" placeholder="'+esc(u('name'))+'" value="'+esc(LS.get('quiz_who',''))+'"><input id="emp" placeholder="'+esc(u('empNo'))+'" value="'+esc(LS.get('quiz_emp',''))+'"></div>'+
+   '<div class="mode"><label class="'+(MODE==='practice'?'on':'')+'"><input type="radio" name="md" value="practice"'+(MODE==='practice'?' checked':'')+'><span><b>'+u('practice')+'</b><br><small class="note">'+u('practiceD')+'</small></span></label><label class="'+(MODE==='exam'?'on':'')+'"><input type="radio" name="md" value="exam"'+(MODE==='exam'?' checked':'')+'><span><b>'+u('exam')+'</b><br><small class="note">'+u('examD')+'</small></span></label></div>'+
+   '<div style="display:flex;gap:8px"><button class="btn g" id="back">'+u('back')+'</button><button class="btn" id="go" style="flex:1">'+u('start')+'</button></div></div>';
+  $('app').innerHTML=x;scrollTo(0,0);
+  document.querySelectorAll('[name=md]').forEach(r=>r.onchange=()=>{MODE=r.value;document.querySelectorAll('.mode label').forEach(l=>l.classList.toggle('on',l.querySelector('input').checked))});
+  $('back').onclick=home;$('go').onclick=()=>{WHO=$('nm').value.trim();EMP=$('emp').value.trim();if(!WHO){$('nm').focus();$('nm').placeholder=u('needName');$('nm').style.borderColor='var(--bad)';return}LS.set('quiz_who',WHO);LS.set('quiz_emp',EMP);begin()}}
+function shuffle(n){const a=[...Array(n).keys()];for(let i=n-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+const nOpt=q=>q.t==='tf'?2:q.t==='ab'?2:q.t==='likert'?0:q.o.length;
+function begin(){ANS=Array(T.q.length).fill(null);ORD=T.q.map(q=>q.t==='tf'||q.t==='ab'||q.t==='likert'?null:shuffle(nOpt(q)));T0=Date.now();save();paint()}
+function save(){LS.set('quiz_cur',{id:T.id,ans:ANS,ord:ORD,t0:T0,mode:MODE,who:WHO,emp:EMP})}
+function resume(c){T=byId(c.id);ANS=c.ans;ORD=c.ord;T0=c.t0;MODE=c.mode;WHO=c.who;EMP=c.emp||'';if((Date.now()-T0)/1000>=T.min*60){finish(true);return}paint()}
+function stopTick(){if(TICK){clearInterval(TICK);TICK=null}}
+/* ───── 作答 ───── */
+function qHtml(q,i){let h='<div class="q" id="q'+i+'">'+(q.svg?'<div class="svg">'+q.svg+'</div>':'')+'<h3>'+(i+1)+'. '+esc(L(q.q))+'</h3>';
+  if(q.t==='likert')h+='<div class="lk">'+[1,2,3,4,5].map(v=>'<button data-i="'+i+'" data-v="'+v+'" class="'+(ANS[i]===v?'on':'')+'">'+v+'</button>').join('')+'</div><div class="lkl"><span>'+u('lk1')+'</span><span>'+u('lk5')+'</span></div>';
+  else if(q.t==='tf')h+='<div class="opts tf">'+[[0,'⭕ '+u('T')],[1,'❌ '+u('F')]].map(([v,s])=>'<button data-i="'+i+'" data-v="'+v+'" class="'+(ANS[i]===v?'on':'')+'">'+s+'</button>').join('')+'</div>';
+  else if(q.t==='ab')h='<div class="q" id="q'+i+'"><h3>'+(i+1)+'.</h3><div class="opts">'+[[0,'A',q.a],[1,'B',q.b]].map(([v,l,s])=>'<button data-i="'+i+'" data-v="'+v+'" class="'+(ANS[i]===v?'on':'')+'">'+l+'. '+esc(L(s))+'</button>').join('')+'</div>';
+  else h+='<div class="opts">'+ORD[i].map((j,n)=>'<button data-i="'+i+'" data-v="'+j+'" class="'+(ANS[i]===j?'on':'')+'">'+String.fromCharCode(65+n)+'. '+esc(L(q.o[j]))+'</button>').join('')+'</div>';
+  return h+'</div>'}
+function paint(){VIEW=paint;const done=ANS.filter(a=>a!=null).length;
+  let h='<div class="res"><b style="font-size:16px">'+T.icon+' '+esc(L(T.title))+'</b><div class="note" style="margin-top:4px">👤 '+esc(WHO)+(EMP?' · '+esc(EMP):'')+' · '+(MODE==='exam'?u('exam'):u('practice'))+'</div></div>';
+  h+=T.q.map(qHtml).join('');
+  h+='<div class="bar"><button class="btn g" id="back" title="'+esc(u('back'))+'">◀</button><span class="timer" id="tm">--:--</span><div class="prog"><i style="width:'+(done/T.q.length*100)+'%"></i></div><span id="cnt">'+done+'/'+T.q.length+'</span><button class="btn" id="sub">'+u('submit')+'</button></div>';
   const y=scrollY;$('app').innerHTML=h;scrollTo(0,y);
-  document.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>{const i=+b.dataset.i;ANS[i]=+b.dataset.v;paint();const nx=document.getElementById('q'+(i+1));if(nx&&ANS[i+1]==null)nx.scrollIntoView({behavior:'smooth',block:'center'})});
-  $('back').onclick=home;$('sub').onclick=()=>{const miss=ANS.findIndex(a=>a==null);if(miss>=0){document.getElementById('q'+miss).scrollIntoView({behavior:'smooth',block:'center'});return}result()}}
-function result(){let h='<div class="res"><b style="font-size:17px">'+T.icon+' '+esc(T.zh)+' — 結果</b>',sum='';
-  if(T.type==='likert'){const sc={};Object.keys(T.dims).forEach(d=>sc[d]=[]);T.q.forEach((q,i)=>{const v=q[2]===-1?6-ANS[i]:ANS[i];sc[q[1]].push(v)});
-    const cols={O:'#8b5cf6',C:'#2563eb',E:'#f59e0b',A:'#16a34a',N:'#dc2626'};
-    h+=Object.keys(T.dims).map(d=>{const a=sc[d],pct=Math.round((a.reduce((x,y)=>x+y,0)/a.length-1)/4*100),lv=pct>=67?'高':pct>=34?'中':'低';
-      return '<div class="dim"><div class="t"><span>'+T.dims[d][0]+' <small>'+T.dims[d][1]+'</small></span><span>'+pct+'%・'+lv+'</span></div><div class="b"><i style="width:'+pct+'%;background:'+cols[d]+'"></i></div><small>'+T.dims[d][2]+'</small></div>'}).join('');
-    sum=Object.keys(T.dims).map(d=>{const a=sc[d];return T.dims[d][0].slice(0,2)+Math.round((a.reduce((x,y)=>x+y,0)/a.length-1)/4*100)}).join(' ');
-    h+='<p style="color:var(--sub);font-size:12px">分數只代表這次作答的傾向，沒有好壞；不同工作適合不同組合。</p>'}
-  else if(T.type==='style'){const c={};Object.keys(T.types).forEach(k=>c[k]=0);T.q.forEach((q,i)=>c[q[1+ANS[i]][1]]++);const top=Object.keys(c).sort((a,b)=>c[b]-c[a]);
-    h+='<p style="font-size:20px;margin:10px 0"><b>'+T.types[top[0]][0]+'</b> <small>'+T.types[top[0]][1]+'</small></p><p>'+esc(T.types[top[0]][2])+'</p>'+top.map(k=>'<div class="dim"><div class="t"><span>'+T.types[k][0]+'</span><span>'+c[k]+' / '+T.q.length+'</span></div><div class="b"><i style="width:'+(c[k]/T.q.length*100)+'%;background:var(--acc)"></i></div></div>').join('');sum=T.types[top[0]][0]}
-  else{let ok=0;const rows=T.q.map((q,i)=>{const r=ANS[i]===q[2];if(r)ok++;return '<div class="ans'+(r?'':' x')+'"><b>'+(i+1)+'. '+(r?'✅':'❌')+' '+esc(q[0])+'</b><br>正確答案：'+esc(q[1][q[2]])+(r?'':'（你選：'+esc(q[1][ANS[i]])+'）')+'<br><small>'+esc(q[3]||'')+'</small></div>'}).join('');
-    const pct=Math.round(ok/T.q.length*100),col=pct>=80?'#16a34a':pct>=60?'#d97706':'#dc2626';
-    h+='<p style="font-size:34px;font-weight:900;color:'+col+';margin:10px 0">'+ok+' / '+T.q.length+'　<small style="font-size:18px">'+pct+'%</small></p><p>'+(pct>=80?'👍 很好，觀念清楚！':pct>=60?'🙂 不錯，看一下錯的題目解說。':'📘 建議再複習一次。')+'</p>'+rows;sum=ok+'/'+T.q.length}
-  h+='</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="again">🔁 再做一次</button><button class="btn g" id="copy">📋 複製結果</button><button class="btn g" id="home">🏠 回測驗列表</button></div>';
-  const rec={id:T.id,title:T.zh,sum,who:LS.get('quiz_who',''),at:new Date().toISOString()};const hs=HIST();hs.unshift(rec);LS.set('quiz_hist',hs.slice(0,200));
-  $('app').innerHTML=h;scrollTo(0,0);$('again').onclick=()=>start(T.id);$('home').onclick=home;
-  $('copy').onclick=()=>{const t=(rec.who?rec.who+' · ':'')+rec.title+'：'+rec.sum+'（'+rec.at.slice(0,10)+'）';navigator.clipboard&&navigator.clipboard.writeText(t);$('copy').textContent='✅ 已複製'}}
-home();
+  document.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>{const i=+b.dataset.i;ANS[i]=+b.dataset.v;save();
+    b.parentNode.querySelectorAll('button').forEach(o=>o.classList.toggle('on',o===b));const d=ANS.filter(a=>a!=null).length;$('cnt').textContent=d+'/'+T.q.length;document.querySelector('.prog i').style.width=(d/T.q.length*100)+'%';
+    const nx=document.getElementById('q'+(i+1));if(nx&&ANS[i+1]==null)setTimeout(()=>nx.scrollIntoView({behavior:'smooth',block:'center'}),120)});
+  $('back').onclick=()=>{stopTick();home()};
+  $('sub').onclick=()=>{const miss=ANS.findIndex(a=>a==null);if(miss>=0&&!confirm(u('missing'))){document.getElementById('q'+miss).scrollIntoView({behavior:'smooth',block:'center'});return}finish(false)};
+  stopTick();const tk=()=>{const left=T.min*60-(Date.now()-T0)/1000;const e=$('tm');if(!e){stopTick();return}e.textContent='⏱ '+fmtT(left);e.classList.toggle('low',left<300);if(left<=0){stopTick();finish(true)}};tk();TICK=setInterval(tk,1000)}
+/* ───── 計分（作答頁、歷史、HR 批次共用） ───── */
+function grade(t,ans){const n=t.q.length;
+  if(t.kind==='score'){let ok=0;t.q.forEach((q,i)=>{if(ans[i]===q.a)ok++});const pct=Math.round(ok/n*100);return {ok,n,pct,pass:t.pass?pct>=t.pass:null,sum:ok+'/'+n+' ('+pct+'%)'}}
+  if(t.kind==='type16'){const c={E:0,I:0,S:0,N:0,T:0,F:0,J:0,P:0};t.q.forEach((q,i)=>{if(ans[i]==null)return;c[q.x[ans[i]]]++});
+    const ax=['EI','SN','TF','JP'].map(k=>{const a=c[k[0]],b=c[k[1]],tot=a+b||1;return {k,a:Math.round(a/tot*100),b:100-Math.round(a/tot*100),pick:a>=b?k[0]:k[1]}});const code=ax.map(x=>x.pick).join('');
+    return {code,ax,sum:code+' '+ax.map(x=>x.pick+(x.pick===x.k[0]?x.a:x.b)+'%').join(' '),pass:null}}
+  if(t.kind==='likert'){const sc={};Object.keys(t.dims).forEach(d=>sc[d]=[]);t.q.forEach((q,i)=>{if(ans[i]==null)return;sc[q.d].push(q.r?6-ans[i]:ans[i])});
+    const pc={};Object.keys(sc).forEach(d=>{const a=sc[d];pc[d]=a.length?Math.round((a.reduce((x,y)=>x+y,0)/a.length-1)/4*100):0});return {pc,sum:Object.keys(pc).map(d=>t.dims[d][0].slice(0,2)+pc[d]).join(' '),pass:null}}
+  if(t.kind==='style'){const c={};Object.keys(t.types).forEach(k=>c[k]=0);t.q.forEach((q,i)=>{if(ans[i]!=null)c[q.k[ans[i]]]++});const top=Object.keys(c).sort((a,b)=>c[b]-c[a]);return {c,top,sum:t.types[top[0]][0],pass:null}}}
+function finish(auto){stopTick();const secs=Math.min(T.min*60,Math.round((Date.now()-T0)/1000));const g=grade(T,ANS);
+  const rec={id:T.id,who:WHO,emp:EMP,at:new Date().toISOString(),secs,mode:MODE,sum:g.sum,pct:g.pct,pass:g.pass,ans:ANS.slice(),lang:LI,auto:!!auto};
+  const hs=HIST();hs.unshift(rec);LS.set('quiz_hist2',hs.slice(0,300));LS.del('quiz_cur');
+  if(MODE==='exam')examDone(rec,auto);else showResult(T,rec,false,auto)}
+function answerFile(rec){return {app:'vrt-quiz',v:2,id:rec.id,title:L(byId(rec.id).title),who:rec.who,emp:rec.emp||'',at:rec.at,secs:rec.secs,mode:rec.mode,lang:['zh','en','km'][rec.lang||0],ans:rec.ans}}
+function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:type||'application/json'}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+function examDone(rec,auto){VIEW=()=>examDone(rec,auto);const t=byId(rec.id);
+  $('app').innerHTML='<div class="res">'+(auto?'<p style="color:var(--bad);font-weight:800">'+u('timeUp')+'</p>':'')+'<div class="big" style="color:var(--ok)">'+u('examDone')+'</div><b>'+t.icon+' '+esc(L(t.title))+'</b><p class="note">👤 '+esc(rec.who)+(rec.emp?' · '+esc(rec.emp):'')+' · '+u('used')+' '+minTxt(rec.secs)+'</p><p>'+u('examDoneD')+'</p><button class="btn" id="dl" style="width:100%">'+u('dl')+'</button></div>'+sendBox(rec)+'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn g" id="home">'+u('home')+'</button></div>';
+  scrollTo(0,0);$('dl').onclick=()=>download('quiz_'+rec.id+'_'+(rec.emp||rec.who||'x').replace(/[^\w\u0080-￿-]+/g,'_')+'_'+rec.at.slice(0,10)+'.json',JSON.stringify(answerFile(rec),null,1));$('home').onclick=home;bindSend(rec)}
+/* 結果頁 */
+function resultBody(t,rec){const g=grade(t,rec.ans);let h='';
+  if(t.kind==='score'){const col=g.pass===false?'var(--bad)':g.pct>=80?'var(--ok)':'#d97706';
+    h+='<div class="big" style="color:'+col+'">'+g.ok+' / '+g.n+'　<small style="font-size:18px">'+g.pct+'%</small></div>'+(g.pass!=null?'<p style="font-weight:800">'+(g.pass?u('passed'):u('failed'))+'（'+u('pass')+' '+t.pass+'）</p>':'')+
+      '<p class="note">'+u('used')+' '+minTxt(rec.secs||0)+'</p>';
+    const tags={};t.q.forEach((q,i)=>{const k=q.tag||'-';tags[k]=tags[k]||[0,0];tags[k][1]++;if(rec.ans[i]===q.a)tags[k][0]++});
+    if(Object.keys(tags).length>1)h+='<div class="chips">'+Object.entries(tags).map(([k,v])=>'<span>'+({geo:'🌏',bio:'🧬',riddle:'🤔',culture:'🎎',brand:'🏷️',logic:'🧮',img:'🖼️',fact:'✅'}[k]||'•')+' '+v[0]+'/'+v[1]+'</span>').join('')+'</div>';
+    h+=t.q.map((q,i)=>{const a=rec.ans[i],r=a===q.a,opt=v=>v==null?u('none'):q.t==='tf'?(v===0?u('T'):u('F')):L(q.o[v]);
+      return '<div class="ans'+(r?'':' x')+'"><b>'+(i+1)+'. '+(r?'✅':'❌')+' '+esc(L(q.q))+'</b>'+(q.svg?'<div style="max-width:180px;margin:4px 0">'+q.svg+'</div>':'')+'<br>'+u('correct')+'：<b>'+esc(opt(q.a))+'</b>'+(r?'':'（'+u('yours')+'：'+esc(opt(a))+'）')+'<span class="ex">💡 '+esc(L(q.ex))+'</span></div>'}).join('')}
+  else if(t.kind==='type16'){const p=t.profiles[g.code];
+    h+='<p class="note">'+u('yourType')+'</p><div class="big">'+g.code+'</div><p style="font-size:20px;font-weight:800;margin:0">'+esc(L(p.n))+'</p><p style="line-height:1.6">'+esc(L(p.d))+'</p><h4>'+u('axes')+'</h4>'+
+      g.ax.map(x=>{const A=t.axes[x.k];return '<div class="dim"><small>'+esc(L(A[2]))+'</small><div class="t"><span>'+x.k[0]+' '+esc(L(A[0]))+' '+x.a+'%</span><span>'+x.b+'% '+esc(L(A[1]))+' '+x.k[1]+'</span></div><div class="b"><i style="width:'+x.a+'%;background:#2563eb"></i><i style="width:'+x.b+'%;background:#f59e0b"></i></div></div>'}).join('')+
+      '<h4>'+u('str')+'</h4><p>'+esc(L(p.s))+'</p><h4>'+u('blind')+'</h4><p>'+esc(L(p.b))+'</p><h4>'+u('comm')+'</h4><p>'+esc(L(p.c))+'</p><h4>'+u('mgmt')+'</h4><p>'+esc(L(p.m))+'</p><p class="note">'+u('typeNote')+'</p>'}
+  else if(t.kind==='likert'){const cols={O:'#8b5cf6',C:'#2563eb',E:'#f59e0b',A:'#16a34a',N:'#dc2626'};
+    h+=Object.keys(t.dims).map(d=>{const pct=g.pc[d],lv=pct>=67?'高':pct>=34?'中':'低';return '<div class="dim"><div class="t"><span>'+t.dims[d][0]+' <small>'+t.dims[d][1]+'</small></span><span>'+pct+'%・'+lv+'</span></div><div class="b"><i style="width:'+pct+'%;background:'+(cols[d]||'var(--acc)')+'"></i></div><small>'+t.dims[d][2]+'</small></div>'}).join('')+'<p class="note">分數只代表這次作答的傾向，沒有好壞；不同工作適合不同組合。</p>'}
+  else if(t.kind==='style'){const k=g.top[0];h+='<p style="font-size:20px;margin:10px 0"><b>'+t.types[k][0]+'</b> <small>'+t.types[k][1]+'</small></p><p>'+esc(t.types[k][2])+'</p>'+g.top.map(k=>'<div class="dim"><div class="t"><span>'+t.types[k][0]+'</span><span>'+g.c[k]+' / '+t.q.length+'</span></div><div class="b"><i style="width:'+(g.c[k]/t.q.length*100)+'%;background:var(--acc)"></i></div></div>').join('')}
+  return h}
+function showResult(t,rec,fromHist,auto){stopTick();T=t;VIEW=()=>showResult(t,rec,fromHist,auto);
+  let h='<div class="res">'+(auto?'<p style="color:var(--bad);font-weight:800">'+u('timeUp')+'</p>':'')+'<b style="font-size:17px">'+t.icon+' '+esc(L(t.title))+' — '+u('result')+'</b><div class="note">👤 '+esc(rec.who||'—')+(rec.emp?' · '+esc(rec.emp):'')+' · '+loc(rec.at)+'</div>'+resultBody(t,rec)+'</div>';
+  if(!fromHist)h+=sendBox(rec);
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="again">'+u('again')+'</button><button class="btn g" id="copy">'+u('copy')+'</button><button class="btn g" id="home">'+u('home')+'</button>'+(fromHist?'<button class="btn g" id="delh" style="color:var(--bad)">'+u('del')+'</button>':'')+'</div>';
+  $('app').innerHTML=h;scrollTo(0,0);$('again').onclick=()=>intro(t.id);$('home').onclick=home;
+  $('copy').onclick=()=>{try{navigator.clipboard.writeText(msgText(rec))}catch(e){}$('copy').textContent=u('copied')};
+  if($('delh'))$('delh').onclick=()=>{if(!confirm(u('delAsk')))return;LS.set('quiz_hist2',HIST().filter(r=>r.at!==rec.at));home()};
+  if(!fromHist)bindSend(rec)}
+/* ───── 發群組（用這台裝置已設定好的 PSJHR 雲端；金鑰不寫在程式裡） ───── */
+const DEFAULT_GAS='https://script.google.com/macros/s/AKfycbx9Pdt5vu_AcTHCrlLH4lcVONXS_VoE47SEjDUn7Iv27C2CRgoADRLpalVIJQHWBcqK/exec';
+function cloud(){let key='',url=DEFAULT_GAS;try{key=String(JSON.parse(localStorage.getItem('psjhr_synckey')||'""')||'').trim()}catch(e){}
+  try{const db=JSON.parse(localStorage.getItem('psjhr_db')||'null');if(db&&db.sync&&db.sync.gas)url=db.sync.gas}catch(e){}return {key,url,ok:!!key&&/\/exec$/.test(url)}}
+function msgText(rec){const t=byId(rec.id),g=grade(t,rec.ans||[]);const lines=['🧠 '+u('quizAt')+'｜'+L(t.title),'👤 '+(rec.who||'—')+(rec.emp?'（'+rec.emp+'）':'')];
+  if(rec.mode==='exam')lines.push('📝 '+u('examRec'));
+  else if(t.kind==='score')lines.push('🏆 '+u('score')+'：'+g.ok+'/'+g.n+'（'+g.pct+'%）'+(g.pass!=null?' '+(g.pass?u('passed'):u('failed')):''));
+  else if(t.kind==='type16')lines.push('🧩 '+g.code+' '+L(t.profiles[g.code].n),'📊 '+g.ax.map(x=>x.k[0]+x.a+'/'+x.k[1]+x.b).join('  '));
+  else lines.push('📊 '+g.sum);
+  lines.push('⏱ '+u('used')+'：'+minTxt(rec.secs||0),'📅 '+loc(rec.at));return lines.join('\n')}
+function sendBox(rec){const c=cloud();return '<div class="res" id="sbox"><b>'+u('askSend')+'</b>'+(c.ok?'<div style="display:flex;gap:8px;margin-top:10px"><button class="btn" id="snd" style="flex:1">'+u('send')+'</button><button class="btn g" id="nsnd" style="flex:1">'+u('nosend')+'</button></div>':'<p class="note">'+u('noCloud')+'</p>')+'<div id="smsg" class="note" style="margin-top:6px"></div></div>'}
+function bindSend(rec){if($('nsnd'))$('nsnd').onclick=()=>{$('sbox').remove()};
+  if($('snd'))$('snd').onclick=async()=>{const c=cloud();$('snd').disabled=true;try{const r=await fetch(c.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({api:'psjhr',k:c.key,action:'hr_tg',text:msgText(rec),buttons:[[['🧠 '+u('quizAt'),location.href.split('#')[0]]]]})});const j=await r.json();if(!j.ok)throw new Error(j.msg||j.error||'error');$('sbox').innerHTML='<b style="color:var(--ok)">'+u('sent')+'</b>';const hs=HIST(),x=hs.find(z=>z.at===rec.at);if(x){x.sent=1;LS.set('quiz_hist2',hs)}}catch(e){$('snd').disabled=false;$('smsg').textContent=u('sendFail')+(e.message||e)}}}
+/* ───── HR 批次閱卷 ───── */
+function admin(){stopTick();VIEW=admin;
+  let h='<div class="res"><b style="font-size:17px">'+u('admin')+'</b><p class="note">'+u('adminD')+'</p><label class="btn" style="display:inline-block">'+u('pick')+'<input type="file" id="af" accept=".json,application/json" multiple hidden></label> <button class="btn g" id="aclr">'+u('clear')+'</button></div>';
+  if(BATCH.length){const rows=BATCH.map(b=>{if(b.err)return {b,s:-1};const t=byId(b.id),g=grade(t,b.ans);return {b,t,g,s:g.pct!=null?g.pct:0}}).sort((a,b)=>b.s-a.s);
+    h+='<div class="res" style="overflow-x:auto"><table><tr><th>#</th><th>'+u('name')+'</th><th>'+u('test')+'</th><th>'+u('res')+'</th><th>'+u('used')+'</th><th>'+u('date')+'</th></tr>'+rows.map((r,i)=>r.b.err?'<tr><td>'+(i+1)+'</td><td colspan="5" style="color:var(--bad)">'+esc(r.b.file)+'：'+u('bad')+'</td></tr>':'<tr><td>'+(i+1)+'</td><td>'+esc(r.b.who)+(r.b.emp?'<br><small>'+esc(r.b.emp)+'</small>':'')+'</td><td>'+r.t.icon+' '+esc(L(r.t.title))+'</td><td><b style="color:'+(r.g.pass===false?'var(--bad)':'var(--ok)')+'">'+esc(r.t.kind==='type16'?r.g.code+' '+L(r.t.profiles[r.g.code].n):r.g.sum)+'</b>'+(r.g.pass!=null?'<br><small>'+(r.g.pass?u('passed'):u('failed'))+'</small>':'')+'</td><td>'+minTxt(r.b.secs||0)+'</td><td>'+esc(loc(r.b.at).slice(0,10))+'</td></tr>').join('')+'</table></div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><button class="btn" id="acsv">'+u('csv')+'</button>'+(cloud().ok?'<button class="btn g" id="asnd">'+u('sendSum')+'</button>':'')+'</div><div id="amsg" class="note"></div>';
+    window._rows=rows}
+  h+='<button class="btn g" id="home">'+u('home')+'</button>';$('app').innerHTML=h;scrollTo(0,0);$('home').onclick=home;
+  $('aclr').onclick=()=>{BATCH=[];admin()};
+  $('af').onchange=async e=>{for(const f of e.target.files){try{const j=JSON.parse(await f.text());if(j.app!=='vrt-quiz'||!byId(j.id)||!Array.isArray(j.ans))throw 0;if(!BATCH.some(b=>b.id===j.id&&b.at===j.at&&b.who===j.who))BATCH.push(j)}catch(x){BATCH.push({err:1,file:f.name})}}admin()};
+  if($('acsv'))$('acsv').onclick=()=>{const q=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"';const lines=[['rank','name','staff_no','test','result','pct','pass','minutes','date'].join(',')].concat(window._rows.filter(r=>!r.b.err).map((r,i)=>[i+1,q(r.b.who),q(r.b.emp),q(L(r.t.title)),q(r.t.kind==='type16'?r.g.code:r.g.sum),r.g.pct==null?'':r.g.pct,r.g.pass==null?'':r.g.pass?'Y':'N',Math.round((r.b.secs||0)/60),loc(r.b.at).slice(0,10)].join(',')));download('quiz_results_'+new Date().toISOString().slice(0,10)+'.csv','﻿'+lines.join('\n'),'text/csv')};
+  if($('asnd'))$('asnd').onclick=async()=>{const c=cloud(),ok=window._rows.filter(r=>!r.b.err);const by={};ok.forEach(r=>{(by[r.t.id]=by[r.t.id]||[]).push(r)});
+    const text='🗂️ '+u('admin')+'\n'+Object.values(by).map(a=>{const t=a[0].t;const p=a.filter(r=>r.g.pass).length;return t.icon+' '+L(t.title)+'：'+a.length+' 人'+(t.pass?'，'+u('pass')+' '+p+'/'+a.length:'')+'\n'+a.slice(0,15).map((r,i)=>' '+(i+1)+'. '+r.b.who+'　'+(t.kind==='type16'?r.g.code:r.g.sum)).join('\n')}).join('\n\n');
+    $('asnd').disabled=true;try{const r=await fetch(c.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({api:'psjhr',k:c.key,action:'hr_tg',text,buttons:[]})});const j=await r.json();if(!j.ok)throw new Error(j.msg||j.error||'error');$('amsg').textContent=u('sent')}catch(e){$('asnd').disabled=false;$('amsg').textContent=u('sendFail')+(e.message||e)}}}
+paintLang();home();
 </script></body></html>
