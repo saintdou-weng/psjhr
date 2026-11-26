@@ -4285,7 +4285,7 @@ tbody tr.psj-kn:hover>td,tbody tr.psj-kn-on>td{background:var(--psj-accent-soft)
  if(_cs){ cloudSync=async function(){ const r=await _cs.apply(this,arguments); const before=GATES.every(([k,h])=>{try{const v=JSON.parse(localStorage.getItem(k)||'null');return v&&v.h===h&&v.exp>Date.now()}catch(e){return false}}); if(passGates()&&!before)document.querySelectorAll('iframe.pframe').forEach(fr=>{try{fr.contentWindow.location.reload()}catch(e){}}); return r } }
  /* 側欄最下面原本的「HRA Portal ↗」已經併進來，拿掉；改放兩個平台的原網址（要單獨開時用） */
  try{ const pl=document.getElementById('prodLinks'); if(pl){ const a=[...pl.querySelectorAll('a')].find(x=>/ac-hra-portal/.test(x.href)); if(a)a.remove();
-   pl.insertAdjacentHTML('beforeend',`<a href="${SITES.pay.base}index.html" target="_blank" rel="noopener">💼 HRA-PAY ↗</a><a href="${SITES.hra.base}hra_portal_v2.html" target="_blank" rel="noopener">🏥 HRA Portal ↗</a>`) } }catch(e){}
+   pl.insertAdjacentHTML('beforeend',`<a href="${SITES.pay.base}index.html" target="_blank" rel="noopener">💼 HRA-PAY ↗</a><a href="${SITES.hra.base}hra_portal_v2.html" target="_blank" rel="noopener">🏥 HRA Portal ↗</a><a href="quiz.html">🧠 測驗中心</a>`) } }catch(e){}
  const st=document.createElement('style'); st.textContent=`
  .hub-tabs{display:flex;gap:4px;overflow-x:auto;margin:-4px 0 12px;padding-bottom:2px;border-bottom:1px solid var(--line);scrollbar-width:none;align-items:flex-end}
  .hub-tabs::-webkit-scrollbar{display:none}

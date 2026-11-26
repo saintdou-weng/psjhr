@@ -1,0 +1,68 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>測驗中心 · VRT HR</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--ink:#1e293b;--sub:#64748b;--acc:#2563eb;--line:#e2e8f0}
+@media(prefers-color-scheme:dark){:root{--bg:#0b1020;--card:#131a30;--ink:#e5e7eb;--sub:#94a3b8;--line:#253050}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif}
+header{position:sticky;top:0;z-index:2;background:var(--card);border-bottom:1px solid var(--line);padding:10px 14px;display:flex;align-items:center;gap:10px}
+header a{color:var(--acc);text-decoration:none;font-weight:700}header h1{margin:0;font-size:18px;flex:1}
+main{max-width:860px;margin:0 auto;padding:14px}
+.cats{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px}.cats button{white-space:nowrap;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}.cats button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;cursor:pointer;transition:transform .12s}.card:active,.card:hover{transform:translateY(-2px);border-color:var(--acc)}
+.card .ic{font-size:28px}.card b{display:block;margin-top:4px}.card small{color:var(--sub)}.card .last{margin-top:6px;font-size:12px;color:#16a34a}
+.q{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px}.q h3{margin:0 0 10px;font-size:15px;line-height:1.5}
+.opts{display:grid;gap:6px}.opts button{text-align:left;border:2px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;padding:10px 12px;font:inherit;cursor:pointer}.opts button.on{border-color:var(--acc);background:rgba(37,99,235,.12)}
+.lk{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}.lk button{padding:10px 0;text-align:center;border:2px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;font:inherit;font-weight:800;cursor:pointer}.lk button.on{border-color:var(--acc);background:var(--acc);color:#fff}
+.lkl{display:flex;justify-content:space-between;font-size:11px;color:var(--sub);margin-top:4px}
+.bar{position:sticky;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px 14px;display:flex;gap:10px;align-items:center;margin:0 -14px}
+.btn{border:0;background:var(--acc);color:#fff;border-radius:10px;padding:10px 16px;font:inherit;font-weight:800;cursor:pointer}.btn.g{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.prog{flex:1;height:8px;background:var(--line);border-radius:99px;overflow:hidden}.prog i{display:block;height:100%;background:var(--acc)}
+.res{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px}
+.dim{margin:10px 0}.dim .t{display:flex;justify-content:space-between;font-weight:800}.dim .b{height:14px;border-radius:99px;background:var(--line);overflow:hidden;margin:4px 0}.dim .b i{display:block;height:100%}.dim small{color:var(--sub)}
+.ans{font-size:13px;border-left:4px solid #16a34a;padding:6px 10px;margin:6px 0;background:rgba(22,163,74,.08);border-radius:0 8px 8px 0}.ans.x{border-color:#dc2626;background:rgba(220,38,38,.08)}
+.hist{font-size:13px;color:var(--sub)}
+</style></head><body>
+<header><a href="index.html">◀ VRT HR</a><h1>🧠 測驗中心</h1><input id="who" placeholder="姓名（選填）" style="width:120px;border:1px solid var(--line);border-radius:8px;padding:6px;background:var(--card);color:var(--ink)"></header>
+<main id="app"></main>
+<script src="quiz-data.js"></script><script>
+/* 測驗中心：人格特質、人資知識、安全、精實…分類選測驗；作答→結果（圖表＋解說）；結果存在這台裝置。之後可接到 HRA Portal 培訓給員工測驗。 */
+const $=id=>document.getElementById(id),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const LS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let CAT='all',T=null,ANS=[];$('who').value=LS.get('quiz_who','');$('who').onchange=e=>LS.set('quiz_who',e.target.value.trim());
+const HIST=()=>LS.get('quiz_hist',[]);
+function home(){T=null;const h=HIST();
+  $('app').innerHTML='<div class="cats">'+[['all','全部']].concat(Object.entries(QUIZ_CATS)).map(([k,v])=>'<button data-c="'+k+'" class="'+(k===CAT?'on':'')+'">'+v+'</button>').join('')+'</div><div class="grid">'+
+   QUIZ_BANK.filter(q=>CAT==='all'||q.cat===CAT).map(q=>{const l=h.filter(x=>x.id===q.id)[0];return '<div class="card" data-t="'+q.id+'"><div class="ic">'+q.icon+'</div><b>'+esc(q.zh)+'</b><small>'+esc(q.en)+' · '+q.q.length+' 題 · 約 '+q.min+' 分鐘</small>'+(l?'<div class="last">✅ 上次：'+esc(l.sum)+'（'+l.at.slice(0,10)+'）</div>':'')+'</div>'}).join('')+'</div>'+
+   (h.length?'<h3 style="margin-top:18px">📜 作答紀錄（這台裝置）</h3><div class="hist">'+h.slice(0,20).map(x=>'• '+x.at.slice(0,16).replace('T',' ')+'　'+esc(x.who||'—')+'　'+esc(x.title)+'：'+esc(x.sum)).join('<br>')+'</div>':'');
+  document.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{CAT=b.dataset.c;home()});document.querySelectorAll('[data-t]').forEach(c=>c.onclick=()=>start(c.dataset.t));scrollTo(0,0)}
+function start(id){T=QUIZ_BANK.find(q=>q.id===id);ANS=Array(T.q.length).fill(null);/* 選項每次打亂順序（正確答案不會固定在 A） */ORD=T.q.map(q=>{const n=T.type==='style'?q.length-1:T.type==='choice'?q[1].length:0,a=[...Array(n).keys()];for(let i=n-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a});paint()}
+let ORD=[];
+function paint(){const done=ANS.filter(a=>a!=null).length;
+  let h='<div class="res"><b style="font-size:17px">'+T.icon+' '+esc(T.zh)+'</b><p style="color:var(--sub);margin:6px 0 0">'+esc(T.intro)+'</p></div>';
+  T.q.forEach((q,i)=>{h+='<div class="q" id="q'+i+'"><h3>'+(i+1)+'. '+esc(q[0])+'</h3>';
+    if(T.type==='likert')h+='<div class="lk">'+[1,2,3,4,5].map(v=>'<button data-i="'+i+'" data-v="'+v+'" class="'+(ANS[i]===v?'on':'')+'">'+v+'</button>').join('')+'</div><div class="lkl"><span>很不像我</span><span>很像我</span></div>';
+    else{const opts=T.type==='style'?q.slice(1).map(o=>o[0]):q[1];h+='<div class="opts">'+ORD[i].map((j,n)=>'<button data-i="'+i+'" data-v="'+j+'" class="'+(ANS[i]===j?'on':'')+'">'+String.fromCharCode(65+n)+'. '+esc(opts[j])+'</button>').join('')+'</div>'}
+    h+='</div>'});
+  h+='<div class="bar"><button class="btn g" id="back">◀ 返回</button><div class="prog"><i style="width:'+(done/T.q.length*100)+'%"></i></div><span>'+done+'/'+T.q.length+'</span><button class="btn" id="sub"'+(done<T.q.length?' style="opacity:.5"':'')+'>交卷</button></div>';
+  const y=scrollY;$('app').innerHTML=h;scrollTo(0,y);
+  document.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>{const i=+b.dataset.i;ANS[i]=+b.dataset.v;paint();const nx=document.getElementById('q'+(i+1));if(nx&&ANS[i+1]==null)nx.scrollIntoView({behavior:'smooth',block:'center'})});
+  $('back').onclick=home;$('sub').onclick=()=>{const miss=ANS.findIndex(a=>a==null);if(miss>=0){document.getElementById('q'+miss).scrollIntoView({behavior:'smooth',block:'center'});return}result()}}
+function result(){let h='<div class="res"><b style="font-size:17px">'+T.icon+' '+esc(T.zh)+' — 結果</b>',sum='';
+  if(T.type==='likert'){const sc={};Object.keys(T.dims).forEach(d=>sc[d]=[]);T.q.forEach((q,i)=>{const v=q[2]===-1?6-ANS[i]:ANS[i];sc[q[1]].push(v)});
+    const cols={O:'#8b5cf6',C:'#2563eb',E:'#f59e0b',A:'#16a34a',N:'#dc2626'};
+    h+=Object.keys(T.dims).map(d=>{const a=sc[d],pct=Math.round((a.reduce((x,y)=>x+y,0)/a.length-1)/4*100),lv=pct>=67?'高':pct>=34?'中':'低';
+      return '<div class="dim"><div class="t"><span>'+T.dims[d][0]+' <small>'+T.dims[d][1]+'</small></span><span>'+pct+'%・'+lv+'</span></div><div class="b"><i style="width:'+pct+'%;background:'+cols[d]+'"></i></div><small>'+T.dims[d][2]+'</small></div>'}).join('');
+    sum=Object.keys(T.dims).map(d=>{const a=sc[d];return T.dims[d][0].slice(0,2)+Math.round((a.reduce((x,y)=>x+y,0)/a.length-1)/4*100)}).join(' ');
+    h+='<p style="color:var(--sub);font-size:12px">分數只代表這次作答的傾向，沒有好壞；不同工作適合不同組合。</p>'}
+  else if(T.type==='style'){const c={};Object.keys(T.types).forEach(k=>c[k]=0);T.q.forEach((q,i)=>c[q[1+ANS[i]][1]]++);const top=Object.keys(c).sort((a,b)=>c[b]-c[a]);
+    h+='<p style="font-size:20px;margin:10px 0"><b>'+T.types[top[0]][0]+'</b> <small>'+T.types[top[0]][1]+'</small></p><p>'+esc(T.types[top[0]][2])+'</p>'+top.map(k=>'<div class="dim"><div class="t"><span>'+T.types[k][0]+'</span><span>'+c[k]+' / '+T.q.length+'</span></div><div class="b"><i style="width:'+(c[k]/T.q.length*100)+'%;background:var(--acc)"></i></div></div>').join('');sum=T.types[top[0]][0]}
+  else{let ok=0;const rows=T.q.map((q,i)=>{const r=ANS[i]===q[2];if(r)ok++;return '<div class="ans'+(r?'':' x')+'"><b>'+(i+1)+'. '+(r?'✅':'❌')+' '+esc(q[0])+'</b><br>正確答案：'+esc(q[1][q[2]])+(r?'':'（你選：'+esc(q[1][ANS[i]])+'）')+'<br><small>'+esc(q[3]||'')+'</small></div>'}).join('');
+    const pct=Math.round(ok/T.q.length*100),col=pct>=80?'#16a34a':pct>=60?'#d97706':'#dc2626';
+    h+='<p style="font-size:34px;font-weight:900;color:'+col+';margin:10px 0">'+ok+' / '+T.q.length+'　<small style="font-size:18px">'+pct+'%</small></p><p>'+(pct>=80?'👍 很好，觀念清楚！':pct>=60?'🙂 不錯，看一下錯的題目解說。':'📘 建議再複習一次。')+'</p>'+rows;sum=ok+'/'+T.q.length}
+  h+='</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="again">🔁 再做一次</button><button class="btn g" id="copy">📋 複製結果</button><button class="btn g" id="home">🏠 回測驗列表</button></div>';
+  const rec={id:T.id,title:T.zh,sum,who:LS.get('quiz_who',''),at:new Date().toISOString()};const hs=HIST();hs.unshift(rec);LS.set('quiz_hist',hs.slice(0,200));
+  $('app').innerHTML=h;scrollTo(0,0);$('again').onclick=()=>start(T.id);$('home').onclick=home;
+  $('copy').onclick=()=>{const t=(rec.who?rec.who+' · ':'')+rec.title+'：'+rec.sum+'（'+rec.at.slice(0,10)+'）';navigator.clipboard&&navigator.clipboard.writeText(t);$('copy').textContent='✅ 已複製'}}
+home();
+</script></body></html>
