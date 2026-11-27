@@ -2819,7 +2819,20 @@ function summaryText(k){
  const line=(l,v)=>L.push(`${l}: ${v}`);
  if(k==='dashboard'||k==='reports'){const lkA=latestKey('att');const MA=lkA&&lkA.length===7?rangeFor('M',parseD(lkA+'-01')):R;const A=attAgg(MA),J=agg('joinleave',R),LV=agg('leave',MA),EX=agg('attexc',MA);
   return hrDigest(per,MA,R,A,J,LV,EX,k)}
- else{L.push(`${modIcon(k)} VRT HR　${t(k)}・${per}`);L.push('━━━━━━━━━━━━');const A=agg(k,R);PM[k].forEach(m=>line(ML(m),fmtM(A[m[0]],m[3])))}
+ else{L.push(`${modIcon(k)} VRT HR　${t(k)}・${per}`);L.push('━━━━━━━━━━━━');if(PM[k]){const A=agg(k,R);PM[k].forEach(m=>line(ML(m),fmtM(A[m[0]],m[3])))}
+  else{/* 2026-11-27 員工／薪資設定／職務代碼沒有期間指標（PM），原本按「發 Telegram 摘要」會出錯沒反應：改用頁面上同一組 KPI */
+   if(k!=='emp')L[0]=`${modIcon(k)} VRT HR　${t(k)}・${ymd(TODAY)}`;
+   if(k==='emp'){const all=[...empIdx().values()].filter(e=>e.name||e.status),act=all.filter(e=>e.status==='在職');const asof=ymd(R.to>TODAY?TODAY:R.to),pa=rangeStr(R).a;const sen=act.map(e=>{const j=parseD(e.join_date);return j?(TODAY-j)/864e5/365.25:null}).filter(x=>x!=null);
+    line('👥 '+tt('在職人數','Active headcount'),fmt(act.length)+tt('（女 ','(F ')+fmt(act.filter(e=>e.sex==='女').length)+tt(' / 男 ',' / M ')+fmt(act.filter(e=>e.sex==='男').length)+tt('）',')'));
+    line('🤱 '+tt('留職停薪','Unpaid leave'),fmt(all.filter(e=>e.status==='留職停薪').length));
+    line('🆕 '+tt('期間新進','Joiners in period'),fmt(all.filter(e=>inRange(e.join_date,pa,asof)).length));
+    line('🚪 '+tt('期間離職','Leavers in period'),fmt(all.filter(e=>inRange(e.leave_date,pa,asof)).length));
+    line('⏳ '+tt('平均年資','Avg seniority'),sen.length?fmt(sum(sen,x=>x)/sen.length,1)+' '+t('years'):'—')}
+   else if(k==='basepay'){const rows=DB.basepay||[];const dly=rows.filter(r=>/日/.test(r.pay_type||'')).length;const ed=Object.keys((DB.edits||{}).basepay||{}).length;
+    line('👥 '+tt('已設定薪資人數','People with pay setup'),fmt(rows.length));line('📅 '+tt('月薪制 / 日薪制','Monthly / daily'),fmt(rows.length-dly)+' / '+fmt(dly));line('✏️ '+tt('網頁編輯過','Edited on web'),fmt(ed));L.push(tt('（不含金額，金額請看平台）','(No amounts here; see the platform)'))}
+   else if(k==='jobcode'){const rows=DB.jobcode||[];const g={};rows.forEach(r=>{const c=r.cost_type||tt('未分類','Unclassified');g[c]=(g[c]||0)+1});
+    line('🏷️ '+tt('職務代碼數','Job codes'),fmt(rows.length));Object.keys(g).sort().forEach(c=>line('　'+c,fmt(g[c])));const pg={};rows.forEach(r=>{const c=r.punch||'—';pg[c]=(pg[c]||0)+1});line('🖐️ '+tt('打卡否','Punch'),Object.keys(pg).sort().map(c=>c+' '+fmt(pg[c])).join('｜'))}
+   else line(tt('筆數','Rows'),fmt((DB[k]||[]).length))}}
  L.push('━━━━━━━━━━━━');L.push(tt('來源：BEST 人事系統匯出（唯讀）· PSJHR','Source: BEST HR exports (read-only) · PSJHR'));L.push(tgLinkLine(tgButtons(k,k==='dashboard'?'M':st.pt,R)));return L.join('\n');
 }
 function tgPreview(k){const msg=summaryText(k);const st=S(k==='dashboard'?'att':k);TGPEND={msg,btns:tgButtons(k,k==='dashboard'?'M':st.pt,k==='dashboard'?rangeFor('M',TODAY):rangeOf(st))};
