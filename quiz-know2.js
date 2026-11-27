@@ -15,7 +15,10 @@ window.QUIZ_V2 = window.QUIZ_V2 || [];
     bio: ['🧬', "人體與生物", "Human body & biology", "រាងកាយ និងជីវវិទ្យា"],
     mgmt: ['🧭', "管理領導", "Management", "ការគ្រប់គ្រង"],
     finance: ['💰', "薪資計算（柬埔寨勞動法）", "Payroll (Cambodian labour law)", "ការគណនាប្រាក់ឈ្នួល (ច្បាប់ការងារកម្ពុជា)"],
-    compliance: ['🛡️', "CTPAT 反恐供應鏈安全", "CTPAT supply-chain security", "CTPAT សន្តិសុខខ្សែសង្វាក់ផ្គត់ផ្គង់"]
+    compliance: ['🛡️', "CTPAT 反恐供應鏈安全", "CTPAT supply-chain security", "CTPAT សន្តិសុខខ្សែសង្វាក់ផ្គត់ផ្គង់"],
+    hr: ['👥', "人資知識", "HR knowledge", "ចំណេះដឹងធនធានមនុស្ស"],
+    safety: ['⛑️', "安全衛生", "Safety & health", "សុវត្ថិភាព និងសុខភាព"],
+    lean: ['🏭', "精實生產與 5S", "Lean production & 5S", "ផលិតកម្មស្លីម និង 5S"]
   };
   const KMN = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩'];
   const kmNum = n => String(n).split('').map(d => KMN[+d]).join('');

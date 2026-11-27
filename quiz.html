@@ -39,7 +39,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 <header><a href="index.html">◀ VRT HR</a><h1 id="ttl">🧠 測驗中心</h1>
 <div class="lang" id="lang"><button data-l="0">中</button><button data-l="1">EN</button><button data-l="2">ខ្មែរ</button></div></header>
 <main id="app"></main>
-<script src="quiz-data.js"></script><script src="quiz-type16.js"></script><script src="quiz-know1.js"></script><script src="quiz-know2.js"></script><script src="quiz-know3.js"></script><script>
+<script src="quiz-data.js"></script><script src="quiz-type16.js"></script><script src="quiz-know1.js"></script><script src="quiz-know2.js"></script><script src="quiz-know3.js"></script><script src="quiz-know4.js"></script><script>
 /* 測驗中心 v2（2026-11-26）
    · 中／英／柬三語切換；每份正式測驗約 60 分鐘、有倒數計時，時間到自動交卷。
    · 練習模式：交卷看分數與每題詳解。考試模式：不顯示成績，下載答案檔（JSON）交給 HR，由「HR 批次閱卷」統一改。
@@ -88,7 +88,9 @@ const CATN={personality:["🧠 人格特質","🧠 Personality","🧠 បុគ�
  audit:["🏭 驗廠","🏭 Factory audits","🏭 សវនកម្មរោងចក្រ"],compliance:["🛡️ 合規 CTPAT","🛡️ Compliance / CTPAT","🛡️ អនុលោមភាព"],
  hr:["👥 人資知識","👥 HR knowledge","👥 ចំណេះដឹង HR"],safety:["⛑️ 安全衛生","⛑️ Safety & health","⛑️ សុវត្ថិភាព"],lean:["🏭 精實生產","🏭 Lean production","🏭 ផលិតកម្មស្លីម"],
  mgmt:["🧭 管理領導","🧭 Management","🧭 ការគ្រប់គ្រង"],finance:["💰 財務薪資","💰 Finance & payroll","💰 ហិរញ្ញវត្ថុ"],fun:["🎲 趣味","🎲 Fun","🎲 កម្សាន្ត"]};
-const READY=t=>t.q.length>=5;
+/* 2026-11-28：舊的中文短測驗，新版三語正式測驗滿 20 題就收起來（資料和紀錄都保留，歷史仍查得到） */
+const SUPER={hrbasic:'hr',safety:'safety',lean5s:'lean'};
+const READY=t=>t.q.length>=5&&!(t.old&&SUPER[t.id]&&BANK.filter(x=>x.cat===SUPER[t.id]&&!x.old).reduce((a,x)=>a+x.q.length,0)>=20);
 /* 統一格式：舊題庫（只有中文）轉成新格式 */
 const BANK=[];
 (window.QUIZ_V2||[]).forEach(t=>BANK.push(Object.assign({v:2},t)));
