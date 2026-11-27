@@ -3853,6 +3853,71 @@ RENDER.regs=()=>{const R=window.VRT_REGS;if(!R)return pageHead('regs')+`<div cla
  h+=`<div class="reg-grid mt">${R.topics.map(tp=>{const live=tp.items.filter(i=>i.st!=='hist'),old=tp.items.filter(i=>i.st==='hist'),op=REGST.open[tp.k];return `<div class="panel" style="margin:0"><h2>${tp.ic} ${esc(regL(tp.t))}</h2>${live.map(item).join('')}${old.length?`<button class="btn sm" onclick="regToggle('${tp.k}')">${op?'▲':'▼'} ${tt('歷史','History')} (${old.length})</button>${op?old.map(item).join(''):''}`:''}</div>`}).join('')}</div>`;
  h+=`<p class="small muted mt">${tt('年度調薪細節在「薪資架構」；檢查／稽核日期在 HRA Portal 行事曆（🏛️ 政府檢查／稽核）。新的通知進來時，舊的那筆改成「歷史」保留，不刪。','Annual raise details are in "Salary structure"; inspection / audit dates are in the HRA Portal calendar (🏛️ Inspection / Audit). When a new notice arrives the old entry becomes "History" — never deleted.')}</p>`;
  return h};
+/* ── 原始打卡（指紋原始刷卡＋假別；讀同一個雲端 rawpunch，資料由工廠電腦每日自動上傳）── */
+let RP_DATA=null,RP_LOADING=false,RP_ERR='';
+const RP=window.__RP||(window.__RP={day:'',dep:'',team:'',q:'',only:false});
+const RP_LT={G01:'年假',B01:'事假',C01:'病假',A10:'無薪假',A00:'排休',A01:'公出',D01:'工傷假',E01:'補休',F01:'婚假',F02:'颱風假',H01:'喪假',H02:'喪假',H03:'喪假',H04:'喪假',I01:'產假',I02:'流產假',I03:'陪產假',I04:'NP',B02:'遲到早退'};
+function rpLoad(force){if(RP_LOADING)return;if(RP_DATA&&!force)return;RP_LOADING=true;RP_ERR='';
+  fetch(SAL_URL+'?action=pull&tool=rawpunch&meta=1',{redirect:'follow'}).then(r=>r.json()).then(j=>{
+    const d=(j&&j.data&&j.data.data)||{};const recs=d.records||[];RP_DATA=recs[0]||{att:[],emp:[],leave:[],yymm:'',lastDay:'00',pulled:''};RP_LOADING=false;
+    if(!RP.day)RP.day=RP_DATA.lastDay||'';if(CUR==='rawpunch')rerender();
+  }).catch(e=>{RP_LOADING=false;RP_ERR=String(e&&e.message||e);if(CUR==='rawpunch')rerender()});
+}
+function rpRows(){const D=RP_DATA;if(!D)return[];const pad2=n=>('0'+n).slice(-2);
+  const lmap={};(D.leave||[]).forEach(L=>{const s=L.s,e=L.e||L.s;if(!s)return;let dt=new Date(s+'T00:00:00'),en=new Date(e+'T00:00:00');while(dt<=en){if((''+dt.getFullYear())+pad2(dt.getMonth()+1)===D.yymm){const dd=pad2(dt.getDate()),k=L.id+'|'+dd;(lmap[k]=lmap[k]||[]).push(RP_LT[L.code]||L.name||L.code)}dt.setDate(dt.getDate()+1)}});
+  const em={};(D.emp||[]).forEach(e=>{em[e.id]=e});const lastDay=D.lastDay;
+  return (D.att||[]).map(a=>{const m=em[a.id]||{};const lv=lmap[a.id+'|'+a.d]||[];const worked=!!a.i;const imported=parseInt(a.d,10)<=parseInt(lastDay,10);
+    let cls='',label='';const ll=[...new Set(lv)].join('/');
+    if(worked){if(a.lt>0&&a.et>0){cls='am';label='遲到'+a.lt+'分·早退'+a.et+'分'}else if(a.lt>0){cls='am';label='遲到 '+a.lt+' 分'}else if(a.et>0){cls='am';label='早退 '+a.et+' 分'}else{cls='ok';label='正常'}if(lv.length){label=(label==='正常'?'':label+'·')+'請假:'+ll+'(半天)';if(cls==='ok')cls='leave'}}
+    else{if(lv.length){cls='leave';label='請假:'+ll}else if(a.hh>0&&imported){cls='miss';label='缺勤 '+a.hh+'h'}else if(!imported){cls='rest';label='未匯入'}else{cls='rest';label='休'}}
+    return {id:a.id,nm:m.nm||'',dp:m.dp||'',tm:m.tm||'',du:m.dt||'',d:a.d,i:worked?a.i:'',o:worked?a.o:'',rh:a.rh,cls,label}});
+}
+function rpSet(k,v){RP[k]=v;if(k==='dep')RP.team='';rerender()}
+RENDER.rawpunch=()=>{
+  if(!RP_DATA&&!RP_ERR){rpLoad();return pageHead('rawpunch')+`<div class="panel">☁️ ${tt('讀取雲端打卡資料中…','Loading cloud punch data…')}</div>`}
+  if(RP_ERR)return pageHead('rawpunch')+`<div class="panel">⚠️ ${tt('讀取失敗','Load failed')}：${esc(RP_ERR)}　<button class="btn sm" onclick="RP_ERR='';rpLoad(true)">${tt('重試','Retry')}</button></div>`;
+  const D=RP_DATA;const rows=rpRows();
+  const days=[...new Set((D.att||[]).map(r=>r.d))].sort();if(!RP.day||days.indexOf(RP.day)<0)RP.day=D.lastDay;
+  const deps=[...new Set(rows.map(r=>r.dp).filter(Boolean))].sort();
+  const teams=[...new Set(rows.filter(r=>!RP.dep||r.dp===RP.dep).map(r=>r.tm).filter(Boolean))].sort();
+  const dayRows=rows.filter(r=>r.d===RP.day&&(!RP.dep||r.dp===RP.dep)&&(!RP.team||r.tm===RP.team));
+  const cnt={tot:dayRows.length,ok:0,am:0,leave:0,miss:0,rest:0};dayRows.forEach(r=>{cnt[r.cls]=(cnt[r.cls]||0)+1});
+  let view=dayRows;if(RP.only)view=view.filter(r=>r.cls==='miss'||r.cls==='am');
+  if(RP.q){const q=RP.q.toLowerCase();view=view.filter(r=>r.id.toLowerCase().includes(q)||(r.nm||'').toLowerCase().includes(q))}
+  view=view.slice().sort((x,y)=>x.id>y.id?1:x.id<y.id?-1:0);
+  const BAD={ok:'rp-ok',am:'rp-am',leave:'rp-leave',miss:'rp-miss',rest:'rp-rest'};
+  const acts=`<button class="btn sm" onclick="rpLoad(true)">🔄 ${tt('重新整理','Refresh')}</button>`;
+  let h=pageHead('rawpunch',acts)+`<style>
+    .rp-days{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+    .rp-d{padding:5px 10px;border-radius:7px;background:var(--card2,#eef2f7);cursor:pointer;font-size:.9em;border:1px solid transparent}
+    .rp-d.on{background:#2b6fb3;color:#fff;border-color:#2b6fb3}.rp-d.fut{opacity:.4}
+    .rp-f{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0 12px}
+    .rp-f select,.rp-f input{padding:6px 9px;border-radius:7px;border:1px solid #cbd5e1;font-size:.9em}
+    .rp-t{width:100%;border-collapse:collapse;font-size:.88em}
+    .rp-t th,.rp-t td{padding:6px 9px;border-bottom:1px solid #e2e8f0;text-align:left;white-space:nowrap}
+    .rp-t th{background:var(--card2,#f1f5f9);color:#475569}
+    .rp-t tr.ab{background:rgba(239,68,68,.06)}
+    .rp-bd{padding:2px 8px;border-radius:999px;font-size:.84em;font-weight:600;display:inline-block}
+    .rp-ok{background:#dcfce7;color:#166534}.rp-am{background:#fef3c7;color:#92400e}.rp-leave{background:#dbeafe;color:#1e40af}.rp-miss{background:#fee2e2;color:#b91c1c}.rp-rest{background:#e2e8f0;color:#475569}
+    .rp-id{color:#2563eb;cursor:pointer;font-weight:600}
+  </style>`;
+  h+=`<div class="kpis">${kpi(tt('名冊','Roster'),cnt.tot)}${kpi(tt('正常','Normal'),cnt.ok)}${kpi(tt('遲到/早退','Late/early'),cnt.am)}${kpi(tt('請假','Leave'),cnt.leave)}${kpi(tt('缺勤','Absent'),cnt.miss)}${kpi(tt('資料最新到','Imported to'),D.yymm?D.yymm.slice(4)+'/'+D.lastDay:'—')}</div>`;
+  h+=`<div class="panel mt">`;
+  h+=`<div class="rp-days">${days.map(d=>`<span class="rp-d ${d===RP.day?'on':''} ${parseInt(d,10)>parseInt(D.lastDay,10)?'fut':''}" onclick="rpSet('day','${d}')">${d}</span>`).join('')}</div>`;
+  h+=`<div class="rp-f">
+    <select onchange="rpSet('dep',this.value)"><option value="">${tt('全部部門','All depts')}</option>${deps.map(d=>`<option ${d===RP.dep?'selected':''}>${esc(d)}</option>`).join('')}</select>
+    <select onchange="rpSet('team',this.value)"><option value="">${tt('全部線別','All lines')}</option>${teams.map(x=>`<option ${x===RP.team?'selected':''}>${esc(x)}</option>`).join('')}</select>
+    <input type="search" placeholder="${tt('工號/姓名','ID/Name')}" value="${esc(RP.q)}" onchange="rpSet('q',this.value)">
+    <label style="display:flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" ${RP.only?'checked':''} onchange="rpSet('only',this.checked)"> ${tt('只看缺勤/異常','Absent/exceptions only')}</label>
+    <span class="small muted" style="margin-left:auto">${tt('更新','Updated')} ${esc(D.pulled||'')}</span>
+  </div>`;
+  h+=`<div style="overflow:auto"><table class="rp-t"><thead><tr><th>${tt('工號','ID')}</th><th>${tt('姓名','Name')}</th><th>${tt('部門','Dept')}</th><th>${tt('線別','Line')}</th><th>${tt('進','In')}</th><th>${tt('出','Out')}</th><th>${tt('實工時','Hr')}</th><th>${tt('假別/狀態','Leave/Status')}</th></tr></thead><tbody>`;
+  h+=view.map(r=>`<tr class="${r.cls==='miss'?'ab':''}"><td><span class="rp-id" onclick="try{openEmp('${esc(r.id)}')}catch(e){}">${esc(r.id)}</span></td><td>${esc(r.nm)||'—'}</td><td>${esc(r.dp)}</td><td>${esc(r.tm)}</td><td>${r.i||'—'}</td><td>${r.o||'—'}</td><td>${r.rh?Number(r.rh).toFixed(1):'—'}</td><td><span class="rp-bd ${BAD[r.cls]}">${esc(r.label)}</span></td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="padding:16px">${tt('無資料','No data')}</td></tr>`;
+  h+=`</tbody></table></div>`;
+  h+=`<p class="small muted mt">${tt('正常=有刷卡足時；遲到/早退=有刷卡但遲到或早退；請假=已登錄假單（年假/事假/病假…）；缺勤=應出勤卻沒刷卡也沒請假；休=排休/例假。進=當日最早刷卡、出=最晚刷卡。人事月底把缺勤改成年假/事假後，隔天此頁自動同步。','Normal=full punch; Late/early; Leave=filed; Absent=due but no punch and no leave; Rest. In=first punch, Out=last punch. Updates next day after HR reclassifies absence to leave.')}</p>`;
+  h+=`</div>`;
+  return h;
+};
 RENDER.salstruct=()=>{if(SALST.edit&&!SALST.nog&&document.getElementById('salTbl'))salGrab();if(SALST.yr!=null&&!salMeta(SALST.yr)){SALST.yr=null;SALST.edit=false}return SALST.yr!=null?salYearHTML(SALST.yr):salHomeHTML()};
 /* ── 卡片：點一列看重點，往下捲是下一列 ── */
 function salCard(y,tid,i){const tb=salTables(y).find(t=>t.id===tid);if(!tb||!tb.r[i])return;const sec=k=>{const r=tb.r[k];const ttl=r.slice(0,4).filter(v=>v!==''&&v!=null).slice(0,2).join(' · ');
@@ -3996,6 +4061,8 @@ window.addEventListener('hashchange',()=>{const m=location.hash.match(/^#salstru
  Object.assign(T,{
   g_report:['報表','Reports','របាយការណ៍'],
   g_docs:['文件與培訓','Documents & training','ឯកសារ និងបណ្តុះបណ្តាល'],
+  rawpunch:['原始打卡','Raw punch','ម៉ោងបោះ'],
+  sub_rawpunch:['指紋機原始刷卡＋假別，每人每日（工廠電腦每日自動上傳）','Raw fingerprint punches + leave, per person per day','ម៉ោងបោះដើម + ច្បាប់ឈប់សម្រាក'],
   hub_dash:['總覽','Overview','ទិដ្ឋភាពទូទៅ'],
   frame_note:['這一頁是 {p} 的原頁面，嵌在 VRT HR 裡：上傳、編輯、核准、Telegram 都照原本的方式，資料存在 {p} 的雲端；回到 VRT HR 其他頁時會自動更新。','This is the original {p} page shown inside VRT HR: uploads, edits, approvals and Telegram work as before and the data lives in the {p} cloud; VRT HR refreshes automatically when you come back.','ទំព័រដើមរបស់ {p} បង្ហាញក្នុង VRT HR'],
   frame_open:['在新分頁開啟','Open in new tab','បើកផ្ទាំងថ្មី'],
@@ -4015,6 +4082,7 @@ window.addEventListener('hashchange',()=>{const m=location.hash.match(/^#salstru
   ['x-hra-cert','🛂','g_people',['x-hra-cert']],
   ['x-hra-safety','🦺','g_people',['x-hra-safety']],
   ['x-pay-warn','📛','g_people',['x-pay-warn']],
+  ['rawpunch','🖐️','g_time',['rawpunch']],
   ['att','🕒','g_time',['att','attexc','x-hra-att']],
   ['leave','📝','g_time',['leave','x-hra-leave']],
   ['holiday','📅','g_time',['holiday','x-hra-cal']],
