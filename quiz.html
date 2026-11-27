@@ -39,7 +39,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 <header><a href="index.html">◀ VRT HR</a><h1 id="ttl">🧠 測驗中心</h1>
 <div class="lang" id="lang"><button data-l="0">中</button><button data-l="1">EN</button><button data-l="2">ខ្មែរ</button></div></header>
 <main id="app"></main>
-<script src="quiz-data.js"></script><script src="quiz-type16.js"></script><script src="quiz-know1.js"></script><script src="quiz-know2.js"></script><script>
+<script src="quiz-data.js"></script><script src="quiz-type16.js"></script><script src="quiz-know1.js"></script><script src="quiz-know2.js"></script><script src="quiz-know3.js"></script><script>
 /* 測驗中心 v2（2026-11-26）
    · 中／英／柬三語切換；每份正式測驗約 60 分鐘、有倒數計時，時間到自動交卷。
    · 練習模式：交卷看分數與每題詳解。考試模式：不顯示成績，下載答案檔（JSON）交給 HR，由「HR 批次閱卷」統一改。
@@ -160,8 +160,9 @@ function paint(){VIEW=paint;const done=ANS.filter(a=>a!=null).length;
   $('sub').onclick=()=>{const miss=ANS.findIndex(a=>a==null);if(miss>=0&&!confirm(u('missing'))){document.getElementById('q'+miss).scrollIntoView({behavior:'smooth',block:'center'});return}finish(false)};
   stopTick();const tk=()=>{const left=T.min*60-(Date.now()-T0)/1000;const e=$('tm');if(!e){stopTick();return}e.textContent='⏱ '+fmtT(left);e.classList.toggle('low',left<300);if(left<=0){stopTick();finish(true)}};tk();TICK=setInterval(tk,1000)}
 /* ───── 計分（作答頁、歷史、HR 批次共用） ───── */
-function grade(t,ans){const n=t.q.length;
-  if(t.kind==='score'){let ok=0;t.q.forEach((q,i)=>{if(ans[i]===q.a)ok++});const pct=Math.round(ok/n*100);return {ok,n,pct,pass:t.pass?pct>=t.pass:null,sum:ok+'/'+n+' ('+pct+'%)'}}
+function grade(t,ans){/* 2026-11-27 公平計分：題庫每晚會增加，舊的作答紀錄／答案檔只算「當時作答的那幾題」（新題一律加在後面），不會因為後來多了題目而被扣分 */
+  const n=t.kind==='score'&&ans&&ans.length?Math.min(t.q.length,ans.length):t.q.length;
+  if(t.kind==='score'){let ok=0;t.q.slice(0,n).forEach((q,i)=>{if(ans[i]===q.a)ok++});const pct=Math.round(ok/n*100);return {ok,n,pct,pass:t.pass?pct>=t.pass:null,sum:ok+'/'+n+' ('+pct+'%)'}}
   if(t.kind==='type16'){const c={E:0,I:0,S:0,N:0,T:0,F:0,J:0,P:0};t.q.forEach((q,i)=>{if(ans[i]==null)return;c[q.x[ans[i]]]++});
     const ax=['EI','SN','TF','JP'].map(k=>{const a=c[k[0]],b=c[k[1]],tot=a+b||1;return {k,a:Math.round(a/tot*100),b:100-Math.round(a/tot*100),pick:a>=b?k[0]:k[1]}});const code=ax.map(x=>x.pick).join('');
     return {code,ax,sum:code+' '+ax.map(x=>x.pick+(x.pick===x.k[0]?x.a:x.b)+'%').join(' '),pass:null}}
@@ -184,7 +185,7 @@ function resultBody(t,rec){const g=grade(t,rec.ans);let h='';
       '<p class="note">'+u('used')+' '+minTxt(rec.secs||0)+'</p>';
     const tags={};t.q.forEach((q,i)=>{const k=q.tag||'-';tags[k]=tags[k]||[0,0];tags[k][1]++;if(rec.ans[i]===q.a)tags[k][0]++});
     if(Object.keys(tags).length>1)h+='<div class="chips">'+Object.entries(tags).map(([k,v])=>'<span>'+({geo:'🌏',bio:'🧬',riddle:'🤔',culture:'🎎',brand:'🏷️',logic:'🧮',img:'🖼️',fact:'✅'}[k]||'•')+' '+v[0]+'/'+v[1]+'</span>').join('')+'</div>';
-    h+=t.q.map((q,i)=>{const a=rec.ans[i],r=a===q.a,opt=v=>v==null?u('none'):q.t==='tf'?(v===0?u('T'):u('F')):L(q.o[v]);
+    h+=t.q.slice(0,(rec.ans&&rec.ans.length)||t.q.length).map((q,i)=>{const a=rec.ans[i],r=a===q.a,opt=v=>v==null?u('none'):q.t==='tf'?(v===0?u('T'):u('F')):L(q.o[v]);
       return '<div class="ans'+(r?'':' x')+'"><b>'+(i+1)+'. '+(r?'✅':'❌')+' '+esc(L(q.q))+'</b>'+(q.svg?'<div style="max-width:180px;margin:4px 0">'+q.svg+'</div>':'')+'<br>'+u('correct')+'：<b>'+esc(opt(q.a))+'</b>'+(r?'':'（'+u('yours')+'：'+esc(opt(a))+'）')+'<span class="ex">💡 '+esc(L(q.ex))+'</span></div>'}).join('')}
   else if(t.kind==='type16'){const p=t.profiles[g.code];
     h+='<p class="note">'+u('yourType')+'</p><div class="big">'+g.code+'</div><p style="font-size:20px;font-weight:800;margin:0">'+esc(L(p.n))+'</p><p style="line-height:1.6">'+esc(L(p.d))+'</p><h4>'+u('axes')+'</h4>'+

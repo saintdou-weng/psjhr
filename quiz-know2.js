@@ -11,14 +11,19 @@ window.QUIZ_V2 = window.QUIZ_V2 || [];
     astro: ['🔭', "天文與自然科學", "Astronomy & science", "តារាសាស្ត្រ និងវិទ្យាសាស្ត្រ"],
     food: ['🍜', "食品與飲食", "Food", "អាហារ"],
     home: ['🛋️', "居家與家具", "Home & furniture", "ផ្ទះ និងគ្រឿងសង្ហារិម"],
-    audit: ['🏭', "驗廠", "Factory audits", "សវនកម្មរោងចក្រ"]
+    audit: ['🏭', "驗廠", "Factory audits", "សវនកម្មរោងចក្រ"],
+    bio: ['🧬', "人體與生物", "Human body & biology", "រាងកាយ និងជីវវិទ្យា"],
+    mgmt: ['🧭', "管理領導", "Management", "ការគ្រប់គ្រង"],
+    finance: ['💰', "薪資計算（柬埔寨勞動法）", "Payroll (Cambodian labour law)", "ការគណនាប្រាក់ឈ្នួល (ច្បាប់ការងារកម្ពុជា)"],
+    compliance: ['🛡️', "CTPAT 反恐供應鏈安全", "CTPAT supply-chain security", "CTPAT សន្តិសុខខ្សែសង្វាក់ផ្គត់ផ្គង់"]
   };
   const KMN = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩'];
   const kmNum = n => String(n).split('').map(d => KMN[+d]).join('');
-  function test(cat, n) {
-    const id = cat + n; let t = window.QUIZ_V2.find(x => x.id === id);
+  /* ser（選填）：同一類裡再分系列，例如語言類的「英文 基礎」「日文 入門」各自成卷：{key:'eng1', icon:'🔤', name:[中,英,柬], min, pass} */
+  function test(cat, n, ser) {
+    const id = (ser ? ser.key + '_' : cat) + n; let t = window.QUIZ_V2.find(x => x.id === id);
     if (!t) {
-      const m = META[cat] || ['📘', cat, cat, cat];
+      const m = ser ? [ser.icon].concat(ser.name) : (META[cat] || ['📘', cat, cat, cat]);
       t = { id, cat, kind: 'score', icon: m[0], min: 60, pass: 60, target: 60,
         title: [m[1] + " 第 " + n + " 回", m[2] + " #" + n, m[3] + " លើកទី " + kmNum(n)],
         intro: ["本類第 " + n + " 回，題庫建置中（每晚增加，目標 60 題、60 分鐘）。60 分及格，交卷後每題都有詳細解答。",
@@ -30,8 +35,8 @@ window.QUIZ_V2 = window.QUIZ_V2 || [];
     return t;
   }
   /* 加題：放進該類最新一回，滿 60 題就開下一回 */
-  function ADD(cat, items) {
-    items.forEach(it => { let n = 1, t = test(cat, n); while (t.q.length >= (t.target || 60)) t = test(cat, ++n); t.q.push(it); });
+  function ADD(cat, items, ser) {
+    items.forEach(it => { let n = 1, t = test(cat, n, ser); while (t.q.length >= (t.target || 60)) t = test(cat, ++n, ser); if (ser && ser.pass) t.pass = ser.pass; t.q.push(it); });
   }
   window.QUIZ_ADD = ADD;
 
