@@ -230,4 +230,5 @@ function admin(){stopTick();VIEW=admin;
     const text='🗂️ '+u('admin')+'\n'+Object.values(by).map(a=>{const t=a[0].t;const p=a.filter(r=>r.g.pass).length;return t.icon+' '+L(t.title)+'：'+a.length+' 人'+(t.pass?'，'+u('pass')+' '+p+'/'+a.length:'')+'\n'+a.slice(0,15).map((r,i)=>' '+(i+1)+'. '+r.b.who+'　'+(t.kind==='type16'?r.g.code:r.g.sum)).join('\n')}).join('\n\n');
     $('asnd').disabled=true;try{const r=await fetch(c.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({api:'psjhr',k:c.key,action:'hr_tg',text,buttons:[]})});const j=await r.json();if(!j.ok)throw new Error(j.msg||j.error||'error');$('amsg').textContent=u('sent')}catch(e){$('asnd').disabled=false;$('amsg').textContent=u('sendFail')+(e.message||e)}}}
 paintLang();home();
-</script></body></html>
+</script><script src="https://saintdou-weng.github.io/ac-admin/shared/legible.js?v=1.0.1" async></script>
+</body></html>
